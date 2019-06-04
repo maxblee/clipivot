@@ -16,7 +16,7 @@ figure out which parts of a dataset they can filter out so they can read it into
 
 Second, I want it to be as easy as possible for people to log queries using this tool. One of the weaknesses of command-line interfaces in
 comparison to programming and query languages is that documenting work in CLIs typically involves copying and pasting queries. By comparison,
-the `--log`` parameter in `csvpivot` makes it easy to keep a record of your work. More on that later.
+the `--log` parameter in `csvpivot` makes it easy to keep a record of your work. More on that later.
 
 ## Logging
 Say you found something interesting using a query in `csvpivot` and you want to keep a record of it. You could copy and paste that query
@@ -31,20 +31,20 @@ data; instead, if the file exists, it will simply add a line break and begin a n
 By default, `--log` will run the `csvpivot` command. But you can add a `--no-run` parameter to log the query without running the program.
 
 As an example, if you type
-``
+```
 csvpivot mydata.csv count -i=name --log notes.txt --no-run
-``
+```
 at 10:00 a.m. local time on August 3, 2019, `csvpivot` will prompt you to provide some information about what your query shows:
-``
+```
 Describe what this query does, why you ran it, and what it shows:
   Ran counts on name field to see if there are any oddly frequent names. Found 33,475 records were empty.
-``
+```
 Then, if you do not have an existing file called `notes.txt`, it will create a `notes.txt` file that looks like:
-``
+```
 Data diary analyzing mydata.csv. Created 2019-08-03 10:00:00
 
 2019-08-03 10:00:00
   Ran counts on name field to see if there are any oddly frequent names. Found 33,475 records were empty.
   Query:  csvpivot mydata.csv count -i=name
-``
+```
 If the `notes.txt` file already existed, `csvpivot` will simply add a line break and add the last three lines to your file.
