@@ -1,22 +1,36 @@
 # csvpivot
 A tool for creating pivot tables from the command line.
 
-## The pitch
-Pivot tables are a useful tool for quickly exploring data. You can use them to identify potential stories and to identify potential
-data quality and data consistency problems. Over the course of this tutorial, I'll go over some specific examples that show how you
-can use this tool, and how you can use pivot tables in general, for all of these purposes. 
+## Table of Contents
+**[Why should you use this? (The pitch)](#pitch)**<br>
+**[Why shouldn't you use it? (The anti-pitch)](#anti-pitch)**<br>
+**[Logging](#logging)**<br>
 
-But before I do that, I want to talk about why I designed `csvpivot.` 
+## Why should you use this? (The pitch)
+Pivot tables are a useful tool for quickly exploring data. As I go through this tutorial, you'll see some ways that you can use pivot tables to identify potential stories and to identify data quality and data consistency problems. 
 
-There are two things I hope this command-line interface does well. First, I hope the tool makes it easier to set up pivot tables for simple
-data exploration tasks involving large datasets. I want it to serve as a way to allow people to interview data before loading it into SQL
-and before worrying about memory constrains in Python or R. I think the tool can help people figure out what sorts of things they might need
-to do to clean a given dataset, and what sort of analysis they want to perform on the dataset. It should also be useful for helping people
-figure out which parts of a dataset they can filter out so they can read it into memory in Python or R.
+But in order to set up a pivot table on a large dataset (as in larger than about ~1 GB, depending on how much RAM you have), you need
+to either load the data into SQL and use `GROUP BY` queries, or you need to create pivot tables on small-ish chunks of data using libraries like `pandas` and use concatenation methods to consolidate the rows and columns of different pivot tables into a single
+pivot table. The first method isn't ideal for data exploration tasks; the latter method is a pain and can be prone to error.
 
-Second, I want it to be as easy as possible for people to log queries using this tool. One of the weaknesses of command-line interfaces in
-comparison to programming and query languages is that documenting work in CLIs typically involves copying and pasting queries. By comparison,
-the `--log` parameter in `csvpivot` makes it easy to keep a record of your work. More on that later.
+This library is meant to address that problem. Written in Rust, `csvpivot` is designed to work quickly on large datasets. And
+I've written all of the aggregation methods (e.g. sum, mean, etc.) so they work on chunks as well as on entire datasets. It still works
+on small datasets, of course, so it can be useful if you find it more convenient to work from the command line. But it's particularly
+useful for handling multi-gigabyte files, where there isn't necessarily a great alternative for simple data exploration tasks.
+
+And one last thing. As a journalist, I've written this tool with an eye for keeping a record of queries you've written, so colleagues
+can replicate your work and so you can remember what queries led to interesting findings. That's not a reason to use
+this command-line interface in itself, but it is a handy (and slightly more sophisticated) alternative to
+```
+csvpivot sample.csv count -r=name -c=type > sample_pivot.csv && echo csvpivot sample.csv count -r=name -c=type > sample_pivot.csv
+```
+## Why shouldn't you use it? (The anti-pitch)
+There are two main places where it doesn't make sense to use `csvpivot`.
+
+First, I don't expect that `csvpivot` will run any faster than SQL, so if you've already loaded data into SQL, I don't think it particularly makes sense to use this tool.
+
+Second `csvpivot` does not have the flexibility of methods like `pandas.pivot_table`. (Pandas allows you to use the `aggfunc` argument
+to use any function for the values of the cells; `csvpivot` does not.)
 
 ## Logging
 Say you found something interesting using a query in `csvpivot` and you want to keep a record of it. You could copy and paste that query
