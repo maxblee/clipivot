@@ -1,0 +1,20 @@
+name: "csvpivot"
+about: "A tool for creating pivot tables from the command line"
+
+settings:
+  - ArgRequiredElseHelp
+
+args:
+  - FILENAME:
+      help: the path to the delimited file you want to create a pivot table from
+      required: true
+      index: 1
+  - log:
+      help: adds a record to a data diary, data-diary.txt by default. Accepts an optional filename to save to
+      long: log
+      short: l
+      takes_value: true
+      default_value: data-diary.txt
+  - no-run:
+      help: prevents the query from running. Designed to be used with `--log`
+      long: no-run
