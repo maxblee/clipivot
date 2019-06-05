@@ -23,6 +23,7 @@ fn parse_message() -> String {
 }
 
 fn parse_query() -> String {
+    // returns command line query (e.g. if you type `ls -a` returns 'ls -a'
     let mut query = String::new();
     for arg in env::args() {
         query.push_str(&arg);
@@ -32,6 +33,7 @@ fn parse_query() -> String {
 }
 
 pub fn update_diary(filename: &str) {
+    // appends or creates data diary with new record. Adds creation time if creating
     let str_time = get_time();
     let log_info = format!("{}\n\t{}\tQuery: {}", str_time, parse_message(), parse_query());
     let mut fp = OpenOptions::new()
