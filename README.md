@@ -30,8 +30,8 @@ There are two main places where it doesn't make sense to use `csvpivot`.
 
 First, I don't expect that `csvpivot` will run any faster than SQL, so if you've already loaded data into SQL, I don't think it particularly makes sense to use this tool.
 
-Second `csvpivot` does not have the flexibility of methods like `pandas.pivot_table`. (Pandas allows you to use the `aggfunc` argument
-to use any function for the values of the cells; `csvpivot` does not.)
+Second `csvpivot` does not have the flexibility of methods like `pandas.pivot_table`, so if you have a use case where you need to calculate values over a function not supported in `csvpivot`, there isn't a great way to do that. (Pandas allows you to use the `aggfunc` argument to use any function for the values of the cells; `csvpivot` does not.) That said, if you have a function that you
+anticipate other people might use, please contact me and I can incorporate it into the tool.
 
 ## Usage Guide
 ### Logging
