@@ -48,19 +48,18 @@ By default, `--log` will run the `csvpivot` command. But you can add a `--no-run
 
 As an example, if you type
 ```
-csvpivot mydata.csv count -i=name --log notes.txt --no-run
+csvpivot sample.csv count -r=name -c=type --log notes.txt --no-run > sample_pivot.csv
 ```
 at 10:00 a.m. local time on August 3, 2019, `csvpivot` will prompt you to provide some information about what your query shows:
 ```
 Describe what this query does, why you ran it, and what it shows:
-  Ran counts on name field to see if there are any oddly frequent names. Found 33,475 records were empty.
+Ran counts on name field to see if there are any oddly frequent names. Found 33,475 records were empty.
 ```
 Then, if you do not have an existing file called `notes.txt`, it will create a `notes.txt` file that looks like:
 ```
-Data diary analyzing mydata.csv. Created 2019-08-03 10:00:00
-
+Data diary notes.txt was created 2019-08-03 10:00:00
 2019-08-03 10:00:00
-  Ran counts on name field to see if there are any oddly frequent names. Found 33,475 records were empty.
-  Query:  csvpivot mydata.csv count -i=name
+    Ran counts on name field to see if there are any oddly frequent names. Found 33,475 records were empty.
+    Query:  csvpivot mydata.csv count -i=name
 ```
 If the `notes.txt` file already existed, `csvpivot` will simply add a line break and add the last three lines to your file.
