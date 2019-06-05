@@ -24,7 +24,7 @@ can replicate your work and so you can remember what queries led to interesting 
 this command-line interface in itself, but it is a handy (and slightly more sophisticated) alternative to
 ```
 csvpivot sample.csv count -r=name -c=type > sample_pivot.csv && 
-echo "csvpivot sample.csv count -r=name -c=type > sample_pivot.csv" >> data-diary.txt
+> echo "csvpivot sample.csv count -r=name -c=type > sample_pivot.csv" >> data-diary.txt
 ```
 ## Why shouldn't you use it? (The anti-pitch)
 There are two main places where it doesn't make sense to use `csvpivot`.
