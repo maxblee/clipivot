@@ -43,9 +43,12 @@ pub fn update_diary(filename: &str) {
         .unwrap();
     let mut reader = io::BufReader::new(&fp);
     let mut buf_str = String::new();
-    reader.read_line(&mut buf_str);
+    reader.read_line(&mut buf_str)
+        .expect("Ran into trouble reading the file. Is the file valid UTF-8?");
     if buf_str.is_empty() {
-        writeln!(fp, "Data diary {} was created at {}", filename, str_time);
+        if let Err(e) = writeln!(fp, "Data diary {} was created at {}", filename, str_time) {
+            eprintln!("Couldn't write to file `{}`: {}", filename, e);
+        };
     }
     if let Err(e) = writeln!(fp, "{}", log_info) {
         eprintln!("Couldn't write to file `{}`: {}", filename, e);
