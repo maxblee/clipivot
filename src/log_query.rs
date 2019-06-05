@@ -42,6 +42,7 @@ pub fn update_diary(filename: &str) {
         .open(filename)
         .unwrap();
     let mut reader = io::BufReader::new(&fp);
+    // https://jonalmeida.com/posts/2015/03/03/rust-new-io/
     let mut buf_str = String::new();
     reader.read_line(&mut buf_str)
         .expect("Ran into trouble reading the file. Is the file valid UTF-8?");
@@ -50,6 +51,7 @@ pub fn update_diary(filename: &str) {
             eprintln!("Couldn't write to file `{}`: {}", filename, e);
         };
     }
+    // https://stackoverflow.com/questions/30684624/what-is-the-best-variant-for-appending-a-new-line-in-a-text-file
     if let Err(e) = writeln!(fp, "{}", log_info) {
         eprintln!("Couldn't write to file `{}`: {}", filename, e);
     }
