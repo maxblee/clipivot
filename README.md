@@ -23,7 +23,8 @@ And one last thing. As a journalist, I've written this tool with an eye for keep
 can replicate your work and so you can remember what queries led to interesting findings. That's not a reason to use
 this command-line interface in itself, but it is a handy (and slightly more sophisticated) alternative to
 ```
-csvpivot sample.csv count -r=name -c=type > sample_pivot.csv && echo "csvpivot sample.csv count -r=name -c=type > sample_pivot.csv" > data-diary.txt
+csvpivot sample.csv count -r=name -c=type > sample_pivot.csv && 
+echo "csvpivot sample.csv count -r=name -c=type > sample_pivot.csv" >> data-diary.txt
 ```
 ## Why shouldn't you use it? (The anti-pitch)
 There are two main places where it doesn't make sense to use `csvpivot`.
