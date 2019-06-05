@@ -23,13 +23,13 @@ fn parse_message() -> String {
 }
 
 fn parse_query() -> String {
-    // returns command line query (e.g. if you type `ls -a` returns 'ls -a'
-    let mut query = String::new();
-    for arg in env::args() {
-        query.push_str(&arg);
-        query.push(' ');
+    // returns the String you entered into the command line
+    let mut query_txt : Vec<String> = Vec::new();
+    let query = env::args();
+    for arg in query {
+        query_txt.push(arg);
     }
-    query
+    query_txt.join(" ")
 }
 
 pub fn update_diary(filename: &str) {

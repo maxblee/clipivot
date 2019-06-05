@@ -2,4 +2,4 @@
 **/*.rs.bk
 .idea/
 *.iml
-data-diary.txt
+tmp/
