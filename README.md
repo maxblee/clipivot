@@ -2,9 +2,10 @@
 A tool for creating pivot tables from the command line.
 
 ## Table of Contents
-**[Why should you use this? (The pitch)](#pitch)**<br>
-**[Why shouldn't you use it? (The anti-pitch)](#anti-pitch)**<br>
-**[Logging](#logging)**<br>
+* **[Why should you use this?](#why-should-you-use-this-the-pitch)**
+* **[Why shouldn't you use it?](#why-shouldnt-you-use-it-the-anti-pitch)**
+* **[Usage Guide](#usage-guide)**
+    - **[Logging](#logging)**
 
 ## Why should you use this? (The pitch)
 Pivot tables are a useful tool for quickly exploring data. As I go through this tutorial, you'll see some ways that you can use pivot tables to identify potential stories and to identify data quality and data consistency problems. 
@@ -32,7 +33,8 @@ First, I don't expect that `csvpivot` will run any faster than SQL, so if you've
 Second `csvpivot` does not have the flexibility of methods like `pandas.pivot_table`. (Pandas allows you to use the `aggfunc` argument
 to use any function for the values of the cells; `csvpivot` does not.)
 
-## Logging
+## Usage Guide
+### Logging
 Say you found something interesting using a query in `csvpivot` and you want to keep a record of it. You could copy and paste that query
 into a data diary, after writing down the date and time you wrote the query. Or you could use the `--log` parameter in `csvpivot.`
 
