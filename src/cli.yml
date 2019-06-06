@@ -1,20 +1,51 @@
 name: "csvpivot"
-about: "A tool for creating pivot tables from the command line"
+about: "A tool for creating pivot tables from the command line.\nFor more information, visit https://github.com/maxblee/csvpivot"
 
 settings:
   - ArgRequiredElseHelp
 
 args:
   - FILENAME:
-      help: the path to the delimited file you want to create a pivot table from
+      help: The path to the delimited file you want to create a pivot table from
       required: true
       index: 1
+  - aggfunc:
+      help: The function you use to run accross the pivot table.
+      required: true
+      index: 2
+      possible_values:
+        - count
+        - sum
+        - mean
+        - median
+        - min
+        - max
+        - stdev
+  - rows:
+      help: The name of the index to aggregate on.
+      long: rows
+      short: r
+      takes_value: true
+      multiple: true
+  - columns:
+      help: The name of the column(s) to aggregate on.
+      long: cols
+      short: c
+      takes_value: true
+      multiple: true
+  - values:
+      help: The name of the field used to determine the value (e.g. id for most count operations)
+      long: vals
+      short: v
+      takes_value: true
+      required: true
   - log:
-      help: adds a record to a data diary, data-diary.txt by default. Accepts an optional filename to save to
+      help: Adds a record to a data diary, data-diary.txt by default. Accepts an optional filename to save to
       long: log
       short: l
       takes_value: true
       default_value: data-diary.txt
   - no-run:
-      help: prevents the query from running. Designed to be used with `--log`
+      help: Prevents the query from running. Can only be used with `--log`
       long: no-run
+      requires: log
