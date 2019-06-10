@@ -4,6 +4,7 @@ extern crate clap;
 use clap::App;
 
 mod log_query;
+mod aggregation;
 
 fn main() {
     let yaml_file = load_yaml!("cli.yml");
