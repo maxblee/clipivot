@@ -8,7 +8,7 @@ use errors::CsvPivotError;
 mod parsing;
 mod errors;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum AggregateType {
     Count(usize),
 }
@@ -28,6 +28,7 @@ pub struct Aggregator {
     indexes: HashSet<String>,
     columns: HashSet<String>,
     aggregations: HashMap<(String, String), AggregateType>,
+    aggregation_type: AggregateType,
 }
 
 impl Default for Aggregator {
@@ -40,6 +41,7 @@ impl Default for Aggregator {
             indexes: HashSet::new(),
             columns: HashSet::new(),
             aggregations: HashMap::new(),
+            aggregation_type: AggregateType::Count(0),
         }
     }
 }
@@ -66,7 +68,20 @@ impl Aggregator {
         let indexnames = Aggregator::get_colname(&self.index_cols, &record)?;
         let columnnames = Aggregator::get_colname(&self.column_cols, &record)?;
         let str_val = record.get(self.values_cols).ok_or(CsvPivotError::InvalidField)?;
+        let parsed_val = str_val;   // TODO: Parse Value
+        match self.aggregation_type {
+            AggregateType::Count(_) => self.add_count(indexnames, columnnames),
+        };
         Ok(())
+    }
+    fn add_count(&mut self, indexname: String, columnname: String) {
+        // From https://users.rust-lang.org/t/efficient-string-hashmaps-for-a-frequency-count/7752
+        self.aggregations.entry((indexname, columnname))
+            .and_modify(|val| {
+                let AggregateType::Count(cur_count) = *val;
+                *val = AggregateType::Count(cur_count + 1)
+            })
+            .or_insert(AggregateType::Count(1));
     }
     fn get_colname(indexes: &Vec<usize>, record: &csv::StringRecord) -> Result<String, CsvPivotError> {
         /// Returns the String concatenation of the index fields
@@ -100,6 +115,13 @@ mod tests {
     #[test]
     fn test_aggregate_adds_new_member() {
         let agg = setup_simple();
-        assert!(agg.get_contents().contains_key(&("Columbus.OH".to_string(), "Blue Jackets.Hockey".to_string())));
+        assert!(agg.get_contents().contains_key(&("Columbus$.OH".to_string(), "Blue Jackets$.Hockey".to_string())));
+    }
+    #[test]
+    fn test_adding_record_results_in_single_count() {
+        let agg = setup_simple();
+        assert_eq!(agg.get_contents()
+            .get(&("Columbus$.OH".to_string(), "Blue Jackets$.Hockey".to_string())),
+        Some(&AggregateType::Count(1)));
     }
 }
