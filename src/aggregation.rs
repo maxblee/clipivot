@@ -1,77 +1,84 @@
 extern crate csv;
 
-use std::collections::HashMap;
-use self::csv::StringRecord;
+use std::io;
+use std::collections::{HashSet, HashMap};
+use parsing::ParsingHelper;
+use errors::CsvPivotError;
 
-#[derive(Debug, PartialEq)]
-enum CsvTypes {
-    Text(String),
-}
+mod parsing;
+mod errors;
 
 #[derive(Debug)]
+enum AggregateType {
+    Count(usize),
+}
+
+/// Takes a file and creates a pivot table aggregation from it
+/// That is, given a set of columns as index columns, 'columns' columns,
+/// and a values column, it creates a HashMap of Index, Columns pairs and
+/// simultaneously computes a value based on the value of the records at a given
+/// column.
+/// Uses the `parsing::ParsingHelper` struct to determine how exactly to do this
+#[derive(Debug)]
 pub struct Aggregator {
+    parser: ParsingHelper,
     index_cols: Vec<usize>,
-    col_cols: Vec<usize>,
-    values_col: usize,
-    aggregations: HashMap<(String, String), Vec<Option<String>>>,   // TODO
-    has_nulls: bool,
+    column_cols: Vec<usize>,
+    values_cols: usize,
+    indexes: HashSet<String>,
+    columns: HashSet<String>,
+    aggregations: HashMap<(String, String), AggregateType>,
+}
+
+impl Default for Aggregator {
+    fn default() -> Aggregator {
+        Aggregator {
+            parser: ParsingHelper::default(),
+            index_cols: Vec::new(),
+            column_cols: Vec::new(),
+            values_cols: 0,
+            indexes: HashSet::new(),
+            columns: HashSet::new(),
+            aggregations: HashMap::new(),
+        }
+    }
 }
 
 impl Aggregator {
     fn new() -> Aggregator {
-        Aggregator {
-            index_cols: vec![],
-            col_cols: vec![],
-            values_col: 0,
-            aggregations: HashMap::new(),
-            has_nulls: false,
-        }
+        Aggregator::default()
     }
-    fn set_indexes(self, indexes: Vec<usize>) -> Aggregator {
-        Aggregator {
-            index_cols: indexes,
-            col_cols: self.col_cols,
-            values_col: self.values_col,
-            aggregations: self.aggregations,
-            has_nulls: false,
-        }
+    // approach to method chaining from
+    // http://www.ameyalokare.com/rust/2017/11/02/rust-builder-pattern.html
+    fn set_indexes(mut self, new_indexes: Vec<usize>) -> Self {
+        self.index_cols = new_indexes;
+        self
     }
-    fn set_columns(self, colnames: Vec<usize>) -> Aggregator {
-        Aggregator {
-            index_cols: self.index_cols,
-            col_cols: colnames,
-            values_col: self.values_col,
-            aggregations: self.aggregations,
-            has_nulls: false,
-        }
+    fn set_columns(mut self, new_cols: Vec<usize>) -> Self {
+        self.column_cols = new_cols;
+        self
     }
-
-    fn set_value_column(self, col: usize) -> Aggregator {
-        Aggregator {
-            index_cols: self.index_cols,
-            col_cols: self.col_cols,
-            values_col: col,
-            aggregations: self.aggregations,
-            has_nulls: false,
-        }
+    fn set_value_column(mut self, value_col: usize) -> Self {
+        self.values_cols = value_col;
+        self
     }
-
-    fn add_record(&mut self, record: csv::StringRecord) {
-        let indexname = Aggregator::get_colname(&self.index_cols, &record);
-        let colname= Aggregator::get_colname(&self.col_cols, &record);
-        let val = record.get(self.values_col).map(|v| v.to_string());
-        self.aggregations.entry((indexname, colname)).or_insert(Vec::new()).push(val);
+    fn add_record(&mut self, record: csv::StringRecord) -> Result<(), CsvPivotError> {
+        let indexnames = Aggregator::get_colname(&self.index_cols, &record)?;
+        let columnnames = Aggregator::get_colname(&self.column_cols, &record)?;
+        let str_val = record.get(self.values_cols).ok_or(CsvPivotError::InvalidField)?;
+        Ok(())
     }
-
-    fn get_colname(indexes: &Vec<usize>, record: &csv::StringRecord) -> String {
+    fn get_colname(indexes: &Vec<usize>, record: &csv::StringRecord) -> Result<String, CsvPivotError> {
+        /// Returns the String concatenation of the index fields
+        /// Used to get index and column names
         let mut colnames : Vec<&str> = Vec::new();
         for idx in indexes {
-            colnames.push(record.get(*idx).unwrap_or(""));
+            let idx_column = record.get(*idx).ok_or(CsvPivotError::InvalidField)?;
+            colnames.push(idx_column);
         }
-        colnames.join(".")
+        Ok(colnames.join("$."))
     }
-
-    fn get_contents(&self) -> &HashMap<(String, String), Vec<Option<String>>> {
+    fn get_contents(&self) -> &HashMap<(String, String), AggregateType> {
         &self.aggregations
     }
 }
@@ -85,7 +92,8 @@ mod tests {
             .set_indexes(vec![0,1])
             .set_columns(vec![2,3])
             .set_value_column(4);
-        let record = csv::StringRecord::from(vec!["Columbus", "OH", "Blue Jackets", "Hockey", "Playoffs"]);
+        let record_vec = vec!["Columbus", "OH", "Blue Jackets", "Hockey", "Playoffs"];
+        let record = csv::StringRecord::from(record_vec);
         agg.add_record(record);
         agg
     }
