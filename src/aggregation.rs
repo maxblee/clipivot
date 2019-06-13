@@ -1,16 +1,17 @@
 extern crate csv;
 
 use std::io;
+use std::fs;
 use std::collections::{HashSet, HashMap};
 use parsing::ParsingHelper;
 use errors::CsvPivotError;
-use std::hash::Hash;
+use clap::App;
 
 mod parsing;
 mod errors;
 
 #[derive(Debug, PartialEq)]
-enum AggregateType {
+pub enum AggregateType {
     Count(usize),
 }
 
@@ -48,21 +49,25 @@ impl Default for Aggregator {
 }
 
 impl Aggregator {
-    fn new() -> Aggregator {
+    pub fn new() -> Aggregator {
         Aggregator::default()
     }
     // approach to method chaining from
     // http://www.ameyalokare.com/rust/2017/11/02/rust-builder-pattern.html
-    fn set_indexes(mut self, new_indexes: Vec<usize>) -> Self {
+    pub fn set_indexes(mut self, new_indexes: Vec<usize>) -> Self {
         self.index_cols = new_indexes;
         self
     }
-    fn set_columns(mut self, new_cols: Vec<usize>) -> Self {
+    pub fn set_columns(mut self, new_cols: Vec<usize>) -> Self {
         self.column_cols = new_cols;
         self
     }
-    fn set_value_column(mut self, value_col: usize) -> Self {
+    pub fn set_value_column(mut self, value_col: usize) -> Self {
         self.values_cols = value_col;
+        self
+    }
+    pub fn set_aggregation_type(mut self, agg_type: AggregateType) -> Self {
+        self.aggregation_type = agg_type;
         self
     }
     fn add_record(&mut self, record: csv::StringRecord) -> Result<(), CsvPivotError> {
@@ -100,17 +105,142 @@ impl Aggregator {
         }
         Ok(colnames.join("$."))
     }
-    fn get_contents(&self) -> &HashMap<(String, String), AggregateType> {
+    pub fn parse_writing(&self, row: &String, col: &String) -> String {
+        let aggval = self.aggregations.get(&(*row, *col));
+        match aggval {
+            Some(AggregateType::Count(num)) => num.to_string(),
+            None => "".to_string(),
+        }
+    }
+    pub fn get_contents(&self) -> &HashMap<(String, String), AggregateType> {
         &self.aggregations
     }
-    fn get_indexes(&self) -> &HashSet<String> { &self.indexes }
-    fn get_columns(&self) -> &HashSet<String> { &self.columns }
+    pub fn get_indexes(&self) -> &HashSet<String> { &self.indexes }
+    pub fn get_columns(&self) -> &HashSet<String> { &self.columns }
 }
+
+pub struct CliConfig<'a> {
+    filename: Option<&'a str>,
+    rows: Option<Vec<usize>>,
+    columns: Option<Vec<usize>>,
+    aggfunc: Option<&'a str>,
+    values: Option<usize>
+}
+
+impl<'a> CliConfig<'a> {
+    pub fn from_app(app: App<'a, '_>) -> Result<CliConfig<'a>, CsvPivotError> {
+        let matches = app.get_matches();
+        let vals : usize = matches.value_of("value").unwrap().parse()?;
+        let rows = CliConfig::parse_column(matches.values_of("rows").unwrap().collect())?;
+        let cols = CliConfig::parse_column(matches.values_of("columns").unwrap().collect())?;
+        let config = CliConfig {
+            filename: matches.value_of("filename"),
+            values: Some(vals),
+            rows: Some(rows),
+            columns: Some(cols),
+            aggfunc: matches.value_of("aggfunc")
+        };
+        Ok(config)
+    }
+
+    pub fn to_aggregator(&self) -> Option<Aggregator> {
+        let agg_type = match self.aggfunc.unwrap() {
+            "count" => Some(AggregateType::Count(0)),
+            _ => None
+        };
+        match agg_type {
+            Some(aggfunc) => {
+                Some(Aggregator::new()
+                    .set_indexes(self.rows.unwrap())
+                    .set_columns(self.columns.unwrap())
+                    .set_value_column(self.values.unwrap())
+                    .set_aggregation_type(aggfunc))
+            },
+            None => None
+        }
+    }
+
+    fn parse_column(column: Vec<&str>) -> Result<Vec<usize>, CsvPivotError> {
+        let mut idx_column : Vec<usize> = Vec::new();
+        for idx in column {
+            let index_val = idx.parse()?;
+            idx_column.push(index_val);
+        }
+        Ok(idx_column)
+    }
+    pub fn parse_stdin(&self) -> csv::Reader<io::Stdin> {
+        csv::ReaderBuilder::new()
+            .trim(csv::Trim::All)
+            .from_reader(io::stdin())
+    }
+    pub fn parse_filepath(&self) -> Result<csv::Reader<fs::File>, csv::Error> {
+        csv::ReaderBuilder::new()
+            .trim(csv::Trim::All)
+            .from_path(self.filename.unwrap())
+    }
+    pub fn is_from_path(&self) -> bool {
+        match self.filename {
+            Some(_) => true,
+            None => false
+        }
+    }
+
+//    fn find_name_in_header(name: &str, headers: &Vec<&str>) -> Option<usize> {
+//        for i in 0..headers.len() {
+//            if headers.get(i) == Some(&name) {
+//                return Some(i);
+//            }
+//        }
+//        return None
+//    }
+}
+
+
+
+pub fn run(config: CliConfig) -> Result<(), errors::CsvPivotError> {
+    let mut agg = config.to_aggregator().ok_or(CsvPivotError::InvalidAggregator)?;
+    if config.is_from_path() {
+        let mut rdr = config.parse_filepath()?;
+        for result in rdr.records() {
+            let record = result?;
+            agg.add_record(record)?;
+        }
+    } else {
+        let mut rdr = config.parse_stdin();
+        for result in rdr.records() {
+            let record = result?;
+            agg.add_record(record)?;
+        }
+    }
+    let mut wtr = csv::Writer::from_writer(vec![]);
+    let records = agg.get_contents();
+    let index = agg.get_indexes();
+    let columns = agg.get_columns();
+    let mut header = vec![""];
+    for col in columns {
+        header.push(col);
+    }
+    wtr.write_record(&header);
+    for row in index {
+        let mut record = vec![row];
+        for col in columns {
+            let output = &agg.parse_writing(row, col);
+            record.push(&output);
+        }
+        wtr.write_record(&record);
+    }
+    wtr.flush()?;
+    Ok(())
+}
+
+
+
+
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     // The tests here are designed to test the counting aggregation
     fn setup_simple_count() -> Aggregator {
         let mut agg = Aggregator::new()
@@ -135,6 +265,41 @@ mod tests {
         agg.add_record(fourth_record);
         agg
     }
+    fn setup_record_for_error_checks() -> csv::StringRecord {
+        /// Returns a StringRecord to pass through add_record for error checking
+        let record_vec = vec!["Columbus", "OH", "Blue Jackets", "Hockey", "Playoffs"];
+        csv::StringRecord::from(record_vec)
+    }
+    // check errors. These should work regardless of type (they're only checking for
+    // InvalidField errors
+    #[test]
+    fn test_invalid_indexes_raise_error() {
+        let mut agg = Aggregator::new()
+            .set_indexes(vec![0,5])
+            .set_columns(vec![2,3])
+            .set_value_column(4);
+        let record = setup_record_for_error_checks();
+        assert!(agg.add_record(record).is_err());
+    }
+    #[test]
+    fn test_invalid_columns_raise_error() {
+        let mut agg = Aggregator::new()
+            .set_indexes(vec![0,1])
+            .set_columns(vec![5, 2])
+            .set_value_column(4);
+        let record = setup_record_for_error_checks();
+        assert!(agg.add_record(record).is_err());
+    }
+    #[test]
+    fn test_invalid_values_raise_error() {
+        let mut agg = Aggregator::new()
+            .set_indexes(vec![0,1])
+            .set_columns(vec![2,3])
+            .set_value_column(5);
+        let record = setup_record_for_error_checks();
+        assert!(agg.add_record(record).is_err());
+    }
+
     #[test]
     fn test_aggregate_adds_new_member() {
         let agg = setup_simple_count();

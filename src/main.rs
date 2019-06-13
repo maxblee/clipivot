@@ -1,25 +1,29 @@
+#![allow(dead_code, unused_doc_comments)]
+
 #[macro_use]
 extern crate clap;
 
 use clap::App;
+use std::process;
 
 mod log_query;
 mod aggregation;
 
 fn main() {
     let yaml_file = load_yaml!("cli.yml");
-    let matches = App::from_yaml(yaml_file)
+    let app = App::from_yaml(yaml_file)
         .version(crate_version!())
-        .author(crate_authors!())
-        .get_matches();
+        .author(crate_authors!());
+    let config = match aggregation::CliConfig::from_app(app) {
+        Ok(trial_config) => trial_config,
+        Err(err) => {
+            println!("{}", err);
+            process::exit(1);
+        }
+    };
 
-    //handle the filename (required) argument
-    if let Some(fname) = matches.value_of("FILENAME") {
-//        println!("Do something with {}", fname);
-    }
-
-    if let Some(diary_file) = matches.value_of("log") {
-//        println!("{}\n\t{}\tQuery: {}", get_time(), parse_message(), parse_query());
-        log_query::update_diary(diary_file);
+    if let Err(err) = aggregation::run(config) {
+        println!("{}", err);
+        process::exit(1);
     }
 }
