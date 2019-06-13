@@ -11,18 +11,12 @@ mod aggregation;
 
 fn main() {
     let yaml_file = load_yaml!("cli.yml");
-    let app = App::from_yaml(yaml_file)
+    let matches = App::from_yaml(yaml_file)
         .version(crate_version!())
-        .author(crate_authors!());
-    let config = match aggregation::CliConfig::from_app(app) {
-        Ok(trial_config) => trial_config,
-        Err(err) => {
-            println!("{}", err);
-            process::exit(1);
-        }
-    };
+        .author(crate_authors!())
+        .get_matches();
 
-    if let Err(err) = aggregation::run(config) {
+    if let Err(err) = aggregation::run(matches) {
         println!("{}", err);
         process::exit(1);
     }
