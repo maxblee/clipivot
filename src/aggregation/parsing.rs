@@ -1,9 +1,9 @@
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ParsingType {
     StringType,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ParsingHelper {
     values_type: ParsingType,
     possible_values: Vec<ParsingType>
