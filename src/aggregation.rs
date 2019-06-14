@@ -84,6 +84,49 @@ impl Aggregator {
         self.aggregation_type = agg_type;
         self
     }
+
+    pub fn add_record(&mut self, record: csv::StringRecord) -> Result<(), CsvPivotError> {
+        let indexnames = Aggregator::get_colname(&self.index_cols, &record)?;
+        let columnnames = Aggregator::get_colname(&self.column_cols, &record)?;
+        let str_val = record.get(self.values_col).ok_or(CsvPivotError::InvalidField)?;
+        // This isn't memory efficient, but it should be OK for now
+        // (i.e. I should eventually get self.indexes and self.columns
+        // be tied to self.aggregations, rather than cloned)
+        self.indexes.insert(indexnames.clone());
+        self.columns.insert(columnnames.clone());
+        let parsed_val = str_val; // TODO: Figure out parsing
+        match self.aggregation_type {
+            AggregateType::Count(_) => self.add_count(indexnames, columnnames),
+        };
+        Ok(())
+    }
+
+    fn add_count(&mut self, indexname: String, columnname: String) {
+        // from https://users.rust-lang.org/t/efficient-string-hashmaps-for-a-frequency-count/7752
+        self.aggregations.entry((indexname, columnname))
+            .and_modify(|val| {
+                let AggregateType::Count(cur_count) = *val;
+                *val = AggregateType::Count(cur_count + 1)
+            })
+            .or_insert(AggregateType::Count(1));
+    }
+
+    fn get_colname(columns: &Vec<usize>, record: &csv::StringRecord) -> Result<String, CsvPivotError> {
+        let mut colnames : Vec<&str> = Vec::new();
+        for idx in columns {
+            let idx_column = record.get(*idx).ok_or(CsvPivotError::InvalidField)?;
+            colnames.push(idx_column);
+        }
+        Ok(colnames.join("$."))
+    }
+
+    // The following methods are quick public ways of acquiring data from self
+    pub fn get_contents(&self) -> &HashMap<(String, String), AggregateType> {
+        &self.aggregations
+    }
+
+    pub fn get_indexes(&self) -> &HashSet<String> { &self.indexes }
+    pub fn get_columns(&self) -> &HashSet<String> { &self.columns }
 }
 
 #[derive(Debug, PartialEq)]
@@ -153,6 +196,34 @@ pub fn run(arg_matches : ArgMatches) -> Result<(), CsvPivotError> {
 mod tests {
     use super::*;
 
+    fn setup_simple_record() -> csv::StringRecord {
+        let record_vec = vec!["Columbus", "OH", "Blue Jackets", "Hockey", "Playoffs"];
+        csv::StringRecord::from(record_vec)
+    }
+
+    fn setup_simple_count() -> Aggregator {
+        let mut agg = Aggregator::new()
+            .set_indexes(vec![0,1])
+            .set_columns(vec![2,3])
+            .set_value_column(4);
+        agg.add_record(setup_simple_record());
+        agg
+    }
+
+    fn setup_multiple_counts() -> Aggregator {
+        let mut agg = setup_simple_count();
+        let second_vec = vec!["Nashville", "TN", "Predators", "Hockey", "Playoffs"];
+        let second_record = csv::StringRecord::from(second_vec);
+        agg.add_record(second_record);
+        let third_vec = vec!["Nashville", "TN", "Titans", "Football", "Bad"];
+        let third_record = csv::StringRecord::from(third_vec);
+        agg.add_record(third_record);
+        let fourth_vec = vec!["Columbus", "OH", "Blue Jackets", "Hockey", "Bad"];
+        let fourth_record = csv::StringRecord::from(fourth_vec);
+        agg.add_record(fourth_record);
+        agg
+    }
+
     #[test]
     fn test_matches_yield_proper_config() {
         /// Makes sure the CliConfig::from_arg_matches impl works properly
@@ -193,5 +264,101 @@ mod tests {
             aggregation_type: AggregateType::Count(0),
         };
         assert_eq!(config.to_aggregator().unwrap(), expected);
+    }
+
+    #[test]
+    fn test_invalid_indexes_raise_error() {
+        let mut agg = Aggregator::new()
+            .set_indexes(vec![0,5])
+            .set_columns(vec![2,3])
+            .set_value_column(4);
+        let record = setup_simple_record();
+        assert!(agg.add_record(record).is_err());
+    }
+
+    #[test]
+    fn test_invalid_columns_raise_error() {
+        let mut agg = Aggregator::new()
+            .set_indexes(vec![0,1])
+            .set_columns(vec![5,2])
+            .set_value_column(4);
+        let record = setup_simple_record();
+        assert!(agg.add_record(record).is_err());
+    }
+
+    #[test]
+    fn test_invalid_value_raises_error() {
+        let mut agg = Aggregator::new()
+            .set_indexes(vec![0,1])
+            .set_columns(vec![2,3])
+            .set_value_column(5);
+        let record = setup_simple_record();
+        assert!(agg.add_record(record).is_err());
+    }
+
+    #[test]
+    fn test_aggregate_adds_new_member() {
+        let agg = setup_simple_count();
+        assert!(agg.get_contents()
+            .contains_key(&("Columbus$.OH".to_string(), "Blue Jackets$.Hockey".to_string())));
+    }
+
+    #[test]
+    fn test_adding_record_results_in_single_count() {
+        let agg = setup_simple_count();
+        assert_eq!(agg.get_contents()
+            .get(&("Columbus$.OH".to_string(), "Blue Jackets$.Hockey".to_string())),
+        Some(&AggregateType::Count(1)));
+    }
+
+    #[test]
+    fn test_adding_record_stores_agg_indexes() {
+        let agg = setup_simple_count();
+        let mut expected_indexes = HashSet::new();
+        expected_indexes.insert("Columbus$.OH".to_string());
+        assert_eq!(agg.get_indexes(), &expected_indexes);
+    }
+
+    #[test]
+    fn test_adding_record_stores_agg_columns() {
+        let agg = setup_simple_count();
+        let mut expected_columns = HashSet::new();
+        expected_columns.insert("Blue Jackets$.Hockey".to_string());
+        assert_eq!(agg.get_columns(), &expected_columns);
+    }
+
+    #[test]
+    fn test_multiple_matches_yields_multiple_counts() {
+        let agg = setup_multiple_counts();
+        let actual_counts = agg.get_contents()
+            .get(&("Columbus$.OH".to_string(), "Blue Jackets$.Hockey".to_string()));
+        assert_eq!(actual_counts, Some(&AggregateType::Count(2)));
+    }
+
+    #[test]
+    fn test_different_index_and_cols_yields_one_count() {
+        let agg = setup_multiple_counts();
+        let actual_counts = agg.get_contents()
+            .get(&("Nashville$.TN".to_string(), "Predators$.Hockey".to_string()));
+        assert_eq!(actual_counts, Some(&AggregateType::Count(1)));
+    }
+
+    #[test]
+    fn test_multiple_indexes() {
+        let agg = setup_multiple_counts();
+        let mut expected_indexes = HashSet::new();
+        expected_indexes.insert("Columbus$.OH".to_string());
+        expected_indexes.insert("Nashville$.TN".to_string());
+        assert_eq!(agg.get_indexes(), &expected_indexes);
+    }
+
+    #[test]
+    fn test_multiple_columns() {
+        let agg = setup_multiple_counts();
+        let mut expected_columns = HashSet::new();
+        expected_columns.insert("Blue Jackets$.Hockey".to_string());
+        expected_columns.insert("Predators$.Hockey".to_string());
+        expected_columns.insert("Titans$.Football".to_string());
+        assert_eq!(agg.get_columns(), &expected_columns);
     }
 }
