@@ -52,27 +52,35 @@ impl Default for Aggregator {
 
 impl Aggregator {
     pub fn new() -> Aggregator {
+        /// Creates a new Aggregator; not designed to be used without method chaining below
         Aggregator::default()
     }
 
     // the following approach to method chaining comes from
     // http://www.ameyalokare.com/rust/2017/11/02/rust-builder-pattern.html
     pub fn set_indexes(mut self, new_indexes: Vec<usize>) -> Self {
+        // sets the index columns (i.e. the first column of the pivot table) for the aggregator
         self.index_cols = new_indexes;
         self
     }
 
     pub fn set_columns(mut self, new_cols: Vec<usize>) -> Self {
+        // sets the columns to aggregate on
         self.column_cols = new_cols;
         self
     }
 
     pub fn set_value_column(mut self, value_col: usize) -> Self {
+//        Sets the column that forms the cell aggregations
+//        (e.g. sets a 'salary' column for a sum aggregation,
+//        so the resulting cells determine the SUM of salary
+//        where index columns AND column columns are a given value)
         self.values_col = value_col;
         self
     }
 
     pub fn set_aggregation_type(mut self, agg_type: AggregateType) -> Self {
+        // Sets the aggregation type, which is used when adding rows / writing to stdout
         self.aggregation_type = agg_type;
         self
     }
@@ -80,22 +88,24 @@ impl Aggregator {
 
 #[derive(Debug, PartialEq)]
 pub struct CliConfig {
+    /// The struct for converting from Clap's ArgMatches into the Aggregator struct
     filename: Option<String>,
     rows: Option<Vec<usize>>,
     columns: Option<Vec<usize>>,
-    aggfunc: Option<String>,
+    aggfunc: String,
     values: Option<usize>,
 }
 
 impl CliConfig {
     pub fn from_arg_matches(arg_matches: ArgMatches) -> Result<CliConfig, CsvPivotError> {
+        /// Takes argument matches from main and tries to convert them into CliConfig
         let values: usize = arg_matches.value_of("value").unwrap().parse()?;
         let rows = CliConfig::parse_column(arg_matches
             .values_of("rows").unwrap().collect())?;
         let columns = CliConfig::parse_column(arg_matches
             .values_of("columns").unwrap().collect())?;
         let filename = arg_matches.value_of("filename").map(String::from);
-        let aggfunc = arg_matches.value_of("aggfunc").map(String::from);
+        let aggfunc = arg_matches.value_of("aggfunc").unwrap().to_string();
         let cfg = CliConfig {
             filename,
             rows: Some(rows),
@@ -107,7 +117,18 @@ impl CliConfig {
     }
 
     pub fn to_aggregator(&self) -> Result<Aggregator, CsvPivotError> {
-        let agg = Aggregator::new();
+        /// converts from CliConfig into an Aggregator
+        // take a reference of aggfunc -> Convert from &Option to &String ->
+        // take a reference of &String (so it becomes &str) (**I think?)
+        let agg_type = match self.aggfunc.as_ref() {
+            "count" => Ok(AggregateType::Count(0)),
+            _ => Err(CsvPivotError::InvalidAggregator)
+        }?;
+        let agg = Aggregator::new()
+            .set_indexes(self.rows.clone().unwrap_or(vec![]))
+            .set_columns(self.columns.clone().unwrap_or(vec![]))
+            .set_value_column(self.values.clone().unwrap_or(0))
+            .set_aggregation_type(agg_type);
         Ok(agg)
     }
 
@@ -131,7 +152,6 @@ pub fn run(arg_matches : ArgMatches) -> Result<(), CsvPivotError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::env::var;
 
     #[test]
     fn test_matches_yield_proper_config() {
@@ -148,7 +168,7 @@ mod tests {
             rows: Some(vec![3]),
             columns: Some(vec![1]),
             values: Some(0),
-            aggfunc: Some("count".to_string())
+            aggfunc: "count".to_string(),
         };
         assert_eq!(CliConfig::from_arg_matches(matches).unwrap(), expected_config);
     }
@@ -160,7 +180,7 @@ mod tests {
             rows: Some(vec![3]),
             columns: Some(vec![1]),
             values: Some(0),
-            aggfunc: Some("count".to_string())
+            aggfunc: "count".to_string()
         };
         let expected = Aggregator {
             parser: ParsingHelper::default(),
