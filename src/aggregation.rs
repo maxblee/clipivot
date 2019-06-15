@@ -1,13 +1,10 @@
 //! This module serves as the backbone of `csvpivot`.
 //!
-//! It contains two submodules, one for handling errors
-//! and one for parsing text.
+//! It contains three submodules, one for handling errors,
+//! one for parsing text, and one for handling the aggregation functions.
 //! It contains two structures, the `Aggregator` struct and
 //! the `CliConfig` struct, which converts command-line arguments
 //! into the `Aggregator` struct.
-//! Finally, it has an enum, `AggregateType`, which serves as a way
-//! of allowing me to have functions behave slightly differently based
-//! on how I want to aggregate the values.
 //!
 //! The `run` function, meanwhile, is the part of the code that interacts
 //! with the `main` binary function. I don't expect either it or `main`
