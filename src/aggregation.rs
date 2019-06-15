@@ -1,10 +1,13 @@
 use std::collections::{HashSet, HashMap};
+use std::fs;
+use std::io;
 use clap::ArgMatches;
 
 mod errors;
 mod parsing;
 use crate::aggregation::errors::CsvPivotError;
 use crate::aggregation::parsing::ParsingHelper;
+use core::borrow::Borrow;
 
 #[derive(Debug, PartialEq)]
 pub enum AggregateType {
@@ -85,7 +88,51 @@ impl Aggregator {
         self
     }
 
-    pub fn add_record(&mut self, record: csv::StringRecord) -> Result<(), CsvPivotError> {
+    pub fn aggregate_from_file(&mut self, mut rdr: csv::Reader<fs::File>) -> Result<(), CsvPivotError> {
+        for result in rdr.records() {
+            let record = result?;
+            self.add_record(record)?;
+        }
+        Ok(())
+    }
+
+    pub fn aggregate_from_stdin(&mut self, mut rdr: csv::Reader<io::Stdin>) -> Result<(), CsvPivotError> {
+        for result in rdr.records() {
+            let record = result?;
+            self.add_record(record)?;
+        }
+        Ok(())
+    }
+
+    pub fn write_results(&self) -> Result<(), CsvPivotError> {
+        let mut wtr = csv::Writer::from_writer(io::stdout());
+        let mut header = vec![""];
+        for col in &self.columns {
+            header.push(col);
+        }
+        wtr.write_record(header)?;
+        for row in &self.indexes {
+            let mut record = vec![row.to_string()];
+            for col in &self.columns {
+                let output = self.parse_writing(row, col);
+                record.push(output);
+            }
+            wtr.write_record(record)?;
+        }
+        wtr.flush()?;
+        Ok(())
+    }
+
+    fn parse_writing(&self, row: &String, col: &String) -> String {
+        let aggval = self.aggregations
+            .get(&(row.to_string(), col.to_string()));
+        match aggval {
+            Some(AggregateType::Count(num)) => num.to_string(),
+            None => "".to_string(),
+        }
+    }
+
+    fn add_record(&mut self, record: csv::StringRecord) -> Result<(), CsvPivotError> {
         let indexnames = Aggregator::get_colname(&self.index_cols, &record)?;
         let columnnames = Aggregator::get_colname(&self.column_cols, &record)?;
         let str_val = record.get(self.values_col).ok_or(CsvPivotError::InvalidField)?;
@@ -94,7 +141,9 @@ impl Aggregator {
         // be tied to self.aggregations, rather than cloned)
         self.indexes.insert(indexnames.clone());
         self.columns.insert(columnnames.clone());
-        let parsed_val = str_val; // TODO: Figure out parsing
+        let parsed_val = match self.aggregation_type {
+            AggregateType::Count(_) => str_val,
+        };
         match self.aggregation_type {
             AggregateType::Count(_) => self.add_count(indexnames, columnnames),
         };
@@ -175,6 +224,22 @@ impl CliConfig {
         Ok(agg)
     }
 
+    pub fn get_reader_from_path(&self) -> Result<csv::Reader<fs::File>, csv::Error> {
+        csv::ReaderBuilder::new()
+            .trim(csv::Trim::All)
+            .from_path(self.filename.as_ref().unwrap())
+    }
+
+    pub fn get_reader_from_stdin(&self) -> csv::Reader<io::Stdin> {
+        csv::ReaderBuilder::new()
+            .trim(csv::Trim::All)
+            .from_reader(io::stdin())
+    }
+
+    pub fn is_from_path(&self) -> bool {
+        self.filename.is_some()
+    }
+
     fn parse_column(column: Vec<&str>) -> Result<Vec<usize>, CsvPivotError> {
         let mut indexes = Vec::new();
         for idx in column {
@@ -189,6 +254,14 @@ impl CliConfig {
 pub fn run(arg_matches : ArgMatches) -> Result<(), CsvPivotError> {
     let config = CliConfig::from_arg_matches(arg_matches)?;
     let mut agg = config.to_aggregator()?;
+    if config.is_from_path() {
+        let mut rdr = config.get_reader_from_path()?;
+        agg.aggregate_from_file(rdr)?;
+    } else {
+        let mut rdr = config.get_reader_from_stdin();
+        agg.aggregate_from_stdin(rdr)?;
+    }
+    agg.write_results()?;
     Ok(())
 }
 
@@ -224,6 +297,26 @@ mod tests {
         agg
     }
 
+    fn setup_one_liners() -> CliConfig {
+        CliConfig {
+            filename: Some("test_csvs/one_liner.csv".to_string()),
+            rows: Some(vec![2]),
+            columns: Some(vec![1]),
+            values: Some(0),
+            aggfunc: "count".to_string(),
+        }
+    }
+
+    fn setup_config() -> CliConfig {
+        CliConfig {
+            filename: Some("test_csvs/layoffs.csv".to_string()),
+            rows: Some(vec![3]),
+            columns: Some(vec![1]),
+            values: Some(0),
+            aggfunc: "count".to_string(),
+        }
+    }
+
     #[test]
     fn test_matches_yield_proper_config() {
         /// Makes sure the CliConfig::from_arg_matches impl works properly
@@ -233,26 +326,14 @@ mod tests {
         let matches = clap::App::from_yaml(yaml)
             .version(crate_version!())
             .author(crate_authors!())
-            .get_matches_from(vec!["csvpivot", "count", "tmp/layoffs.csv", "--rows=3", "--cols=1", "--val=0"]);
-        let expected_config = CliConfig {
-            filename: Some("tmp/layoffs.csv".to_string()),
-            rows: Some(vec![3]),
-            columns: Some(vec![1]),
-            values: Some(0),
-            aggfunc: "count".to_string(),
-        };
+            .get_matches_from(vec!["csvpivot", "count", "test_csvs/layoffs.csv", "--rows=3", "--cols=1", "--val=0"]);
+        let expected_config = setup_config();
         assert_eq!(CliConfig::from_arg_matches(matches).unwrap(), expected_config);
     }
 
     #[test]
     fn test_config_creates_proper_aggregator() {
-        let config = CliConfig {
-            filename: Some("tmp/layoffs.csv".to_string()),
-            rows: Some(vec![3]),
-            columns: Some(vec![1]),
-            values: Some(0),
-            aggfunc: "count".to_string()
-        };
+        let config = setup_config();
         let expected = Aggregator {
             parser: ParsingHelper::default(),
             index_cols: vec![3],
@@ -264,6 +345,43 @@ mod tests {
             aggregation_type: AggregateType::Count(0),
         };
         assert_eq!(config.to_aggregator().unwrap(), expected);
+    }
+
+    #[test]
+    fn test_config_can_return_csv_reader_from_filepath() {
+        // Makes sure the Config struct properly returns a CSV Reader
+        // given a filepath
+        let config = setup_one_liners();
+        let mut rdr = config.get_reader_from_path().unwrap();
+        let mut iter = rdr.records();
+        if let Some(result) = iter.next() {
+            let record = result.unwrap();
+            assert_eq!(record, vec!["a", "b", "c"]);
+        }
+    }
+
+    #[test]
+    fn test_config_can_return_csv_reader_from_stdin() {
+        // same as above but with stdin
+
+    }
+
+    #[test]
+    fn test_aggregating_records_ignores_header() {
+        let config = setup_one_liners();
+        let mut agg = config.to_aggregator().unwrap();
+        let mut rdr = config.get_reader_from_path().unwrap();
+        agg.aggregate_from_file(rdr);
+        assert!(agg.get_contents().is_empty());
+    }
+
+    #[test]
+    fn test_aggregating_records_adds_records() {
+        let config = setup_config();
+        let mut agg = config.to_aggregator().unwrap();
+        let mut rdr = config.get_reader_from_path().unwrap();
+        agg.aggregate_from_file(rdr);
+        assert!(agg.get_contents().contains_key(&("sales".to_string(), "true".to_string())));
     }
 
     #[test]

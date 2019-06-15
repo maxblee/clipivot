@@ -1,0 +1,6 @@
+id,was_fired,salary,department
+1,true,25000,sales
+2,true,75000,engineering
+3,false,175000,engineering
+4,true,65000,sales
+5,false,85000,sales
