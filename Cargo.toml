@@ -12,5 +12,5 @@ serde = "1"
 serde_derive = "1"
 
 [dev-dependencies]
-assert_cmd = "0.11"
-assert_fs = "0.11"
+assert_cli = "0.6.3"
+proptest = "0.9.4"

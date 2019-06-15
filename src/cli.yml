@@ -1,5 +1,6 @@
 name: "csvpivot"
-about: "A tool for creating pivot tables from the command line.\nFor more information, visit https://github.com/maxblee/csvpivot"
+about: "A tool for creating pivot tables from the command line.
+\nFor more information, visit https://github.com/maxblee/csvpivot"
 
 settings:
   - ArgRequiredElseHelp

@@ -223,7 +223,7 @@ impl Aggregator {
         // acts differently based on the aggregation type because `count` and `unique`
         // don't require any parsing
         let parsed_val = match self.aggregation_type {
-            AggregateType::Count(_) => str_val,
+            _ => str_val,
         };
         // this determines how to add the data as it's being read
         match self.aggregation_type {
@@ -546,7 +546,7 @@ mod tests {
         let agg = setup_simple_count();
         let mut expected_indexes = HashSet::new();
         expected_indexes.insert("Columbus$.OH".to_string());
-        assert_eq!(agg.indexes, &expected_indexes);
+        assert_eq!(agg.indexes, expected_indexes);
     }
 
     #[test]
@@ -554,7 +554,7 @@ mod tests {
         let agg = setup_simple_count();
         let mut expected_columns = HashSet::new();
         expected_columns.insert("Blue Jackets$.Hockey".to_string());
-        assert_eq!(agg.columns, &expected_columns);
+        assert_eq!(agg.columns, expected_columns);
     }
 
     #[test]
@@ -579,7 +579,7 @@ mod tests {
         let mut expected_indexes = HashSet::new();
         expected_indexes.insert("Columbus$.OH".to_string());
         expected_indexes.insert("Nashville$.TN".to_string());
-        assert_eq!(agg.indexes, &expected_indexes);
+        assert_eq!(agg.indexes, expected_indexes);
     }
 
     #[test]
@@ -589,6 +589,6 @@ mod tests {
         expected_columns.insert("Blue Jackets$.Hockey".to_string());
         expected_columns.insert("Predators$.Hockey".to_string());
         expected_columns.insert("Titans$.Football".to_string());
-        assert_eq!(agg.columns, &expected_columns);
+        assert_eq!(agg.columns, expected_columns);
     }
 }
