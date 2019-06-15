@@ -8,7 +8,6 @@ A tool for creating pivot tables from the command line.
 * **[Usage Guide](#usage-guide)**
     - **[Installation](#installation)**
     - **[Basic Usage](#basic-usage)**
-    - **[Logging](#logging)**
     - **[Advanced Usage](#advanced-usage)**
         - **[Additional Options and Flags](#additional-options-and-flags)**
         - **[Using csvpivot with other tools](#using-csvpivot-with-other-tools)**
@@ -38,6 +37,11 @@ support your particular use case, you should probably use `SQL` or a data scienc
 
 * `csvpivot` is not going to outperform `SQL`. While I've tried to keep the program reasonably fast, it will not reach
 the speeds of `SQL` performance. Queries should be easier to write, however.
+
+* `csvpivot` is not a publication tool. Finding decent ways to aggregate data in a way that is reproducible for a large
+number of datasets and a large number of stories is not easy. So a lot of the time, you will have to clean the CSV
+files after running it through this program. However, I have tried to design the program to operate predictably so
+cleaning data should be somewhat easy.
 
 ## Why pivot tables?
 Before I go into detail about how to use `csvpivot`, I want to show you the kinds of things pivot tables can be useful

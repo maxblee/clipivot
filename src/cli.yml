@@ -14,7 +14,6 @@ args:
 
   - filename:
       help: The path to the delimited file you want to create a pivot table from
-      required: true
       index: 2
 
   - rows:
