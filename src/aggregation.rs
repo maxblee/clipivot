@@ -183,7 +183,12 @@ impl <T: AggregationMethod> Aggregator<T> {
     /// This method parses a given cell, outputting it as a string so the CSV
     /// writer can write the data to standard output
     fn parse_writing(&self, row: &String, col: &String) -> String {
-        "".to_string()
+        let aggval = self.aggregations
+            .get(&(row.to_string(), col.to_string()));
+        match aggval {
+            Some(agg) => "1".to_string(),
+            None => "".to_string()
+        }
     }
 
     fn add_record(&mut self, record: csv::StringRecord) -> Result<(), CsvPivotError> {
