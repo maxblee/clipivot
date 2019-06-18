@@ -222,6 +222,18 @@ impl <U: AggregationMethod> CliConfig<U> {
     pub fn is_from_path(&self) -> bool {
         self.filename.is_some()
     }
+
+    pub fn run_config(&mut self, arg_matches: ArgMatches) -> Result<(), CsvPivotError> {
+        if self.filename.is_some() {
+            let rdr = self.get_reader_from_path()?;
+            self.aggregator.aggregate_from_file(rdr)?;
+        } else {
+            let rdr = self.get_reader_from_stdin()?;
+            self.aggregator.aggregate_from_stdin(rdr);
+        }
+        self.aggregator.write_results()?;
+        Ok(())
+    }
 }
 
 /// Tries to convert the --columns and --rows flags from the CLI into
@@ -239,6 +251,11 @@ pub fn parse_column(column: Vec<&str>) -> Result<Vec<usize>, CsvPivotError> {
 /// This function is the part that directly interacts with `main`.
 /// It shouldn't change, even as I add features and fix bugs.
 pub fn run(arg_matches : ArgMatches) -> Result<(), CsvPivotError> {
+    let aggfunc = arg_matches.value_of("aggfunc").unwrap();
+    if aggfunc == "count" {
+        let mut config : CliConfig<Count> = CliConfig::from_arg_matches(arg_matches)?;
+        config.run_config(arg_matches)?;
+    }
 //    let config = CliConfig::from_arg_matches(arg_matches)?;
 //    let mut agg = config.to_aggregator()?;
 //    if config.is_from_path() {
