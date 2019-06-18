@@ -51,6 +51,7 @@ pub trait AggregationMethod {
     fn new(parsed_val: &ParsingType) -> Self;
     /// Updates an existing method
     fn update(&mut self, parsed_val: &ParsingType);
+    fn to_output(&self) -> String;
 }
 
 struct Count {
@@ -66,6 +67,9 @@ impl AggregationMethod for Count {
     }
     fn update(&mut self, parsed_val: &ParsingType) {
         self.val += 1;
+    }
+    fn to_output(&self) -> String {
+        self.val.to_string()
     }
 }
 
@@ -186,7 +190,7 @@ impl <T: AggregationMethod> Aggregator<T> {
         let aggval = self.aggregations
             .get(&(row.to_string(), col.to_string()));
         match aggval {
-            Some(agg) => "1".to_string(),
+            Some(agg) => agg.to_output(),
             None => "".to_string()
         }
     }
