@@ -77,6 +77,36 @@ pub struct Aggregator<T>
 
 impl <T: AggregationMethod> Aggregator<T> {
 
+    // the following approach to method chaining comes from
+    // http://www.ameyalokare.com/rust/2017/11/02/rust-builder-pattern.html
+    /// Adds the list of index columns to the default aggregator.
+    /// (This approach to method chaining comes from
+    /// http://www.ameyalokare.com/rust/2017/11/02/rust-builder-pattern.html).
+    pub fn set_indexes(mut self, new_indexes: Vec<usize>) -> Self {
+        self.index_cols = new_indexes;
+        self
+    }
+
+    /// Adds the list of columns to the aggregator
+    pub fn set_columns(mut self, new_cols: Vec<usize>) -> Self {
+        self.column_cols = new_cols;
+        self
+    }
+
+    /// Adds the column where the aggregation type is applied.
+    /// For instance, if you decided to `sum` a bunch of salaries
+    /// based on two columns, you would use this function to
+    /// set the value column to the 'salaries' column.
+    /// I've purposefully allowed users to only use a single value
+    /// column. This contrasts with Excel, which allows for multiple values columns.
+    /// As a tool designed for data exploration, I feel that users should limit themselves
+    /// to a single aggregation method. Users can take a different approach
+    /// by joining the data from one pivot table output to the data from another pivot table output.
+    pub fn set_value_column(mut self, value_col: usize) -> Self {
+        self.values_col = value_col;
+        self
+    }
+
     fn add_record(&mut self, record: csv::StringRecord) -> Result<(), CsvPivotError> {
         // merges all of the index columns into a single column, separated by '$.'
         let indexnames = self.get_colname(&self.index_cols, &record)?;
