@@ -240,3 +240,20 @@ impl CliConfig {
     }
 
 }
+
+/// This function is the part that directly interacts with `main`.
+/// It shouldn't change, even as I add features and fix bugs.
+pub fn run(arg_matches : ArgMatches) -> Result<(), CsvPivotError> {
+    let config = CliConfig::from_arg_matches(arg_matches)?;
+//    let mut agg = config.to_aggregator()?;
+//    if config.is_from_path() {
+//        let rdr = config.get_reader_from_path()?;
+//        agg.aggregate_from_file(rdr)?;
+//    } else {
+//        let rdr = config.get_reader_from_stdin();
+//        agg.aggregate_from_stdin(rdr)?;
+//    }
+//    agg.write_results()?;
+//    Ok(())
+    Ok(())
+}
