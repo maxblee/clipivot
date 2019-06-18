@@ -1,5 +1,24 @@
 use std::collections::HashMap;
 
+pub enum ParsingType {
+    Text(Option<String>)
+}
+
+pub struct ParsingHelper {
+    values_type: ParsingType,
+    possible_values: Vec<ParsingType>
+}
+
+impl Default for ParsingHelper {
+    fn default() -> ParsingHelper {
+        ParsingHelper {
+            values_type: ParsingType::Text(None),
+            possible_values: vec![ParsingType::Text(None)]
+        }
+    }
+}
+
+
 pub enum AggTypes {
     Count,
 }
@@ -10,9 +29,9 @@ pub trait AggregationMethod {
     /// Returns the Aggregation method (e.g. AggTypes::Count)
     fn get_aggtype(&self) -> AggTypes;
     /// Instantiates a new Aggregation method
-    fn new(parsed_val: &str) -> Self;
+    fn new(parsed_val: &ParsingType) -> Self;
     /// Updates an existing method
-    fn update(&mut self, parsed_val: &str);
+    fn update(&mut self, parsed_val: &ParsingType);
 }
 
 struct Count {
@@ -23,10 +42,10 @@ impl AggregationMethod for Count {
     type Aggfunc = Count;
 
     fn get_aggtype(&self) -> AggTypes { AggTypes::Count }
-    fn new(parsed_val: &str) -> Self {
+    fn new(parsed_val: &ParsingType) -> Self {
         Count { val: 1 }
     }
-    fn update(&mut self, parsed_val: &str) {
+    fn update(&mut self, parsed_val: &ParsingType) {
         self.val += 1;
     }
 }
@@ -39,7 +58,7 @@ where
 }
 
 impl <T: AggregationMethod> Aggregator<T> {
-    fn update_aggregations(&mut self, indexname: String, columnname: String, parsed_val: &str) {
+    fn update_aggregations(&mut self, indexname: String, columnname: String, parsed_val: &ParsingType) {
         // modified from
         // https://users.rust-lang.org/t/efficient-string-hashmaps-for-a-frequency-count/7752
         self.aggregations.entry((indexname, columnname))
