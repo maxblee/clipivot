@@ -76,13 +76,6 @@ pub struct Aggregator<T>
 }
 
 impl <T: AggregationMethod> Aggregator<T> {
-    fn update_aggregations(&mut self, indexname: String, columnname: String, parsed_val: &ParsingType) {
-        // modified from
-        // https://users.rust-lang.org/t/efficient-string-hashmaps-for-a-frequency-count/7752
-        self.aggregations.entry((indexname, columnname))
-            .and_modify(|val| val.update(parsed_val))
-            .or_insert(T::new(parsed_val));
-    }
 
     fn add_record(&mut self, record: csv::StringRecord) -> Result<(), CsvPivotError> {
         // merges all of the index columns into a single column, separated by '$.'
@@ -107,5 +100,13 @@ impl <T: AggregationMethod> Aggregator<T> {
             colnames.push(idx_column);
         }
         Ok(colnames.join("$."))
+    }
+
+    fn update_aggregations(&mut self, indexname: String, columnname: String, parsed_val: &ParsingType) {
+        // modified from
+        // https://users.rust-lang.org/t/efficient-string-hashmaps-for-a-frequency-count/7752
+        self.aggregations.entry((indexname, columnname))
+            .and_modify(|val| val.update(parsed_val))
+            .or_insert(T::new(parsed_val));
     }
 }
