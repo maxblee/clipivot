@@ -8,10 +8,12 @@ mod errors;
 use crate::aggregation::errors::CsvPivotError;
 use std::hash::Hash;
 
+#[derive(Debug, PartialEq)]
 pub enum ParsingType {
     Text(Option<String>)
 }
 
+#[derive(Debug, PartialEq)]
 pub struct ParsingHelper {
     values_type: ParsingType,
     possible_values: Vec<ParsingType>
@@ -35,7 +37,7 @@ impl ParsingHelper {
     }
 }
 
-
+#[derive(Debug, PartialEq)]
 pub enum AggTypes {
     Count,
 }
@@ -67,6 +69,7 @@ impl AggregationMethod for Count {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Aggregator<T>
     where
         T: AggregationMethod,
@@ -160,45 +163,38 @@ impl <T: AggregationMethod> Aggregator<T> {
 
 /// This struct is intended for converting from Clap's `ArgMatches` to the `Aggregator` struct
 #[derive(Debug, PartialEq)]
-pub struct CliConfig {
+pub struct CliConfig<U>
+    where U:
+        AggregationMethod,
+{
     // set as an option so I can handle standard input
     filename: Option<String>,
-    rows: Option<Vec<usize>>,
-    columns: Option<Vec<usize>>,
-    aggfunc: String,
-    values: Option<usize>,
+    aggregator: Aggregator<U>,
 }
 
-impl CliConfig {
+impl <U: AggregationMethod> CliConfig<U> {
     /// Takes argument matches from main and tries to convert them into CliConfig
-    pub fn from_arg_matches(arg_matches: ArgMatches) -> Result<CliConfig, CsvPivotError> {
+    pub fn from_arg_matches(arg_matches: ArgMatches) -> Result<CliConfig<U>, CsvPivotError> {
         // This method of error handling from
         // https://medium.com/@fredrikanderzon/custom-error-types-in-rust-and-the-operator-b499d0fb2925
         let values: usize = arg_matches.value_of("value").unwrap().parse().or(Err(CsvPivotError::InvalidField))?;
         // Eventually should replace unwrap() from rows and columns with unwrap_or
         // so I can aggregate solely by rows or solely by columns
-        let rows = CliConfig::parse_column(arg_matches
+        let rows = parse_column(arg_matches
             .values_of("rows").unwrap().collect())?;
-        let columns = CliConfig::parse_column(arg_matches
+        let columns = parse_column(arg_matches
             .values_of("columns").unwrap().collect())?;
         let filename = arg_matches.value_of("filename").map(String::from);
-        let aggfunc = arg_matches.value_of("aggfunc").unwrap().to_string();
+        let aggregator : Aggregator<U> = Aggregator::new()
+            .set_value_column(values)
+            .set_columns(columns)
+            .set_indexes(rows);
+
         let cfg = CliConfig {
             filename,
-            rows: Some(rows),
-            columns: Some(columns),
-            aggfunc,
-            values: Some(values),
+            aggregator,
         };
         Ok(cfg)
-    }
-
-    /// Converts from CliConfig into an Aggregator
-    pub fn to_aggregator(&self) -> Result<(), CsvPivotError> {
-        // take a reference of aggfunc -> Convert from &Option to &String ->
-        // take a reference of &String (so it becomes &str) (**I think?)
-        let agg : Aggregator<Count> = Aggregator::new();
-        Ok(())
     }
 
     /// Converts from a file path to either a CSV reader or a CSV error.
@@ -226,25 +222,24 @@ impl CliConfig {
     pub fn is_from_path(&self) -> bool {
         self.filename.is_some()
     }
+}
 
-    /// Tries to convert the --columns and --rows flags from the CLI into
+/// Tries to convert the --columns and --rows flags from the CLI into
     /// a vector of (positive) integers. If it cannot do so, it returns an
     /// `InvalidField` error.
-    fn parse_column(column: Vec<&str>) -> Result<Vec<usize>, CsvPivotError> {
-        let mut indexes = Vec::new();
-        for idx in column {
-            let index_val = idx.parse().or(Err(CsvPivotError::InvalidField))?;
-            indexes.push(index_val);
-        }
-        Ok(indexes)
+pub fn parse_column(column: Vec<&str>) -> Result<Vec<usize>, CsvPivotError> {
+    let mut indexes = Vec::new();
+    for idx in column {
+        let index_val = idx.parse().or(Err(CsvPivotError::InvalidField))?;
+        indexes.push(index_val);
     }
-
+    Ok(indexes)
 }
 
 /// This function is the part that directly interacts with `main`.
 /// It shouldn't change, even as I add features and fix bugs.
 pub fn run(arg_matches : ArgMatches) -> Result<(), CsvPivotError> {
-    let config = CliConfig::from_arg_matches(arg_matches)?;
+//    let config = CliConfig::from_arg_matches(arg_matches)?;
 //    let mut agg = config.to_aggregator()?;
 //    if config.is_from_path() {
 //        let rdr = config.get_reader_from_path()?;
