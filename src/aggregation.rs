@@ -1,4 +1,8 @@
 use std::collections::{HashSet, HashMap};
+use std::io;
+use std::fs;
+
+use clap::ArgMatches;
 
 mod errors;
 use crate::aggregation::errors::CsvPivotError;
@@ -152,4 +156,87 @@ impl <T: AggregationMethod> Aggregator<T> {
             .and_modify(|val| val.update(parsed_val))
             .or_insert(T::new(parsed_val));
     }
+}
+
+/// This struct is intended for converting from Clap's `ArgMatches` to the `Aggregator` struct
+#[derive(Debug, PartialEq)]
+pub struct CliConfig {
+    // set as an option so I can handle standard input
+    filename: Option<String>,
+    rows: Option<Vec<usize>>,
+    columns: Option<Vec<usize>>,
+    aggfunc: String,
+    values: Option<usize>,
+}
+
+impl CliConfig {
+    /// Takes argument matches from main and tries to convert them into CliConfig
+    pub fn from_arg_matches(arg_matches: ArgMatches) -> Result<CliConfig, CsvPivotError> {
+        // This method of error handling from
+        // https://medium.com/@fredrikanderzon/custom-error-types-in-rust-and-the-operator-b499d0fb2925
+        let values: usize = arg_matches.value_of("value").unwrap().parse().or(Err(CsvPivotError::InvalidField))?;
+        // Eventually should replace unwrap() from rows and columns with unwrap_or
+        // so I can aggregate solely by rows or solely by columns
+        let rows = CliConfig::parse_column(arg_matches
+            .values_of("rows").unwrap().collect())?;
+        let columns = CliConfig::parse_column(arg_matches
+            .values_of("columns").unwrap().collect())?;
+        let filename = arg_matches.value_of("filename").map(String::from);
+        let aggfunc = arg_matches.value_of("aggfunc").unwrap().to_string();
+        let cfg = CliConfig {
+            filename,
+            rows: Some(rows),
+            columns: Some(columns),
+            aggfunc,
+            values: Some(values),
+        };
+        Ok(cfg)
+    }
+
+    /// Converts from CliConfig into an Aggregator
+    pub fn to_aggregator(&self) -> Result<(), CsvPivotError> {
+        // take a reference of aggfunc -> Convert from &Option to &String ->
+        // take a reference of &String (so it becomes &str) (**I think?)
+        let agg : Aggregator<Count> = Aggregator::new();
+        Ok(())
+    }
+
+    /// Converts from a file path to either a CSV reader or a CSV error.
+    /// In the spirit of DRY, it would be nice to avoid replicating code from this and
+    /// `get_reader_from_stdin`. This should be able to be done simply by creating a function
+    /// that returns a `csv::ReaderBuilder` and then applying that to both functions.
+    /// That will become especially important when I eventually get around to adding
+    /// additional features, like allowing users to select a delimeter other than ','.
+    pub fn get_reader_from_path(&self) -> Result<csv::Reader<fs::File>, csv::Error> {
+        csv::ReaderBuilder::new()
+            .trim(csv::Trim::All)
+            // this function is only run if self.filename.is_some() so unwrap() is fine
+            .from_path(self.filename.as_ref().unwrap())
+    }
+
+    /// Converts from standard input to a CSV reader.
+    pub fn get_reader_from_stdin(&self) -> csv::Reader<io::Stdin> {
+        csv::ReaderBuilder::new()
+            .trim(csv::Trim::All)
+            .from_reader(io::stdin())
+    }
+
+    /// Returns `true` if the user entered a filename. Used to determine
+    /// whether the program should read from standard input or from a file
+    pub fn is_from_path(&self) -> bool {
+        self.filename.is_some()
+    }
+
+    /// Tries to convert the --columns and --rows flags from the CLI into
+    /// a vector of (positive) integers. If it cannot do so, it returns an
+    /// `InvalidField` error.
+    fn parse_column(column: Vec<&str>) -> Result<Vec<usize>, CsvPivotError> {
+        let mut indexes = Vec::new();
+        for idx in column {
+            let index_val = idx.parse().or(Err(CsvPivotError::InvalidField))?;
+            indexes.push(index_val);
+        }
+        Ok(indexes)
+    }
+
 }
