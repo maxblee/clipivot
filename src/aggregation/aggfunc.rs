@@ -18,6 +18,15 @@ impl Default for ParsingHelper {
     }
 }
 
+impl ParsingHelper {
+    // TODO: Convert to Result Type
+    fn parse_val(&self, new_val: String) -> ParsingType {
+        match self.values_type {
+            ParsingType::Text(_) => ParsingType::Text(Some(new_val)),
+        }
+    }
+}
+
 
 pub enum AggTypes {
     Count,
