@@ -2,6 +2,7 @@ use std::collections::{HashSet, HashMap};
 
 mod errors;
 use crate::aggregation::errors::CsvPivotError;
+use std::hash::Hash;
 
 pub enum ParsingType {
     Text(Option<String>)
@@ -76,6 +77,18 @@ pub struct Aggregator<T>
 }
 
 impl <T: AggregationMethod> Aggregator<T> {
+
+    pub fn new() -> Aggregator<T> {
+        Aggregator {
+            aggregations: HashMap::new(),
+            indexes: HashSet::new(),
+            columns: HashSet::new(),
+            parser: ParsingHelper::default(),
+            index_cols: Vec::new(),
+            column_cols: Vec::new(),
+            values_col: 0,
+        }
+    }
 
     // the following approach to method chaining comes from
     // http://www.ameyalokare.com/rust/2017/11/02/rust-builder-pattern.html
