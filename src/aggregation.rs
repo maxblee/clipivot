@@ -127,6 +127,65 @@ impl <T: AggregationMethod> Aggregator<T> {
         self
     }
 
+    /// Takes a CSV reader object from a file path and adds records, row by row.
+    /// Returns an error if it can't read any of the records.
+    /// This can either happen because of a problem in how the CSV
+    /// was formatted or because the values/columns/indexes
+    /// handed to the aggregator from the command line refer to
+    /// fields that do not exist.
+    /// Additionally, the aggregator currently only supports valid UTF-8
+    /// data, so it won't work on all CSV files. I'd eventually like to support
+    /// all ASCII data.
+    pub fn aggregate_from_file(&mut self, mut rdr: csv::Reader<fs::File>) -> Result<(), CsvPivotError> {
+        for result in rdr.records() {
+            let record = result?;
+            self.add_record(record)?;
+        }
+        Ok(())
+    }
+
+    /// Takes records from standard input and aggregates them row by row. The code here is identical to
+    /// the code in the `aggregate_from_file` function, because the CSV reader
+    /// from handling files is different from the reader for handling standard input.
+    /// In the spirit of DRY, I'm open to suggestions for refactoring this code. But
+    /// it's not really pressing, since we're talking about 5-ish lines of code.
+    pub fn aggregate_from_stdin(&mut self, mut rdr: csv::Reader<io::Stdin>) -> Result<(), CsvPivotError> {
+        for result in rdr.records() {
+            let record = result?;
+            self.add_record(record)?;
+        }
+        Ok(())
+    }
+
+    /// Once I've added all of the records to the dataset, I use this method to
+    /// write them to standard output. The function adds a header based on all of the unique
+    /// strings appearing in the columns column. Then, it parses the data, cell by cell
+    /// and writes the data, row by row, to standard output.
+    pub fn write_results(&self) -> Result<(), CsvPivotError> {
+        let mut wtr = csv::Writer::from_writer(io::stdout());
+        let mut header = vec![""];
+        for col in &self.columns {
+            header.push(col);
+        }
+        wtr.write_record(header)?;
+        for row in &self.indexes {
+            let mut record = vec![row.to_string()];
+            for col in &self.columns {
+                let output = self.parse_writing(row, col);
+                record.push(output);
+            }
+            wtr.write_record(record)?;
+        }
+        wtr.flush()?;
+        Ok(())
+    }
+
+    /// This method parses a given cell, outputting it as a string so the CSV
+    /// writer can write the data to standard output
+    fn parse_writing(&self, row: &String, col: &String) -> String {
+        "".to_string()
+    }
+
     fn add_record(&mut self, record: csv::StringRecord) -> Result<(), CsvPivotError> {
         // merges all of the index columns into a single column, separated by '$.'
         let indexnames = self.get_colname(&self.index_cols, &record)?;
@@ -223,13 +282,13 @@ impl <U: AggregationMethod> CliConfig<U> {
         self.filename.is_some()
     }
 
-    pub fn run_config(&mut self, arg_matches: ArgMatches) -> Result<(), CsvPivotError> {
+    pub fn run_config(&mut self) -> Result<(), CsvPivotError> {
         if self.filename.is_some() {
             let rdr = self.get_reader_from_path()?;
             self.aggregator.aggregate_from_file(rdr)?;
         } else {
-            let rdr = self.get_reader_from_stdin()?;
-            self.aggregator.aggregate_from_stdin(rdr);
+            let rdr = self.get_reader_from_stdin();
+            self.aggregator.aggregate_from_stdin(rdr)?;
         }
         self.aggregator.write_results()?;
         Ok(())
@@ -254,18 +313,7 @@ pub fn run(arg_matches : ArgMatches) -> Result<(), CsvPivotError> {
     let aggfunc = arg_matches.value_of("aggfunc").unwrap();
     if aggfunc == "count" {
         let mut config : CliConfig<Count> = CliConfig::from_arg_matches(arg_matches)?;
-        config.run_config(arg_matches)?;
+        config.run_config()?;
     }
-//    let config = CliConfig::from_arg_matches(arg_matches)?;
-//    let mut agg = config.to_aggregator()?;
-//    if config.is_from_path() {
-//        let rdr = config.get_reader_from_path()?;
-//        agg.aggregate_from_file(rdr)?;
-//    } else {
-//        let rdr = config.get_reader_from_stdin();
-//        agg.aggregate_from_stdin(rdr)?;
-//    }
-//    agg.write_results()?;
-//    Ok(())
     Ok(())
 }
