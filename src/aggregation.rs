@@ -292,3 +292,220 @@ pub fn run(arg_matches : ArgMatches) -> Result<(), CsvPivotError> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn setup_simple_record() -> csv::StringRecord {
+        let record_vec = vec!["Columbus", "OH", "Blue Jackets", "Hockey", "Playoffs"];
+        csv::StringRecord::from(record_vec)
+    }
+
+    fn setup_simple_count() -> Aggregator<Count> {
+        let mut agg = Aggregator::new()
+            .set_indexes(vec![0,1])
+            .set_columns(vec![2,3])
+            .set_value_column(4);
+        agg.add_record(setup_simple_record());
+        agg
+    }
+
+    fn setup_multiple_counts() -> Aggregator<Count> {
+        let mut agg = setup_simple_count();
+        let second_vec = vec!["Nashville", "TN", "Predators", "Hockey", "Playoffs"];
+        let second_record = csv::StringRecord::from(second_vec);
+        agg.add_record(second_record);
+        let third_vec = vec!["Nashville", "TN", "Titans", "Football", "Bad"];
+        let third_record = csv::StringRecord::from(third_vec);
+        agg.add_record(third_record);
+        let fourth_vec = vec!["Columbus", "OH", "Blue Jackets", "Hockey", "Bad"];
+        let fourth_record = csv::StringRecord::from(fourth_vec);
+        agg.add_record(fourth_record);
+        agg
+    }
+    // TODO: Reformat these
+//    fn setup_one_liners() -> CliConfig {
+//        CliConfig {
+//            filename: Some("test_csvs/one_liner.csv".to_string()),
+//            rows: Some(vec![2]),
+//            columns: Some(vec![1]),
+//            values: Some(0),
+//            aggfunc: "count".to_string(),
+//        }
+//    }
+//
+//    fn setup_config() -> CliConfig {
+//        CliConfig {
+//            filename: Some("test_csvs/layoffs.csv".to_string()),
+//            rows: Some(vec![3]),
+//            columns: Some(vec![1]),
+//            values: Some(0),
+//            aggfunc: "count".to_string(),
+//        }
+//    }
+//
+//    #[test]
+//    fn test_matches_yield_proper_config() {
+//        /// Makes sure the CliConfig::from_arg_matches impl works properly
+//        // Note: I eventually want this to come from a setup func, but have to deal with
+//        // lifetimes for that :(
+//        let yaml = load_yaml!("cli.yml");
+//        let matches = clap::App::from_yaml(yaml)
+//            .version(crate_version!())
+//            .author(crate_authors!())
+//            .get_matches_from(vec!["csvpivot", "count", "test_csvs/layoffs.csv", "--rows=3", "--cols=1", "--val=0"]);
+//        let expected_config = setup_config();
+//        assert_eq!(CliConfig::from_arg_matches(matches).unwrap(), expected_config);
+//    }
+//
+//    #[test]
+//    fn test_config_creates_proper_aggregator() {
+//        let config = setup_config();
+//        let expected = Aggregator {
+//            parser: ParsingHelper::default(),
+//            index_cols: vec![3],
+//            column_cols: vec![1],
+//            values_col: 0,
+//            indexes: HashSet::new(),
+//            columns: HashSet::new(),
+//            aggregations: HashMap::new(),
+//        };
+//        assert_eq!(config.to_aggregator().unwrap(), expected);
+//    }
+//
+//    #[test]
+//    fn test_config_can_return_csv_reader_from_filepath() {
+//        // Makes sure the Config struct properly returns a CSV Reader
+//        // given a filepath
+//        let config = setup_one_liners();
+//        let mut rdr = config.get_reader_from_path().unwrap();
+//        let mut iter = rdr.records();
+//        if let Some(result) = iter.next() {
+//            let record = result.unwrap();
+//            assert_eq!(record, vec!["a", "b", "c"]);
+//        }
+//    }
+//
+//    #[test]
+//    fn test_config_can_return_csv_reader_from_stdin() {
+//        // same as above but with stdin
+//
+//    }
+//
+//    #[test]
+//    fn test_aggregating_records_ignores_header() {
+//        let config = setup_one_liners();
+//        let mut agg = config.to_aggregator().unwrap();
+//        let mut rdr = config.get_reader_from_path().unwrap();
+//        agg.aggregate_from_file(rdr);
+//        assert!(agg.aggregations.is_empty());
+//    }
+//
+//    #[test]
+//    fn test_aggregating_records_adds_records() {
+//        let config = setup_config();
+//        let mut agg = config.to_aggregator().unwrap();
+//        let mut rdr = config.get_reader_from_path().unwrap();
+//        agg.aggregate_from_file(rdr);
+//        assert!(agg.aggregations.contains_key(&("sales".to_string(), "true".to_string())));
+//    }
+
+    #[test]
+    fn test_invalid_indexes_raise_error() {
+        let mut agg : Aggregator<Count> = Aggregator::new()
+            .set_indexes(vec![0,5])
+            .set_columns(vec![2,3])
+            .set_value_column(4);
+        let record = setup_simple_record();
+        assert!(agg.add_record(record).is_err());
+    }
+
+    #[test]
+    fn test_invalid_columns_raise_error() {
+        let mut agg : Aggregator<Count> = Aggregator::new()
+            .set_indexes(vec![0,1])
+            .set_columns(vec![5,2])
+            .set_value_column(4);
+        let record = setup_simple_record();
+        assert!(agg.add_record(record).is_err());
+    }
+
+    #[test]
+    fn test_invalid_value_raises_error() {
+        let mut agg : Aggregator<Count> = Aggregator::new()
+            .set_indexes(vec![0,1])
+            .set_columns(vec![2,3])
+            .set_value_column(5);
+        let record = setup_simple_record();
+        assert!(agg.add_record(record).is_err());
+    }
+
+    #[test]
+    fn test_aggregate_adds_new_member() {
+        let agg = setup_simple_count();
+        assert!(agg.aggregations
+            .contains_key(&("Columbus$.OH".to_string(), "Blue Jackets$.Hockey".to_string())));
+    }
+// TODO: This will fail right now. Fix it
+
+//    #[test]
+//    fn test_adding_record_results_in_single_count() {
+//        let agg = setup_simple_count();
+//        assert_eq!(agg.aggregations
+//                       .get(&("Columbus$.OH".to_string(), "Blue Jackets$.Hockey".to_string())),
+//                   Some(&AggregateType::Count(1)));
+//    }
+
+    #[test]
+    fn test_adding_record_stores_agg_indexes() {
+        let agg = setup_simple_count();
+        let mut expected_indexes = HashSet::new();
+        expected_indexes.insert("Columbus$.OH".to_string());
+        assert_eq!(agg.indexes, expected_indexes);
+    }
+
+    #[test]
+    fn test_adding_record_stores_agg_columns() {
+        let agg = setup_simple_count();
+        let mut expected_columns = HashSet::new();
+        expected_columns.insert("Blue Jackets$.Hockey".to_string());
+        assert_eq!(agg.columns, expected_columns);
+    }
+// TODO: These will fail right now. Fix them.
+
+//    #[test]
+//    fn test_multiple_matches_yields_multiple_counts() {
+//        let agg = setup_multiple_counts();
+//        let actual_counts = agg.aggregations
+//            .get(&("Columbus$.OH".to_string(), "Blue Jackets$.Hockey".to_string()));
+//        assert_eq!(actual_counts, Some(&AggregateType::Count(2)));
+//    }
+//
+//    #[test]
+//    fn test_different_index_and_cols_yields_one_count() {
+//        let agg = setup_multiple_counts();
+//        let actual_counts = agg.aggregations
+//            .get(&("Nashville$.TN".to_string(), "Predators$.Hockey".to_string()));
+//        assert_eq!(actual_counts, Some(&AggregateType::Count(1)));
+//    }
+
+    #[test]
+    fn test_multiple_indexes() {
+        let agg = setup_multiple_counts();
+        let mut expected_indexes = HashSet::new();
+        expected_indexes.insert("Columbus$.OH".to_string());
+        expected_indexes.insert("Nashville$.TN".to_string());
+        assert_eq!(agg.indexes, expected_indexes);
+    }
+
+    #[test]
+    fn test_multiple_columns() {
+        let agg = setup_multiple_counts();
+        let mut expected_columns = HashSet::new();
+        expected_columns.insert("Blue Jackets$.Hockey".to_string());
+        expected_columns.insert("Predators$.Hockey".to_string());
+        expected_columns.insert("Titans$.Football".to_string());
+        assert_eq!(agg.columns, expected_columns);
+    }
+}
