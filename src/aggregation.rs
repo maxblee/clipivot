@@ -324,92 +324,70 @@ mod tests {
         agg.add_record(fourth_record);
         agg
     }
-    // TODO: Reformat these
-//    fn setup_one_liners() -> CliConfig {
-//        CliConfig {
-//            filename: Some("test_csvs/one_liner.csv".to_string()),
-//            rows: Some(vec![2]),
-//            columns: Some(vec![1]),
-//            values: Some(0),
-//            aggfunc: "count".to_string(),
-//        }
-//    }
-//
-//    fn setup_config() -> CliConfig {
-//        CliConfig {
-//            filename: Some("test_csvs/layoffs.csv".to_string()),
-//            rows: Some(vec![3]),
-//            columns: Some(vec![1]),
-//            values: Some(0),
-//            aggfunc: "count".to_string(),
-//        }
-//    }
-//
-//    #[test]
-//    fn test_matches_yield_proper_config() {
-//        /// Makes sure the CliConfig::from_arg_matches impl works properly
-//        // Note: I eventually want this to come from a setup func, but have to deal with
-//        // lifetimes for that :(
-//        let yaml = load_yaml!("cli.yml");
-//        let matches = clap::App::from_yaml(yaml)
-//            .version(crate_version!())
-//            .author(crate_authors!())
-//            .get_matches_from(vec!["csvpivot", "count", "test_csvs/layoffs.csv", "--rows=3", "--cols=1", "--val=0"]);
-//        let expected_config = setup_config();
-//        assert_eq!(CliConfig::from_arg_matches(matches).unwrap(), expected_config);
-//    }
-//
-//    #[test]
-//    fn test_config_creates_proper_aggregator() {
-//        let config = setup_config();
-//        let expected = Aggregator {
-//            parser: ParsingHelper::default(),
-//            index_cols: vec![3],
-//            column_cols: vec![1],
-//            values_col: 0,
-//            indexes: HashSet::new(),
-//            columns: HashSet::new(),
-//            aggregations: HashMap::new(),
-//        };
-//        assert_eq!(config.to_aggregator().unwrap(), expected);
-//    }
-//
-//    #[test]
-//    fn test_config_can_return_csv_reader_from_filepath() {
-//        // Makes sure the Config struct properly returns a CSV Reader
-//        // given a filepath
-//        let config = setup_one_liners();
-//        let mut rdr = config.get_reader_from_path().unwrap();
-//        let mut iter = rdr.records();
-//        if let Some(result) = iter.next() {
-//            let record = result.unwrap();
-//            assert_eq!(record, vec!["a", "b", "c"]);
-//        }
-//    }
-//
-//    #[test]
-//    fn test_config_can_return_csv_reader_from_stdin() {
-//        // same as above but with stdin
-//
-//    }
-//
-//    #[test]
-//    fn test_aggregating_records_ignores_header() {
-//        let config = setup_one_liners();
-//        let mut agg = config.to_aggregator().unwrap();
-//        let mut rdr = config.get_reader_from_path().unwrap();
-//        agg.aggregate_from_file(rdr);
-//        assert!(agg.aggregations.is_empty());
-//    }
-//
-//    #[test]
-//    fn test_aggregating_records_adds_records() {
-//        let config = setup_config();
-//        let mut agg = config.to_aggregator().unwrap();
-//        let mut rdr = config.get_reader_from_path().unwrap();
-//        agg.aggregate_from_file(rdr);
-//        assert!(agg.aggregations.contains_key(&("sales".to_string(), "true".to_string())));
-//    }
+
+    fn setup_one_liners() -> CliConfig<Count> {
+        let agg : Aggregator<Count> = Aggregator::new()
+            .set_indexes(vec![2])
+            .set_columns(vec![1])
+            .set_value_column(0);
+        CliConfig {
+            filename: Some("test_csvs/one_liner.csv".to_string()),
+            aggregator: agg
+        }
+    }
+
+    fn setup_config() -> CliConfig<Count> {
+        let agg : Aggregator<Count> = Aggregator::new()
+            .set_indexes(vec![3])
+            .set_columns(vec![1])
+            .set_value_column(0);
+        CliConfig {
+            filename: Some("test_csvs/layoffs.csv".to_string()),
+            aggregator: agg
+        }
+    }
+
+    #[test]
+    fn test_matches_yield_proper_config() {
+        // Compares CliConfig::from_arg_matches to directly creating an Aggregator
+        // to make sure CliConfig is working properly
+        let yaml = load_yaml!("cli.yml");
+        let matches = clap::App::from_yaml(yaml)
+            .version(crate_version!())
+            .author(crate_authors!())
+            .get_matches_from(vec!["csvpivot", "count", "test_csvs/layoffs.csv", "--rows=3", "--cols=1", "--val=0"]);
+        let expected_config = setup_config();
+        let actual_config : CliConfig<Count> = CliConfig::from_arg_matches(matches).unwrap();
+        assert_eq!(actual_config, expected_config);
+    }
+
+    #[test]
+    fn test_config_can_return_csv_reader_from_filepath() {
+        // Makes sure the Config struct properly returns a CSV Reader
+        // given a filepath
+        let config = setup_one_liners();
+        let mut rdr = config.get_reader_from_path().unwrap();
+        let mut iter = rdr.records();
+        if let Some(result) = iter.next() {
+            let record = result.unwrap();
+            assert_eq!(record, vec!["a", "b", "c"]);
+        }
+    }
+
+
+    #[test]
+    fn test_aggregating_records_ignores_header() {
+        let mut config = setup_one_liners();
+        config.run_config();
+        assert!(config.aggregator.aggregations.is_empty());
+    }
+
+    #[test]
+    fn test_aggregating_records_adds_records() {
+        let mut config = setup_config();
+        config.run_config();
+        assert!(config.aggregator.aggregations.contains_key(&("sales".to_string(), "true".to_string())));
+    }
 
     #[test]
     fn test_invalid_indexes_raise_error() {
@@ -449,13 +427,13 @@ mod tests {
     }
 // TODO: This will fail right now. Fix it
 
-//    #[test]
-//    fn test_adding_record_results_in_single_count() {
-//        let agg = setup_simple_count();
-//        assert_eq!(agg.aggregations
-//                       .get(&("Columbus$.OH".to_string(), "Blue Jackets$.Hockey".to_string())),
-//                   Some(&AggregateType::Count(1)));
-//    }
+    #[test]
+    fn test_adding_record_creates_new_record() {
+        let agg = setup_simple_count();
+        let val = agg.aggregations
+            .get(&("Columbus$.OH".to_string(), "Blue Jackets$.Hockey".to_string()));
+        assert!(val.is_some());
+    }
 
     #[test]
     fn test_adding_record_stores_agg_indexes() {
@@ -472,23 +450,6 @@ mod tests {
         expected_columns.insert("Blue Jackets$.Hockey".to_string());
         assert_eq!(agg.columns, expected_columns);
     }
-// TODO: These will fail right now. Fix them.
-
-//    #[test]
-//    fn test_multiple_matches_yields_multiple_counts() {
-//        let agg = setup_multiple_counts();
-//        let actual_counts = agg.aggregations
-//            .get(&("Columbus$.OH".to_string(), "Blue Jackets$.Hockey".to_string()));
-//        assert_eq!(actual_counts, Some(&AggregateType::Count(2)));
-//    }
-//
-//    #[test]
-//    fn test_different_index_and_cols_yields_one_count() {
-//        let agg = setup_multiple_counts();
-//        let actual_counts = agg.aggregations
-//            .get(&("Nashville$.TN".to_string(), "Predators$.Hockey".to_string()));
-//        assert_eq!(actual_counts, Some(&AggregateType::Count(1)));
-//    }
 
     #[test]
     fn test_multiple_indexes() {

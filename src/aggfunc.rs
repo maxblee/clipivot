@@ -75,6 +75,7 @@ pub trait AggregationMethod {
 }
 
 /// The aggregation method for counting records.
+#[derive(Debug, PartialEq)]
 pub struct Count {
     /// Represents the number of matching records
     val: usize,
@@ -93,4 +94,22 @@ impl AggregationMethod for Count {
     fn to_output(&self) -> String {
         self.val.to_string()
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn adding_count_creates_single_count() {
+        let c = Count::new(&ParsingType::Text(None));
+        assert_eq!(c.val, 1);
+    }
+    #[test]
+    fn adding_multiple_counts_creates_multiple_counts() {
+        let mut c = Count::new(&ParsingType::Text(None));
+        c.update(&ParsingType::Text(None));
+        assert_eq!(c.val, 2);
+    }
+
 }
