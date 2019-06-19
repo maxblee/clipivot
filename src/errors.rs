@@ -2,8 +2,8 @@
 // https://blog.burntsushi.net/rust-error-handling/
 // Which, such a good guide
 
-//! I've used this errors module to describe all of the recoverable errors
-//! that (I know) can occur from creating a pivot table with `csvpivot.`
+//! The module for describing recoverable errors in `csvpivot`.
+//!
 //! If you want to improve the error handling in this program,
 //! I'd appreciate help making the InvalidField error more specific and useful.
 //!

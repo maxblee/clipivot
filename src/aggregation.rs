@@ -1,3 +1,16 @@
+//! The module that interacts most directly with `main`.
+//!
+//! This module is centered around two structs. `Aggregator` serves
+//! as a generic struct for each `AggregationMethod` type and each
+//! `ParsingHelper` type for reading, aggregating, and writing pivot tables.
+//!
+//! `CliConfig`, meanwhile, is designed as a simple interface between `Clap`'s
+//! `ArgMatches` and the `Aggregator` struct.
+//!
+//! There are a few major changes I eventually want to see with these structs.
+//! I eventually want to support delimiters other than commas, and I eventually
+//! want to support non-UTF-8 text. Any additional flags or options I add
+//! (or you add) to `csvpivot` also will have to result in changes to `CliConfig`.
 use std::collections::{HashSet, HashMap};
 use std::io;
 use std::fs;
@@ -7,17 +20,27 @@ use crate::aggfunc::*;
 use crate::errors::CsvPivotError;
 use crate::parsing::{ParsingHelper, ParsingType};
 
+/// The main struct for aggregating CSV files
 #[derive(Debug, PartialEq)]
 pub struct Aggregator<T>
     where
         T: AggregationMethod,
 {
+    /// Holds the aggregations, mapping (row, column) matches to an object implementing the
+    /// `AggregationMethod` trait, like `Count`.
     aggregations: HashMap<(String, String), T>,
+    /// Holds all of the unique row names
     indexes: HashSet<String>,
+    /// Holds the unique column names
     columns: HashSet<String>,
+    /// Determines how new records are aggregated. See [this](../parsing/index.html)
+    /// for details.
     parser: ParsingHelper,
+    /// A vector of columns the user is using for determining the row names of the pivot table
     index_cols: Vec<usize>,
+    /// A vector of columns for determining the columns of the pivot table
     column_cols: Vec<usize>,
+    /// The column that determines the values of each cell in the pivot table
     values_col: usize,
 }
 
@@ -39,7 +62,7 @@ impl <T: AggregationMethod> Aggregator<T> {
     // http://www.ameyalokare.com/rust/2017/11/02/rust-builder-pattern.html
     /// Adds the list of index columns to the default aggregator.
     /// (This approach to method chaining comes from
-    /// http://www.ameyalokare.com/rust/2017/11/02/rust-builder-pattern.html).
+    /// [http://www.ameyalokare.com/rust/2017/11/02/rust-builder-pattern.html](http://www.ameyalokare.com/rust/2017/11/02/rust-builder-pattern.html).)
     pub fn set_indexes(mut self, new_indexes: Vec<usize>) -> Self {
         self.index_cols = new_indexes;
         self
@@ -52,11 +75,14 @@ impl <T: AggregationMethod> Aggregator<T> {
     }
 
     /// Adds the column where the aggregation type is applied.
+    ///
     /// For instance, if you decided to `sum` a bunch of salaries
     /// based on two columns, you would use this function to
     /// set the value column to the 'salaries' column.
+    ///
     /// I've purposefully allowed users to only use a single value
     /// column. This contrasts with Excel, which allows for multiple values columns.
+    ///
     /// As a tool designed for data exploration, I feel that users should limit themselves
     /// to a single aggregation method. Users can take a different approach
     /// by joining the data from one pivot table output to the data from another pivot table output.
@@ -67,10 +93,12 @@ impl <T: AggregationMethod> Aggregator<T> {
 
     /// Takes a CSV reader object from a file path and adds records, row by row.
     /// Returns an error if it can't read any of the records.
+    ///
     /// This can either happen because of a problem in how the CSV
     /// was formatted or because the values/columns/indexes
     /// handed to the aggregator from the command line refer to
     /// fields that do not exist.
+    ///
     /// Additionally, the aggregator currently only supports valid UTF-8
     /// data, so it won't work on all CSV files. I'd eventually like to support
     /// all ASCII data.
@@ -85,6 +113,7 @@ impl <T: AggregationMethod> Aggregator<T> {
     /// Takes records from standard input and aggregates them row by row. The code here is identical to
     /// the code in the `aggregate_from_file` function, because the CSV reader
     /// from handling files is different from the reader for handling standard input.
+    ///
     /// In the spirit of DRY, I'm open to suggestions for refactoring this code. But
     /// it's not really pressing, since we're talking about 5-ish lines of code.
     pub fn aggregate_from_stdin(&mut self, mut rdr: csv::Reader<io::Stdin>) -> Result<(), CsvPivotError> {
@@ -198,13 +227,16 @@ impl <U: AggregationMethod> CliConfig<U> {
         };
         Ok(cfg)
     }
-
     /// Converts from a file path to either a CSV reader or a CSV error.
+    ///
     /// In the spirit of DRY, it would be nice to avoid replicating code from this and
-    /// `get_reader_from_stdin`. This should be able to be done simply by creating a function
+    /// `get_reader_from_stdin`.
+    ///
+    /// This should be able to be done simply by creating a function
     /// that returns a `csv::ReaderBuilder` and then applying that to both functions.
     /// That will become especially important when I eventually get around to adding
     /// additional features, like allowing users to select a delimeter other than ','.
+    // TODO: Refactor this code
     pub fn get_reader_from_path(&self) -> Result<csv::Reader<fs::File>, csv::Error> {
         csv::ReaderBuilder::new()
             .trim(csv::Trim::All)
@@ -225,6 +257,7 @@ impl <U: AggregationMethod> CliConfig<U> {
         self.filename.is_some()
     }
 
+    /// Runs the `Aggregator` for the given type.
     pub fn run_config(&mut self) -> Result<(), CsvPivotError> {
         if self.filename.is_some() {
             let rdr = self.get_reader_from_path()?;
@@ -250,8 +283,7 @@ pub fn parse_column(column: Vec<&str>) -> Result<Vec<usize>, CsvPivotError> {
     Ok(indexes)
 }
 
-/// This function is the part that directly interacts with `main`.
-/// It shouldn't change, even as I add features and fix bugs.
+/// This function is the part of the program that directly interacts with `main`.
 pub fn run(arg_matches : ArgMatches) -> Result<(), CsvPivotError> {
     let aggfunc = arg_matches.value_of("aggfunc").unwrap();
     if aggfunc == "count" {
