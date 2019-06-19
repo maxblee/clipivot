@@ -12,6 +12,7 @@ args:
       index: 1
       possible_values:
         - count
+        - countunique
 
   - filename:
       help: The path to the delimited file you want to create a pivot table from

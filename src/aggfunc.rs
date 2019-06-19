@@ -8,6 +8,7 @@
 //! The API for the main `AggregationMethod` should provide more information
 //! on how to create your own new method.
 use crate::parsing::ParsingType;
+use std::collections::HashSet;
 
 /// An enum designed to list all of the possible types of aggregation functions.
 ///
@@ -18,6 +19,7 @@ use crate::parsing::ParsingType;
 pub enum AggTypes {
     /// for counting records
     Count,
+    CountUnique,
 }
 
 /// All aggregation methods implement the `AggregationMethod` trait.
@@ -96,6 +98,40 @@ impl AggregationMethod for Count {
     }
 }
 
+pub struct CountUnique {
+    vals: HashSet<String>,
+}
+
+impl AggregationMethod for CountUnique {
+    type Aggfunc = CountUnique;
+
+    fn get_aggtype(&self) -> AggTypes { AggTypes::CountUnique }
+    fn new(parsed_val: &ParsingType) -> Self {
+        match parsed_val {
+            ParsingType::Text(Some(str_val)) => {
+                let mut vals = HashSet::new();
+                vals.insert(str_val.to_string());
+                CountUnique {vals}
+            },
+            _ => {
+                let mut vals = HashSet::new();
+                vals.insert("".to_string());
+                CountUnique {vals}
+            }
+        }
+    }
+
+    fn update(&mut self, parsed_val: &ParsingType) {
+        let val = match parsed_val {
+            ParsingType::Text(Some(new_val)) => new_val.to_string(),
+            _ => "".to_string()
+        };
+        self.vals.insert(val);
+    }
+
+    fn to_output(&self) -> String { self.vals.len().to_string() }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -112,4 +148,26 @@ mod tests {
         assert_eq!(c.val, 2);
     }
 
+    #[test]
+    fn adding_unique_count_creates_single_count() {
+        let uncount = CountUnique::new(&ParsingType::Text(Some("record".to_string())));
+        assert_eq!(uncount.vals.len(), 1);
+    }
+
+    #[test]
+    fn multiple_identical_records_read_as_one() {
+        let myrecord = &ParsingType::Text(Some("record".to_string()));
+        let mut uncount = CountUnique::new(myrecord);
+        uncount.update(myrecord);
+        assert_eq!(uncount.vals.len(), 1);
+    }
+
+    #[test]
+    fn different_records_read_as_different() {
+        let record1 = &ParsingType::Text(Some("record".to_string()));
+        let record2 = &ParsingType::Text(Some("new record".to_string()));
+        let mut uncount = CountUnique::new(record1);
+        uncount.update(record2);
+        assert_eq!(uncount.vals.len(), 2);
+    }
 }

@@ -289,6 +289,9 @@ pub fn run(arg_matches : ArgMatches) -> Result<(), CsvPivotError> {
     if aggfunc == "count" {
         let mut config : CliConfig<Count> = CliConfig::from_arg_matches(arg_matches)?;
         config.run_config()?;
+    } else if aggfunc == "countunique" {
+        let mut config : CliConfig<CountUnique> = CliConfig::from_arg_matches(arg_matches)?;
+        config.run_config()?;
     }
     Ok(())
 }
