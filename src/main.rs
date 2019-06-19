@@ -5,7 +5,9 @@ use clap::App;
 use std::process;
 
 pub mod aggregation;
-pub mod fun;
+pub mod parsing;
+pub mod aggfunc;
+pub mod errors;
 
 fn main() {
     let yaml_file = load_yaml!("cli.yml");

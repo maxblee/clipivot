@@ -3,75 +3,9 @@ use std::io;
 use std::fs;
 
 use clap::ArgMatches;
-
-mod errors;
-use crate::aggregation::errors::CsvPivotError;
-use std::hash::Hash;
-
-#[derive(Debug, PartialEq)]
-pub enum ParsingType {
-    Text(Option<String>)
-}
-
-#[derive(Debug, PartialEq)]
-pub struct ParsingHelper {
-    values_type: ParsingType,
-    possible_values: Vec<ParsingType>
-}
-
-impl Default for ParsingHelper {
-    fn default() -> ParsingHelper {
-        ParsingHelper {
-            values_type: ParsingType::Text(None),
-            possible_values: vec![ParsingType::Text(None)]
-        }
-    }
-}
-
-impl ParsingHelper {
-    // TODO: Convert to Result Type
-    fn parse_val(&self, new_val: &str) -> ParsingType {
-        match self.values_type {
-            ParsingType::Text(_) => ParsingType::Text(Some(new_val.to_string())),
-        }
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub enum AggTypes {
-    Count,
-}
-
-pub trait AggregationMethod {
-    type Aggfunc;
-
-    /// Returns the Aggregation method (e.g. AggTypes::Count)
-    fn get_aggtype(&self) -> AggTypes;
-    /// Instantiates a new Aggregation method
-    fn new(parsed_val: &ParsingType) -> Self;
-    /// Updates an existing method
-    fn update(&mut self, parsed_val: &ParsingType);
-    fn to_output(&self) -> String;
-}
-
-struct Count {
-    val: usize,
-}
-
-impl AggregationMethod for Count {
-    type Aggfunc = Count;
-
-    fn get_aggtype(&self) -> AggTypes { AggTypes::Count }
-    fn new(parsed_val: &ParsingType) -> Self {
-        Count { val: 1 }
-    }
-    fn update(&mut self, parsed_val: &ParsingType) {
-        self.val += 1;
-    }
-    fn to_output(&self) -> String {
-        self.val.to_string()
-    }
-}
+use crate::aggfunc::*;
+use crate::errors::CsvPivotError;
+use crate::parsing::{ParsingHelper, ParsingType};
 
 #[derive(Debug, PartialEq)]
 pub struct Aggregator<T>
