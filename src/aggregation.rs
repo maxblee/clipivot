@@ -139,7 +139,7 @@ impl <T: AggregationMethod> Aggregator<T> {
         // be tied to self.aggregations, rather than cloned)
         self.indexes.insert(indexnames.clone());
         self.columns.insert(columnnames.clone());
-        let parsed_val = self.parser.parse_val(str_val);
+        let parsed_val = self.parser.parse_val(str_val)?;
         // this determines how to add the data as it's being read
         self.update_aggregations(indexnames, columnnames, &parsed_val);
         Ok(())

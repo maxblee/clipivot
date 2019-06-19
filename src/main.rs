@@ -1,3 +1,12 @@
+//!`csvpivot` is a command-line tool for quickly creating pivot tables.
+//!
+//! If you want to use the program, visit the
+//! [Github repo](https://github.com/maxblee/csvpivot) for installation
+//! and usage instructions. If, on the other hand, you want to contribute to `csvpivot`'s
+//! development, read on.
+//!
+//! This tool is designed for easily and quickly creating pivot tables. Right now, there
+//! are a few areas where I'd like to see improvement.
 #[macro_use]
 extern crate clap;
 

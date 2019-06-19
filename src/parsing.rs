@@ -1,3 +1,5 @@
+use crate::errors::CsvPivotError;
+
 #[derive(Debug, PartialEq)]
 pub enum ParsingType {
     Text(Option<String>)
@@ -19,10 +21,9 @@ impl Default for ParsingHelper {
 }
 
 impl ParsingHelper {
-    // TODO: Convert to Result Type
-    pub fn parse_val(&self, new_val: &str) -> ParsingType {
+    pub fn parse_val(&self, new_val: &str) -> Result<ParsingType, CsvPivotError> {
         match self.values_type {
-            ParsingType::Text(_) => ParsingType::Text(Some(new_val.to_string())),
+            ParsingType::Text(_) => Ok(ParsingType::Text(Some(new_val.to_string()))),
         }
     }
 }
