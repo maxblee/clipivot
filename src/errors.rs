@@ -50,6 +50,8 @@ pub enum CsvPivotError {
     /// An error occurring when the program tries to convert a string into an integer but is
     /// unable to
     ParseInt(num::ParseIntError),
+    /// Errors trying to parse a new value
+    ParsingError,
 }
 
 impl fmt::Display for CsvPivotError {
@@ -68,6 +70,8 @@ impl fmt::Display for CsvPivotError {
              please send a bug report to maxbmhlee@gmail.com"),
             CsvPivotError::Io(ref err) => err.fmt(f),
             CsvPivotError::ParseInt(ref err) => err.fmt(f),
+            CsvPivotError::ParsingError => write!(f, "Ran into an error parsing one of the fields \
+            as a numerical type."),
         }
     }
 }
@@ -80,6 +84,7 @@ impl Error for CsvPivotError {
             CsvPivotError::InvalidAggregator => "aggregation failed",
             CsvPivotError::InvalidField => "field not found",
             CsvPivotError::ParseInt(ref err) => err.description(),
+            CsvPivotError::ParsingError => "failed to parse field as decimal",
         }
     }
 }

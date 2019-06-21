@@ -12,8 +12,7 @@ documentation = "https://maxblee.github.io/csvpivot"
 clap = {version = "~2.27.0", features = ["yaml"]}
 chrono = "0.4"
 csv = "1"
-serde = "1"
-serde_derive = "1"
+rust_decimal = "1.0.1"
 
 [dev-dependencies]
 assert_cli = "0.6.3"

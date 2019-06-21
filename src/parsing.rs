@@ -8,7 +8,8 @@
 //! `&str` record to a record of the `ParsingType` enum. However,
 //! I eventually want to extend the functionality of this so the program
 //! can automatically determine the type of record appearing in the values column.
-
+use std::str::FromStr;
+use rust_decimal::Decimal;
 use crate::errors::CsvPivotError;
 
 /// The types of data `csvpivot` converts `&str` records into.
@@ -17,7 +18,8 @@ use crate::errors::CsvPivotError;
 #[derive(Debug, PartialEq)]
 pub enum ParsingType {
     /// Representing String data
-    Text(Option<String>)
+    Text(Option<String>),
+    Numeric(Option<Decimal>),
 }
 
 /// Stores information about the type of data appearing in the values column
@@ -45,9 +47,19 @@ impl ParsingHelper {
     /// Converts a new `&str` value read in from a CSV file into a format determined
     /// by the `values_type` attribute of `ParsingHelper`. Raises an error
     /// if the value read in is not compatible with the parsing type.
+    pub fn set_numeric() -> ParsingHelper {
+        ParsingHelper { values_type: ParsingType::Numeric(None), possible_values: vec![]}
+    }
+
     pub fn parse_val(&self, new_val: &str) -> Result<ParsingType, CsvPivotError> {
         match self.values_type {
             ParsingType::Text(_) => Ok(ParsingType::Text(Some(new_val.to_string()))),
+            ParsingType::Numeric(_) => ParsingHelper::parse_numeric(new_val)
         }
+    }
+
+    fn parse_numeric(new_val: &str) -> Result<ParsingType, CsvPivotError> {
+        let dec = Decimal::from_str(new_val).or(Err(CsvPivotError::ParsingError))?;
+        Ok(ParsingType::Numeric(Some(dec)))
     }
 }

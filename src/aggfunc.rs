@@ -7,8 +7,10 @@
 //!
 //! The API for the main `AggregationMethod` should provide more information
 //! on how to create your own new method.
-use crate::parsing::ParsingType;
 use std::collections::HashSet;
+use rust_decimal::Decimal;
+use crate::parsing::ParsingType;
+
 
 /// An enum designed to list all of the possible types of aggregation functions.
 ///
@@ -19,8 +21,10 @@ use std::collections::HashSet;
 pub enum AggTypes {
     /// for counting records
     Count,
-    /// Counts the number of unique records. 
+    /// Counts the number of unique records.
     CountUnique,
+    /// Sums the records
+    Sum,
 }
 
 /// All aggregation methods implement the `AggregationMethod` trait.
@@ -97,6 +101,32 @@ impl AggregationMethod for Count {
     fn to_output(&self) -> String {
         self.val.to_string()
     }
+}
+
+pub struct Sum {
+    cur_total: Decimal,
+}
+
+impl AggregationMethod for Sum {
+    type Aggfunc = Sum;
+
+    fn get_aggtype(&self) -> AggTypes { AggTypes::Sum }
+    fn new(parsed_val: &ParsingType) -> Self {
+        match parsed_val {
+            ParsingType::Numeric(Some(num)) => Sum { cur_total: *num },
+            // Note: I really need to make this more robust
+            _ => Sum {cur_total: Decimal::new(0, 0)}
+        }
+    }
+    fn update(&mut self, parsed_val: &ParsingType) {
+        let total = self.cur_total.checked_add(match parsed_val {
+            ParsingType::Numeric(Some(num)) => *num,
+            _ => Decimal::new(0, 0)
+        });
+        // Again, need to make this more robust
+        self.cur_total = total.unwrap();
+    }
+    fn to_output(&self) -> String { self.cur_total.to_string() }
 }
 
 pub struct CountUnique {
