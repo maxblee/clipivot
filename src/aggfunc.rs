@@ -19,6 +19,7 @@ use std::collections::HashSet;
 pub enum AggTypes {
     /// for counting records
     Count,
+    /// Counts the number of unique records. 
     CountUnique,
 }
 
