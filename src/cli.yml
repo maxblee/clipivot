@@ -30,14 +30,14 @@ args:
       short: r
       takes_value: true
       multiple: true
-      required: true
+
   - columns:
       help: The name of the column(s) to aggregate on. Currently must be 0-indexed integers
       long: cols
       short: c
       takes_value: true
       multiple: true
-      required: true
+
   - value:
       help: The name of the field used to determine the value (e.g. id for most count operations). Currently must be 0-indexed integers
       long: val

@@ -182,6 +182,9 @@ impl <T: AggregationMethod> Aggregator<T> {
 
     fn get_colname(&self, columns: &Vec<usize>, record: &csv::StringRecord) -> Result<String, CsvPivotError> {
         let mut colnames : Vec<&str> = Vec::new();
+        if columns.is_empty() {
+            return Ok("total".to_string())
+        }
         for idx in columns {
             let idx_column = record.get(*idx).ok_or(CsvPivotError::InvalidField)?;
             colnames.push(idx_column);
@@ -215,12 +218,17 @@ impl <U: AggregationMethod> CliConfig<U> {
         // This method of error handling from
         // https://medium.com/@fredrikanderzon/custom-error-types-in-rust-and-the-operator-b499d0fb2925
         let values: usize = arg_matches.value_of("value").unwrap().parse().or(Err(CsvPivotError::InvalidField))?;
-        // Eventually should replace unwrap() from rows and columns with unwrap_or
-        // so I can aggregate solely by rows or solely by columns
-        let rows = parse_column(arg_matches
-            .values_of("rows").unwrap().collect())?;
-        let columns = parse_column(arg_matches
-            .values_of("columns").unwrap().collect())?;
+        // This makes it so set_indexes and set_columns can set an empty vector (for totals)
+        let rowvec = match arg_matches.values_of("rows") {
+            Some(vals) => vals.collect(),
+            None => Vec::new()
+        };
+        let colvec = match arg_matches.values_of("columns") {
+            Some(vals) => vals.collect(),
+            None => Vec::new()
+        };
+        let rows = parse_column(rowvec)?;
+        let columns = parse_column(colvec)?;
         let filename = arg_matches.value_of("filename").map(String::from);
         let aggregator : Aggregator<U> = Aggregator::new()
             .set_value_column(values)

@@ -85,7 +85,7 @@ When we do that, this is our output: (NOTE: THIS DOESN'T WORK YET. WILL SET UP T
 
 ```csv
 ,total
-IND,59538730.0
+IND,59538730.00
 ORG,47171478.29
 MOC,5100.00
 ```
