@@ -8,14 +8,16 @@ settings:
 args:
   - aggfunc:
       help: "The function you use to run across the pivot table.
-      \n- count counts individual records
-      \n- countunique counts the number of unique records in the values column
-      \n- sum sums the values. Only supports numbers (integers and decimals)\n"
+      \n- `count` counts individual records
+      \n- `countunique` counts the number of unique records in the values column
+      \n- `mean` computes a mean across the matching records
+      \n- `sum` sums the values. Only supports numbers (integers and decimals)\n"
       required: true
       index: 1
       possible_values:
         - count
         - countunique
+        - mean
         - sum
 
   - filename:

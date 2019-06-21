@@ -23,6 +23,8 @@ pub enum AggTypes {
     Count,
     /// Counts the number of unique records.
     CountUnique,
+    /// Computes a mean of the records
+    Mean,
     /// Sums the records
     Sum,
 }
@@ -103,32 +105,6 @@ impl AggregationMethod for Count {
     }
 }
 
-pub struct Sum {
-    cur_total: Decimal,
-}
-
-impl AggregationMethod for Sum {
-    type Aggfunc = Sum;
-
-    fn get_aggtype(&self) -> AggTypes { AggTypes::Sum }
-    fn new(parsed_val: &ParsingType) -> Self {
-        match parsed_val {
-            ParsingType::Numeric(Some(num)) => Sum { cur_total: *num },
-            // Note: I really need to make this more robust
-            _ => Sum {cur_total: Decimal::new(0, 0)}
-        }
-    }
-    fn update(&mut self, parsed_val: &ParsingType) {
-        let total = self.cur_total.checked_add(match parsed_val {
-            ParsingType::Numeric(Some(num)) => *num,
-            _ => Decimal::new(0, 0)
-        });
-        // Again, need to make this more robust
-        self.cur_total = total.unwrap();
-    }
-    fn to_output(&self) -> String { self.cur_total.to_string() }
-}
-
 pub struct CountUnique {
     vals: HashSet<String>,
 }
@@ -161,6 +137,65 @@ impl AggregationMethod for CountUnique {
     }
 
     fn to_output(&self) -> String { self.vals.len().to_string() }
+}
+
+pub struct Sum {
+    cur_total: Decimal,
+}
+
+impl AggregationMethod for Sum {
+    type Aggfunc = Sum;
+
+    fn get_aggtype(&self) -> AggTypes { AggTypes::Sum }
+    fn new(parsed_val: &ParsingType) -> Self {
+        match parsed_val {
+            ParsingType::Numeric(Some(num)) => Sum { cur_total: *num },
+            // Note: I really need to make this more robust
+            _ => Sum {cur_total: Decimal::new(0, 0)}
+        }
+    }
+    fn update(&mut self, parsed_val: &ParsingType) {
+        let total = self.cur_total.checked_add(match parsed_val {
+            ParsingType::Numeric(Some(num)) => *num,
+            _ => Decimal::new(0, 0)
+        });
+        // Again, need to make this more robust
+        self.cur_total = total.unwrap();
+    }
+    fn to_output(&self) -> String { self.cur_total.to_string() }
+}
+
+pub struct Mean {
+    num: usize,
+    cur_total: Decimal,
+}
+
+impl AggregationMethod for Mean {
+    type Aggfunc = Mean;
+
+    fn get_aggtype(&self) -> AggTypes { AggTypes::Sum }
+    fn new(parsed_val: &ParsingType) -> Self {
+        match parsed_val {
+            ParsingType::Numeric(Some(num)) => Mean { cur_total: *num, num: 1 },
+            // Note: I really need to make this more robust
+            _ => Mean {cur_total: Decimal::new(0, 0), num: 0 }
+        }
+    }
+    fn update(&mut self, parsed_val: &ParsingType) {
+        let total = self.cur_total.checked_add(match parsed_val {
+            ParsingType::Numeric(Some(num)) => *num,
+            _ => Decimal::new(0, 0)
+        });
+        // Again, need to make this more robust
+        self.cur_total = total.unwrap();
+        self.num += 1;
+    }
+    fn to_output(&self) -> String {
+        // Should make more robust probably
+        let mean = self.cur_total
+            .checked_div(Decimal::new(self.num as i64, 0)).unwrap();
+        mean.to_string()
+    }
 }
 
 #[cfg(test)]
