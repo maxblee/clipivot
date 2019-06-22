@@ -7,7 +7,7 @@
 //!
 //! The API for the main `AggregationMethod` should provide more information
 //! on how to create your own new method.
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use rust_decimal::Decimal;
 use crate::parsing::ParsingType;
 
@@ -25,6 +25,8 @@ pub enum AggTypes {
     CountUnique,
     /// Computes a mean of the records
     Mean,
+    /// Computes the median of the records
+    Median,
     /// Sums the records
     Sum,
 }
@@ -173,11 +175,11 @@ pub struct Mean {
 impl AggregationMethod for Mean {
     type Aggfunc = Mean;
 
-    fn get_aggtype(&self) -> AggTypes { AggTypes::Sum }
+    fn get_aggtype(&self) -> AggTypes { AggTypes::Mean }
     fn new(parsed_val: &ParsingType) -> Self {
         match parsed_val {
             ParsingType::Numeric(Some(num)) => Mean { cur_total: *num, num: 1 },
-            // Note: I really need to make this more robust
+            // This will never be implemented, but it's needed bc compiler can't tell that
             _ => Mean {cur_total: Decimal::new(0, 0), num: 0 }
         }
     }
@@ -186,15 +188,89 @@ impl AggregationMethod for Mean {
             ParsingType::Numeric(Some(num)) => *num,
             _ => Decimal::new(0, 0)
         });
-        // Again, need to make this more robust
+        // Unwrap is OK because ParsingType should always be Some when `update` is implemented
         self.cur_total = total.unwrap();
         self.num += 1;
     }
     fn to_output(&self) -> String {
-        // Should make more robust probably
+        // Note: unwrap is OK here because self.num can never be 0
+        // so this should theoretically never panic
         let mean = self.cur_total
             .checked_div(Decimal::new(self.num as i64, 0)).unwrap();
         mean.to_string()
+    }
+}
+
+pub struct Median {
+    // Note: the median implementation I'm using relies on a B-Tree
+    // instead of the heap structure described here
+    // https://www.geeksforgeeks.org/median-of-stream-of-integers-running-integers/
+    // in order to preserve memory.
+    // This slows down on CPU performance, but the loss shouldn't be that significant
+    // because, typically, the number of bins in a median is going to be far smaller
+    // than the number of records. For instance, in a ~1 GB file of yellow taxi cab records
+    // from NYC (https://s3.amazonaws.com/nyc-tlc/trip+data/yellow_tripdata_2018-03.csv)
+    // the trips have 4,528 separate distance values, out of the 9.5 million records
+    values: BTreeMap<Decimal, usize>,
+    num: usize,
+}
+
+impl AggregationMethod for Median {
+    type Aggfunc = Median;
+
+    fn get_aggtype(&self) -> AggTypes { AggTypes::Median }
+    fn new(parsed_val: &ParsingType) -> Self {
+        match parsed_val {
+            ParsingType::Numeric(Some(num)) => {
+                let mut b = BTreeMap::new();
+                b.insert(*num, 1);
+                Median { values: b, num: 1}
+            },
+            _ => Median { values: BTreeMap::new(), num: 0 }
+        }
+    }
+    fn update(&mut self, parsed_val: &ParsingType) {
+        self.values.entry(match  parsed_val {
+            ParsingType::Numeric(Some(num)) => *num,
+            _ => Decimal::new(0, 0)
+        }).and_modify(|val| *val += 1)
+            .or_insert(1);
+        self.num += 1;
+    }
+    fn to_output(&self) -> String {
+        // we set up a running count to track where our index would be were this a sorted vec
+        // instead of a sorted histogram
+        let mut cur_count = 0.;
+        let mut cur_val  = Decimal::new(0, 0);
+        // creating an iter bc we're stopping at N/2
+        let mut iter = self.values.iter();
+        while cur_count < (self.num as f64 / 2.) {
+            // iter.next() leaves an Option but we're guaranteed to break
+            // before iter.next().is_none()
+            let (result, count) = iter.next().unwrap();
+            // we increase the count to our current index
+            // Also, there's got to be a better way to deal with this than by
+            // using all this ugly casting
+            // theoretically, involving changing count to f64 by default for this reason
+            cur_count += *count as f64;
+            cur_val = *result;
+        }
+        // now our current value is either at the median or,
+        // if the median is a mean of two values, is the lower
+        // of the two values at the median
+        // It can only be at the lower of the two values if
+        // a) we have an even number of records AND b) we didn't pass through
+        // the median (where the median would *technically* be the mean of cur_val and cur_val
+        if (self.num % 2) == 0 && cur_count == (self.num as f64 / 2.) {
+            // iter.next() will always be Some(_) because this is always initialized with
+            // a single value
+            // checked_add I should maybe find a robust alternative to unwrap for
+            // checked_div will only panic if checked_add panics or if other == Decimal::new(0, 0)
+            // which it does not
+            let mean = cur_val.checked_add(*iter.next().unwrap().0).unwrap()
+                .checked_div(Decimal::new(2, 0)).unwrap();
+            return mean.to_string();
+        } else { return cur_val.to_string(); }
     }
 }
 

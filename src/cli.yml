@@ -18,6 +18,7 @@ args:
         - count
         - countunique
         - mean
+        - median
         - sum
 
   - filename:
