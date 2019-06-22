@@ -240,11 +240,11 @@ impl AggregationMethod for Median {
     fn to_output(&self) -> String {
         // we set up a running count to track where our index would be were this a sorted vec
         // instead of a sorted histogram
-        let mut cur_count = 0.;
+        let mut cur_count = 0;
         let mut cur_val  = Decimal::new(0, 0);
         // creating an iter bc we're stopping at N/2
         let mut iter = self.values.iter();
-        while cur_count < (self.num as f64 / 2.) {
+        while (cur_count as f64) < (self.num as f64 / 2.) {
             // iter.next() leaves an Option but we're guaranteed to break
             // before iter.next().is_none()
             let (result, count) = iter.next().unwrap();
@@ -252,7 +252,7 @@ impl AggregationMethod for Median {
             // Also, there's got to be a better way to deal with this than by
             // using all this ugly casting
             // theoretically, involving changing count to f64 by default for this reason
-            cur_count += *count as f64;
+            cur_count += count;
             cur_val = *result;
         }
         // now our current value is either at the median or,
@@ -261,7 +261,7 @@ impl AggregationMethod for Median {
         // It can only be at the lower of the two values if
         // a) we have an even number of records AND b) we didn't pass through
         // the median (where the median would *technically* be the mean of cur_val and cur_val
-        if (self.num % 2) == 0 && cur_count == (self.num as f64 / 2.) {
+        if (self.num % 2) == 0 && (cur_count as f64) == (self.num as f64 / 2.) {
             // iter.next() will always be Some(_) because this is always initialized with
             // a single value
             // checked_add I should maybe find a robust alternative to unwrap for
