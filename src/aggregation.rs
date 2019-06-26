@@ -316,6 +316,9 @@ pub fn run(arg_matches : ArgMatches) -> Result<(), CsvPivotError> {
     } else if aggfunc == "median" {
         let mut config : CliConfig<Median> = CliConfig::from_arg_matches(arg_matches, ParsingHelper::set_numeric())?;
         config.run_config()?;
+    } else if aggfunc == "stddev" {
+        let mut config : CliConfig<StdDev> = CliConfig::from_arg_matches(arg_matches, ParsingHelper::set_floating())?;
+        config.run_config()?;
     }
     Ok(())
 }

@@ -10,6 +10,7 @@
 use std::collections::{BTreeMap, HashSet};
 use rust_decimal::Decimal;
 use crate::parsing::ParsingType;
+use std::env::var;
 
 
 /// An enum designed to list all of the possible types of aggregation functions.
@@ -29,6 +30,8 @@ pub enum AggTypes {
     Median,
     /// Sums the records
     Sum,
+    /// Computes the standard deviation of the matching records
+    StdDev,
 }
 
 /// All aggregation methods implement the `AggregationMethod` trait.
@@ -166,6 +169,64 @@ impl AggregationMethod for Sum {
     }
     fn to_output(&self) -> String { self.cur_total.to_string() }
 }
+
+pub struct StdDev {
+    // solution from Nicholas Higham: Accuracy and Stability of Numerical Algorithms
+    // Second Edition, 2002, p. 11
+    q: f64,
+    m: f64,
+    // the number of records parsed
+    num_records: f64,
+}
+
+impl AggregationMethod for StdDev {
+    type Aggfunc = StdDev;
+
+    fn get_aggtype(&self) -> AggTypes { AggTypes::StdDev }
+    fn new(parsed_val: &ParsingType) -> Self {
+        match parsed_val {
+            ParsingType::FloatingPoint(Some(num)) => {
+                StdDev { q: 0., m: *num, num_records: 1.}
+            },
+            _ => StdDev { q: 0., m: 0., num_records: 0. }
+        }
+    }
+    fn update(&mut self, parsed_val: &ParsingType) {
+        match parsed_val {
+            ParsingType::FloatingPoint(Some(num)) => {
+                self.num_records += 1.;
+                let squared_diff = (num - self.m).powi(2);
+                self.q += ((self.num_records - 1.) * squared_diff) / self.num_records;
+                self.m += (num - self.m) / self.num_records;
+            },
+            _ => {}
+        }
+    }
+
+    fn to_output(&self) -> String {
+        let stdev = self.compute();
+        stdev.map_or("".to_string(), |v| v.to_string())
+    }
+}
+
+impl StdDev {
+    fn compute(&self) -> Option<f64> {
+        // we do the if statement and return Option to avoid divide by 0 error
+        if self.num_records <= 1. { return None; }
+        else {
+            let variance = self.q / (self.num_records - 1.);
+            let stdev = variance.sqrt();
+            if stdev.is_nan() { return None; }
+            else { return Some(stdev); }
+        }
+    }
+}
+
+//impl AggregationMethod for StdDev {
+//    typ Aggfunc = StdDev;
+//
+//    fn get_aggtype(&self) -> AggTypes { AggTypes::StdDev }
+//}
 
 pub struct Mean {
     num: usize,

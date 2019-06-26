@@ -19,7 +19,10 @@ use crate::errors::CsvPivotError;
 pub enum ParsingType {
     /// Representing String data
     Text(Option<String>),
+    /// This is used for all of the numeric operations with the exception of standard deviation
     Numeric(Option<Decimal>),
+    /// This is used for numeric operations involving minimum and maximum, as well as standard deviation
+    FloatingPoint(Option<f64>),
 }
 
 /// Stores information about the type of data appearing in the values column
@@ -51,15 +54,25 @@ impl ParsingHelper {
         ParsingHelper { values_type: ParsingType::Numeric(None), possible_values: vec![]}
     }
 
+    pub fn set_floating() -> ParsingHelper {
+        ParsingHelper { values_type: ParsingType::FloatingPoint(None), possible_values: vec![] }
+    }
+
     pub fn parse_val(&self, new_val: &str) -> Result<ParsingType, CsvPivotError> {
         match self.values_type {
             ParsingType::Text(_) => Ok(ParsingType::Text(Some(new_val.to_string()))),
-            ParsingType::Numeric(_) => ParsingHelper::parse_numeric(new_val)
+            ParsingType::Numeric(_) => ParsingHelper::parse_numeric(new_val),
+            ParsingType::FloatingPoint(_) => ParsingHelper::parse_floating(new_val),
         }
     }
 
     fn parse_numeric(new_val: &str) -> Result<ParsingType, CsvPivotError> {
         let dec = Decimal::from_str(new_val).or(Err(CsvPivotError::ParsingError))?;
         Ok(ParsingType::Numeric(Some(dec)))
+    }
+
+    fn parse_floating(new_val: &str) -> Result<ParsingType, CsvPivotError> {
+        let num : f64 = new_val.parse().or(Err(CsvPivotError::ParsingError))?;
+        Ok(ParsingType::FloatingPoint(Some(num)))
     }
 }

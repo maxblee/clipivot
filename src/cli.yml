@@ -19,6 +19,7 @@ args:
         - countunique
         - mean
         - median
+        - stddev
         - sum
 
   - filename:
