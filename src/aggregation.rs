@@ -455,7 +455,6 @@ mod tests {
         assert!(agg.aggregations
             .contains_key(&("Columbus$.OH".to_string(), "Blue Jackets$.Hockey".to_string())));
     }
-// TODO: This will fail right now. Fix it
 
     #[test]
     fn test_adding_record_creates_new_record() {
