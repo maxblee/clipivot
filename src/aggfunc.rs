@@ -250,9 +250,14 @@ impl AggregationMethod for Mean {
     fn to_output(&self) -> String {
         // Note: unwrap is OK here because self.num can never be 0
         // so this should theoretically never panic
-        let mean = self.cur_total
-            .checked_div(Decimal::new(self.num as i64, 0)).unwrap();
-        mean.to_string()
+        self.compute().to_string()
+    }
+}
+
+impl Mean {
+    fn compute(&self) -> Decimal {
+        self.cur_total
+            .checked_div(Decimal::new(self.num as i64, 0)).unwrap()
     }
 }
 
@@ -292,7 +297,11 @@ impl AggregationMethod for Median {
             .or_insert(1);
         self.num += 1;
     }
-    fn to_output(&self) -> String {
+    fn to_output(&self) -> String { self.compute().to_string() }
+}
+
+impl Median {
+    fn compute(&self) -> Decimal {
         // we set up a running count to track where our index would be were this a sorted vec
         // instead of a sorted histogram
         let mut cur_count = 0;
@@ -324,14 +333,14 @@ impl AggregationMethod for Median {
             // which it does not
             let mean = cur_val.checked_add(*iter.next().unwrap().0).unwrap()
                 .checked_div(Decimal::new(2, 0)).unwrap();
-            return mean.to_string();
-        } else { return cur_val.to_string(); }
+            return mean;
+        } else { return cur_val; }
     }
 }
 
 #[cfg(test)]
 mod tests {
-
+    use std::str::FromStr;
     use super::*;
     use rand::prelude::*;
     use approx::assert_abs_diff_eq;
@@ -401,5 +410,89 @@ mod tests {
         // From what I've seen, it'll typically pass within 8 sig digits, but occasionally will fail there
         // EXAMPLE: left = 0.28864050983648876, right = 0.28864049865571434
         assert_abs_diff_eq!(decent_stddev.compute().unwrap(), error_prone_stddev.compute().unwrap(), epsilon = 1e-7);
+    }
+
+    // test median
+    #[test]
+    fn test_single_median_returns_value() {
+        // tests the accuracy of the median on a single value
+        let init_val = ParsingType::Numeric(Some(Decimal::from_str("1").unwrap()));
+        let single_median = Median::new(&init_val);
+        assert_eq!(single_median.compute().to_string(), "1");
+    }
+
+    #[test]
+    fn test_even_median_returns_mean_middle() {
+        // makes sure that when there is an even number of values in a dataset,
+        // and records[floor(n/2)] and records[ceil(n/2)] are different,
+        // median computes the middle value
+        let init_parsing = ParsingType::Numeric(Some(Decimal::from_str("0").unwrap()));
+        let mut median = Median::new(&init_parsing);
+        let addl_vals = vec!["1", "2", "3"];
+        for val in addl_vals {
+            let parsed_val = ParsingType::Numeric((Some(Decimal::from_str(val).unwrap())));
+            median.update(&parsed_val);
+        }
+        assert_eq!(median.compute().to_string(), "1.5");
+    }
+
+    #[test]
+    fn test_odd_median_returns_middle_value() {
+        // makes sure that in an odd, unsorted set of records, it'll return the middle value
+        let init_parsing = ParsingType::Numeric(Some(Decimal::from_str("3").unwrap()));
+        let mut median = Median::new(&init_parsing);
+        let addl_vals = vec!["1", "9", "7", "8", "5", "2", "5", "5"];
+        for val in addl_vals {
+            let parsed_val = ParsingType::Numeric(Some(Decimal::from_str(val).unwrap()));
+            median.update(&parsed_val);
+        }
+        assert_eq!(median.compute().to_string(), "5");
+    }
+
+    #[test]
+    fn test_multiple_middle_values_returns_middle_val() {
+        // makes sure the median returns correctly when there are repeat values in the middle
+        let init_parsing = ParsingType::Numeric(Some(Decimal::from_str("3").unwrap()));
+        let mut median = Median::new(&init_parsing);
+        let add_vals = vec!["5", "6", "1", "4", "3"];
+        for val in add_vals {
+            let parsed_val = ParsingType::Numeric(Some(Decimal::from_str(val).unwrap()));
+            median.update(&parsed_val);
+        }
+        assert_eq!(median.compute().to_string(), "3.5");
+    }
+
+    // test summation
+    #[test]
+    fn test_truncation_sum() {
+        // in floating point numbers, 0.1 + 0.2 != 0.3
+        // But Decimal types should have more numeric stability
+        // This makes sure the Decimal typing is properly set up
+        let init_parsing = ParsingType::Numeric(Some(Decimal::from_str("0.1").unwrap()));
+        let mut summation = Sum::new(&init_parsing);
+        let new_parsing = ParsingType::Numeric(Some(Decimal::from_str("0.2").unwrap()));
+        summation.update(&new_parsing);
+        assert_eq!(summation.to_output(), "0.3");
+    }
+
+    #[test]
+    fn test_single_sum_returns_self() {
+        // makes sure that a single aggregated value `x` will return x
+        let init_parsing = ParsingType::Numeric(Some(Decimal::from_str("10").unwrap()));
+        let summation = Sum::new(&init_parsing);
+        assert_eq!(summation.to_output(), "10");
+    }
+
+    #[test]
+    fn test_simple_addition() {
+        // tests simple summation capability, making sure int + float works
+        let init_parsing = ParsingType::Numeric(Some(Decimal::from_str("10").unwrap()));
+        let mut summation = Sum::new(&init_parsing);
+        let addl_vals = vec!["0.3", "100", "3.2"];
+        for val in addl_vals {
+            let parsed_val = ParsingType::Numeric(Some(Decimal::from_str(val).unwrap()));
+            summation.update(&parsed_val);
+        }
+        assert_eq!(summation.to_output(), "113.5");
     }
 }
