@@ -222,12 +222,6 @@ impl StdDev {
     }
 }
 
-//impl AggregationMethod for StdDev {
-//    typ Aggfunc = StdDev;
-//
-//    fn get_aggtype(&self) -> AggTypes { AggTypes::StdDev }
-//}
-
 pub struct Mean {
     num: usize,
     cur_total: Decimal,
@@ -337,7 +331,10 @@ impl AggregationMethod for Median {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
+    use rand::prelude::*;
+    use approx::assert_abs_diff_eq;
 
     #[test]
     fn adding_count_creates_single_count() {
@@ -372,5 +369,37 @@ mod tests {
         let mut uncount = CountUnique::new(record1);
         uncount.update(record2);
         assert_eq!(uncount.vals.len(), 2);
+    }
+
+    // testing standard deviation performance
+    #[test]
+    fn stdev_computation_is_stable() {
+        // numerical stability can be a problem in some computations of standard deviation,
+        // causing catastrophic cancellation errors.
+        // (See https://www.johndcook.com/blog/2008/09/28/theoretical-explanation-for-numerical-results/.)
+        // But with the algorithm we're using we should see minimal losses from cancellation.
+        // This tests that; this edge case comes from
+        // https://www.johndcook.com/blog/2008/09/26/comparing-three-methods-of-computing-standard-deviation/
+        let large_num = 1e9;
+        let randnum : f64 = random();
+        // taking a standard deviation of 10^6 random (0,1) values
+        // shouldn't suffer catastrophic cancellation, so we'll use as baseline
+        let small_rand = ParsingType::FloatingPoint(Some(randnum));
+        let mut decent_stddev = StdDev::new(&small_rand);
+        // adding 10^9 to each value (0,1) could cause catastrophic cancellation in bad
+        // standard deviation implementations
+        let init_parsing = ParsingType::FloatingPoint(Some(randnum + large_num));
+        let mut error_prone_stddev = StdDev::new(&init_parsing);
+        for i in 1..=1000000 {
+            let randnum : f64 = random();
+            let new_large = ParsingType::FloatingPoint(Some(randnum + large_num));
+            let new_small = ParsingType::FloatingPoint(Some(randnum));
+            decent_stddev.update(&new_small);
+            error_prone_stddev.update(&new_large);
+        }
+        // checks that the two standard deviations are equal to within 7 significant digits
+        // From what I've seen, it'll typically pass within 8 sig digits, but occasionally will fail there
+        // EXAMPLE: left = 0.28864050983648876, right = 0.28864049865571434
+        assert_abs_diff_eq!(decent_stddev.compute().unwrap(), error_prone_stddev.compute().unwrap(), epsilon = 1e-7);
     }
 }
