@@ -307,6 +307,9 @@ pub fn run(arg_matches : ArgMatches) -> Result<(), CsvPivotError> {
     } else if aggfunc == "countunique" {
         let mut config : CliConfig<CountUnique> = CliConfig::from_arg_matches(arg_matches, ParsingHelper::default())?;
         config.run_config()?;
+    } else if aggfunc == "mode" {
+        let mut config : CliConfig<Mode> = CliConfig::from_arg_matches(arg_matches, ParsingHelper::default())?;
+        config.run_config()?;
     } else if aggfunc == "mean" {
         let mut config : CliConfig<Mean> = CliConfig::from_arg_matches(arg_matches, ParsingHelper::set_numeric())?;
         config.run_config()?;

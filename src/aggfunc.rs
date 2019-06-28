@@ -11,6 +11,7 @@ use std::collections::{BTreeMap, HashSet};
 use rust_decimal::Decimal;
 use crate::parsing::ParsingType;
 use std::env::var;
+use indexmap::IndexMap;
 
 
 /// An enum designed to list all of the possible types of aggregation functions.
@@ -28,9 +29,15 @@ pub enum AggTypes {
     Mean,
     /// Computes the median of the records
     Median,
+    /// Computes the mode, in insertion order
+    Mode,
     /// Sums the records
     Sum,
-    /// Computes the standard deviation of the matching records
+    /// Computes the sample standard deviation of the matching records.
+    ///
+    /// If there are fewer than two matching records (i.e. 0 or 1 matching records),
+    /// returns an empty string.
+    ///
     StdDev,
 }
 
@@ -258,6 +265,48 @@ impl Mean {
     fn compute(&self) -> Decimal {
         self.cur_total
             .checked_div(Decimal::new(self.num as i64, 0)).unwrap()
+    }
+}
+
+pub struct Mode {
+    // I'm using an IndexMap for this implementation to preserve insertion order
+    // It's basically the equivalent of an OrderedDict in Python
+    values: IndexMap<String, usize>,
+}
+
+impl AggregationMethod for Mode {
+    type Aggfunc = Mode;
+
+    fn get_aggtype(&self) -> AggTypes { AggTypes::Mode }
+    fn new(parsed_val: &ParsingType) -> Self {
+        match parsed_val {
+            ParsingType::Text(Some(val)) => {
+                let mut init_val = IndexMap::new();
+                init_val.insert(val.to_string(), 1);
+                Mode { values: init_val }
+            },
+            _ => Mode { values: IndexMap::new() }
+        }
+    }
+    fn update(&mut self, parsed_val: &ParsingType) {
+        let entry = match parsed_val {
+            ParsingType::Text(Some(val)) => val.to_string(),
+            _ => "".to_string()
+        };
+        // barely adapted from https://docs.rs/indexmap/1.0.2/indexmap/map/struct.IndexMap.html
+        *self.values.entry(entry)
+            .or_insert(0) += 1;
+    }
+    fn to_output(&self) -> String {
+        let mut max_count = 0;
+        let mut max_val = "".to_string();
+        for (item, count) in &self.values {
+            if *count > max_count {
+                max_count = count.clone();
+                max_val = item.clone();
+            }
+        }
+        max_val
     }
 }
 
@@ -494,5 +543,41 @@ mod tests {
             summation.update(&parsed_val);
         }
         assert_eq!(summation.to_output(), "113.5");
+    }
+
+    // mode calculation
+    #[test]
+    fn test_mode_on_one_value() {
+        // makes sure initializing properly enters a new value
+        let init_parsing = ParsingType::Text(Some(String::from("a")));
+        let mode = Mode::new(&init_parsing);
+        assert_eq!(mode.to_output(), String::from("a"));
+    }
+    #[test]
+    fn test_mode_returns_most_commonly_appearing_value() {
+        // tests the basic functionality of mode
+        let init_parsing = ParsingType::Text(Some(String::from("a")));
+        let new_vals = vec!["b".to_string(), "c".to_string(), "a".to_string()];
+        let mut mode = Mode::new(&init_parsing);
+        for val in new_vals {
+            let parsed_val = ParsingType::Text(Some(val));
+            mode.update(&parsed_val);
+        }
+        assert_eq!(mode.to_output(), String::from("a"));
+    }
+    #[test]
+    fn test_mode_returns_first_initialized_on_tie() {
+        // makes sure that if two values appear the same number of times
+        // the returned value is the first value appearing in the data
+        for i in 1..=10000 {
+            let init_parsing = ParsingType::Text(Some("a".to_string()));
+            let mut mode = Mode::new(&init_parsing);
+            let addl_vals = vec!["b".to_string(), "a".to_string(), "b".to_string()];
+            for val in addl_vals {
+                let parsed_val = ParsingType::Text(Some(val));
+                mode.update(&parsed_val);
+            }
+            assert_eq!(mode.to_output(), "a".to_string());
+        }
     }
 }

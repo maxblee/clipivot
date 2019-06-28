@@ -11,6 +11,8 @@ args:
       \n- `count` counts individual records
       \n- `countunique` counts the number of unique records in the values column
       \n- `mean` computes a mean across the matching records
+      \n- `mode` computes the mode, returning the record that appears first in the data in the case of a tie
+      \n- `stddev` computes the sample standard deviation, outputting an empty string if there are 0 or 1 matching records
       \n- `sum` sums the values. Only supports numbers (integers and decimals)\n"
       required: true
       index: 1
@@ -19,6 +21,7 @@ args:
         - countunique
         - mean
         - median
+        - mode
         - stddev
         - sum
 
