@@ -68,6 +68,10 @@ support your particular use case, you should probably use `SQL` or a data scienc
 * `csvpivot` is not going to outperform `SQL`. While I've tried to keep the program reasonably fast, it will not reach
 the speeds of `SQL` performance. Queries should be easier to write, however.
 
+* `csvpivot` is not designed for dirty data. Its numeric functions require that data be easily parsed
+as numeric data, and the only text cleaning it does is trimming whitespace from the beginning and ends of each cell.
+This means that all of your data must be clean enough to aggregate on *before* you put it into this tool.
+
 * `csvpivot` is not a publication tool. Finding decent ways to aggregate data in a way that is reproducible for a large
 number of datasets and a large number of stories is not easy. So a lot of the time, you will have to clean the CSV
 files after running it through this program. However, I have tried to design the program to operate predictably so
@@ -297,6 +301,8 @@ And there are a number of other functions you can apply on your given data.
 ### Supported functions
 `csvpivot` has support for a number of functions, fitting into the following
 categories: text functions, numeric functions, and type independent functions.
+You can get a full description of those by typing `csvpivot --help`. But here
+are a few general tips to help you understand the methods:
 
 - The text functions don't require anything special of your text; they
 will simply take the text data as it is. However, the data should be clean
