@@ -85,7 +85,7 @@ pub trait AggregationMethod {
     type Aggfunc;
 
     /// Returns the Aggregation method (e.g. AggTypes::Count)
-    fn get_aggtype(&self) -> AggTypes;
+    fn get_aggtype() -> AggTypes;
     /// Instantiates a new AggregationMethod record
     fn new(parsed_val: &ParsingType) -> Self;
     /// Updates an existing record
@@ -104,7 +104,7 @@ pub struct Count {
 impl AggregationMethod for Count {
     type Aggfunc = Count;
 
-    fn get_aggtype(&self) -> AggTypes { AggTypes::Count }
+    fn get_aggtype() -> AggTypes { AggTypes::Count }
     fn new(parsed_val: &ParsingType) -> Self {
         Count { val: 1 }
     }
@@ -123,7 +123,7 @@ pub struct CountUnique {
 impl AggregationMethod for CountUnique {
     type Aggfunc = CountUnique;
 
-    fn get_aggtype(&self) -> AggTypes { AggTypes::CountUnique }
+    fn get_aggtype() -> AggTypes { AggTypes::CountUnique }
     fn new(parsed_val: &ParsingType) -> Self {
         match parsed_val {
             ParsingType::Text(Some(str_val)) => {
@@ -157,7 +157,7 @@ pub struct Sum {
 impl AggregationMethod for Sum {
     type Aggfunc = Sum;
 
-    fn get_aggtype(&self) -> AggTypes { AggTypes::Sum }
+    fn get_aggtype() -> AggTypes { AggTypes::Sum }
     fn new(parsed_val: &ParsingType) -> Self {
         match parsed_val {
             ParsingType::Numeric(Some(num)) => Sum { cur_total: *num },
@@ -188,7 +188,7 @@ pub struct StdDev {
 impl AggregationMethod for StdDev {
     type Aggfunc = StdDev;
 
-    fn get_aggtype(&self) -> AggTypes { AggTypes::StdDev }
+    fn get_aggtype() -> AggTypes { AggTypes::StdDev }
     fn new(parsed_val: &ParsingType) -> Self {
         match parsed_val {
             ParsingType::FloatingPoint(Some(num)) => {
@@ -236,7 +236,7 @@ pub struct Mean {
 impl AggregationMethod for Mean {
     type Aggfunc = Mean;
 
-    fn get_aggtype(&self) -> AggTypes { AggTypes::Mean }
+    fn get_aggtype() -> AggTypes { AggTypes::Mean }
     fn new(parsed_val: &ParsingType) -> Self {
         match parsed_val {
             ParsingType::Numeric(Some(num)) => Mean { cur_total: *num, num: 1 },
@@ -278,7 +278,7 @@ pub struct Mode {
 impl AggregationMethod for Mode {
     type Aggfunc = Mode;
 
-    fn get_aggtype(&self) -> AggTypes { AggTypes::Mode }
+    fn get_aggtype() -> AggTypes { AggTypes::Mode }
     fn new(parsed_val: &ParsingType) -> Self {
         match parsed_val {
             ParsingType::Text(Some(val)) => {
@@ -324,7 +324,7 @@ pub struct Median {
 impl AggregationMethod for Median {
     type Aggfunc = Median;
 
-    fn get_aggtype(&self) -> AggTypes { AggTypes::Median }
+    fn get_aggtype() -> AggTypes { AggTypes::Median }
     fn new(parsed_val: &ParsingType) -> Self {
         match parsed_val {
             ParsingType::Numeric(Some(num)) => {

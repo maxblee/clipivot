@@ -216,11 +216,17 @@ pub struct CliConfig<U>
 }
 
 impl <U: AggregationMethod> CliConfig<U> {
+    /// Creates a new, basic CliConfig
+    pub fn new() -> CliConfig<U> {
+        CliConfig {filename: None, aggregator: Aggregator::new(), has_header: true }
+    }
     /// Takes argument matches from main and tries to convert them into CliConfig
-    pub fn from_arg_matches(arg_matches: ArgMatches, parser: ParsingHelper) -> Result<CliConfig<U>, CsvPivotError> {
+    pub fn from_arg_matches(arg_matches: ArgMatches) -> Result<CliConfig<U>, CsvPivotError> {
+        let mut base_config : CliConfig<U> = CliConfig::new();
         // This method of error handling from
         // https://medium.com/@fredrikanderzon/custom-error-types-in-rust-and-the-operator-b499d0fb2925
-        let values: usize = arg_matches.value_of("value").unwrap().parse().or(Err(CsvPivotError::InvalidField))?;
+        let values: usize = arg_matches.value_of("value").unwrap()
+            .parse().or(Err(CsvPivotError::InvalidField))?;
         // This makes it so set_indexes and set_columns can set an empty vector (for totals)
         let rowvec = match arg_matches.values_of("rows") {
             Some(vals) => vals.collect(),
@@ -233,6 +239,7 @@ impl <U: AggregationMethod> CliConfig<U> {
         let rows = parse_column(rowvec)?;
         let columns = parse_column(colvec)?;
         let filename = arg_matches.value_of("filename").map(String::from);
+        let parser = base_config.get_parser(&arg_matches);
         let aggregator : Aggregator<U> = Aggregator::new()
             .set_value_column(values)
             .set_columns(columns)
@@ -245,6 +252,23 @@ impl <U: AggregationMethod> CliConfig<U> {
             has_header: !arg_matches.is_present("noheader"),
         };
         Ok(cfg)
+    }
+    fn get_parsing_approach(&self) -> ParsingType {
+        match U::get_aggtype() {
+            AggTypes::Count => ParsingType::Text(None),
+            AggTypes::CountUnique => ParsingType::Text(None),
+            AggTypes::Mode => ParsingType::Text(None),
+            AggTypes::Mean => ParsingType::Numeric(None),
+            AggTypes::Median => ParsingType::Numeric(None),
+            AggTypes::Sum => ParsingType::Numeric(None),
+            AggTypes::StdDev => ParsingType::FloatingPoint(None),
+        }
+    }
+
+    fn get_parser(&self, arg_matches: &ArgMatches) -> ParsingHelper {
+        let parse_type = self.get_parsing_approach();
+        ParsingHelper::from_parsing_type(parse_type)
+            .parse_empty_vals(!arg_matches.is_present("empty"))
     }
     /// Converts from a file path to either a CSV reader or a CSV error.
     ///
@@ -308,25 +332,25 @@ pub fn parse_column(column: Vec<&str>) -> Result<Vec<usize>, CsvPivotError> {
 pub fn run(arg_matches : ArgMatches) -> Result<(), CsvPivotError> {
     let aggfunc = arg_matches.value_of("aggfunc").unwrap();
     if aggfunc == "count" {
-        let mut config : CliConfig<Count> = CliConfig::from_arg_matches(arg_matches, ParsingHelper::default())?;
+        let mut config : CliConfig<Count> = CliConfig::from_arg_matches(arg_matches)?;
         config.run_config()?;
     } else if aggfunc == "countunique" {
-        let mut config : CliConfig<CountUnique> = CliConfig::from_arg_matches(arg_matches, ParsingHelper::default())?;
+        let mut config : CliConfig<CountUnique> = CliConfig::from_arg_matches(arg_matches)?;
         config.run_config()?;
     } else if aggfunc == "mode" {
-        let mut config : CliConfig<Mode> = CliConfig::from_arg_matches(arg_matches, ParsingHelper::default())?;
+        let mut config : CliConfig<Mode> = CliConfig::from_arg_matches(arg_matches)?;
         config.run_config()?;
     } else if aggfunc == "mean" {
-        let mut config : CliConfig<Mean> = CliConfig::from_arg_matches(arg_matches, ParsingHelper::set_numeric())?;
+        let mut config : CliConfig<Mean> = CliConfig::from_arg_matches(arg_matches)?;
         config.run_config()?;
     } else if aggfunc == "sum" {
-        let mut config : CliConfig<Sum> = CliConfig::from_arg_matches(arg_matches, ParsingHelper::set_numeric())?;
+        let mut config : CliConfig<Sum> = CliConfig::from_arg_matches(arg_matches)?;
         config.run_config()?;
     } else if aggfunc == "median" {
-        let mut config : CliConfig<Median> = CliConfig::from_arg_matches(arg_matches, ParsingHelper::set_numeric())?;
+        let mut config : CliConfig<Median> = CliConfig::from_arg_matches(arg_matches)?;
         config.run_config()?;
     } else if aggfunc == "stddev" {
-        let mut config : CliConfig<StdDev> = CliConfig::from_arg_matches(arg_matches, ParsingHelper::set_floating())?;
+        let mut config : CliConfig<StdDev> = CliConfig::from_arg_matches(arg_matches)?;
         config.run_config()?;
     }
     Ok(())
@@ -398,7 +422,7 @@ mod tests {
             .author(crate_authors!())
             .get_matches_from(vec!["csvpivot", "count", "test_csvs/layoffs.csv", "--rows=3", "--cols=1", "--val=0"]);
         let expected_config = setup_config();
-        let actual_config : CliConfig<Count> = CliConfig::from_arg_matches(matches, ParsingHelper::default()).unwrap();
+        let actual_config : CliConfig<Count> = CliConfig::from_arg_matches(matches).unwrap();
         assert_eq!(actual_config, expected_config);
     }
 
@@ -431,7 +455,7 @@ mod tests {
             .author(crate_authors!())
             .get_matches_from(vec!["csvpivot", "count", "test_csvs/one_liner.csv",
                                    "--rows=0", "--cols=1", "--val=2", "--no-header"]);
-        let mut config : CliConfig<Count> = CliConfig::from_arg_matches(matches, ParsingHelper::default()).unwrap();
+        let mut config : CliConfig<Count> = CliConfig::from_arg_matches(matches).unwrap();
         config.run_config();
         assert!(!config.aggregator.aggregations.is_empty());
         let correct_vals = config.aggregator.aggregations

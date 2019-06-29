@@ -42,13 +42,20 @@ impl Default for ParsingHelper {
     fn default() -> ParsingHelper {
         ParsingHelper {
             values_type: ParsingType::Text(None),
-            possible_values: vec![ParsingType::Text(None)],
+            possible_values: vec![],
             parse_empty: true,
         }
     }
 }
 
 impl ParsingHelper {
+    pub fn from_parsing_type(parsing: ParsingType) -> ParsingHelper {
+        ParsingHelper {
+            values_type: parsing,
+            possible_values: vec![],
+            parse_empty: true,
+        }
+    }
     /// Converts a new `&str` value read in from a CSV file into a format determined
     /// by the `values_type` attribute of `ParsingHelper`. Raises an error
     /// if the value read in is not compatible with the parsing type.
@@ -68,11 +75,18 @@ impl ParsingHelper {
         }
     }
 
+    pub fn parse_empty_vals(mut self, yes: bool) -> Self {
+        self.parse_empty = yes;
+        self
+    }
+
     pub fn parse_val(&self, new_val: &str) -> Result<Option<ParsingType>, CsvPivotError> {
         // list of empty values heavily borrowed from `agate` in Python
         // https://agate.readthedocs.io/en/1.6.1/api/data_types.html
         let empty_vals = vec!["", "na", "n/a", "none", "null", "nan"];
-        if empty_vals.contains(&new_val.to_ascii_lowercase().as_str()) && self.parse_empty { return Ok(None); }
+        if empty_vals.contains(&new_val.to_ascii_lowercase().as_str()) && !self.parse_empty {
+            return Ok(None);
+        }
         let parsed_val = match self.values_type {
             ParsingType::Text(_) => Ok(ParsingType::Text(Some(new_val.to_string()))),
             ParsingType::Numeric(_) => ParsingHelper::parse_numeric(new_val),
