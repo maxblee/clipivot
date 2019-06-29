@@ -67,3 +67,14 @@ args:
   - empty:
       help: Ignores empty/null values (e.g. "", NULL, NaN, etc.)
       short: e
+  - delimeter:
+      help: The field separator in the CSV file. Defaults to ',' if unspecified
+      short: d
+      takes_value: true
+  - quotechar:
+      help: The quote character to parse the CSV records with (defaults to '"' if unspecified)
+      short: q
+      takes_value: true
+  - noheader:
+      help: Used when the CSV file does not have a header row
+      long: no-header
