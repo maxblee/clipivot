@@ -7,11 +7,10 @@
 //!
 //! The API for the main `AggregationMethod` should provide more information
 //! on how to create your own new method.
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashSet, HashMap};
 use rust_decimal::Decimal;
 use crate::parsing::ParsingType;
 use std::env::var;
-use indexmap::IndexMap;
 
 
 /// An enum designed to list all of the possible types of aggregation functions.
@@ -271,7 +270,7 @@ impl Mean {
 pub struct Mode {
     // I'm using an IndexMap for this implementation to preserve insertion order
     // It's basically the equivalent of an OrderedDict in Python
-    values: IndexMap<String, usize>,
+    values: HashMap<String, usize>,
     max_count: usize,
     max_val: String,
 }
@@ -283,11 +282,11 @@ impl AggregationMethod for Mode {
     fn new(parsed_val: &ParsingType) -> Self {
         match parsed_val {
             ParsingType::Text(Some(val)) => {
-                let mut init_val = IndexMap::new();
+                let mut init_val = HashMap::new();
                 init_val.insert(val.to_string(), 1);
                 Mode { values: init_val, max_count: 1, max_val: val.to_string() }
             },
-            _ => Mode { values: IndexMap::new(), max_count: 0, max_val: "".to_string() }
+            _ => Mode { values: HashMap::new(), max_count: 0, max_val: "".to_string() }
         }
     }
     fn update(&mut self, parsed_val: &ParsingType) {

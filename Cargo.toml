@@ -12,7 +12,6 @@ documentation = "https://maxblee.github.io/csvpivot"
 clap = {version = "~2.27.0", features = ["yaml"]}
 chrono = "0.4"
 csv = "1"
-indexmap = "1.0.2"
 rust_decimal = "1.0.1"
 
 [dev-dependencies]
