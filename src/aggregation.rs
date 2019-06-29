@@ -210,6 +210,7 @@ pub struct CliConfig<U>
     // set as an option so I can handle standard input
     filename: Option<String>,
     aggregator: Aggregator<U>,
+    has_header: bool,
 }
 
 impl <U: AggregationMethod> CliConfig<U> {
@@ -239,6 +240,7 @@ impl <U: AggregationMethod> CliConfig<U> {
         let cfg = CliConfig {
             filename,
             aggregator,
+            has_header: !arg_matches.is_present("noheader"),
         };
         Ok(cfg)
     }
@@ -255,6 +257,7 @@ impl <U: AggregationMethod> CliConfig<U> {
     pub fn get_reader_from_path(&self) -> Result<csv::Reader<fs::File>, csv::Error> {
         csv::ReaderBuilder::new()
             .trim(csv::Trim::All)
+            .has_headers(self.has_header)
             // this function is only run if self.filename.is_some() so unwrap() is fine
             .from_path(self.filename.as_ref().unwrap())
     }
@@ -263,6 +266,7 @@ impl <U: AggregationMethod> CliConfig<U> {
     pub fn get_reader_from_stdin(&self) -> csv::Reader<io::Stdin> {
         csv::ReaderBuilder::new()
             .trim(csv::Trim::All)
+            .has_headers(self.has_header)
             .from_reader(io::stdin())
     }
 
@@ -365,7 +369,8 @@ mod tests {
             .set_value_column(0);
         CliConfig {
             filename: Some("test_csvs/one_liner.csv".to_string()),
-            aggregator: agg
+            aggregator: agg,
+            has_header: true,
         }
     }
 
@@ -376,7 +381,8 @@ mod tests {
             .set_value_column(0);
         CliConfig {
             filename: Some("test_csvs/layoffs.csv".to_string()),
-            aggregator: agg
+            aggregator: agg,
+            has_header: true,
         }
     }
 
@@ -413,6 +419,22 @@ mod tests {
         let mut config = setup_one_liners();
         config.run_config();
         assert!(config.aggregator.aggregations.is_empty());
+    }
+
+    #[test]
+    fn test_no_headers_parses_first_row() {
+        let yaml = load_yaml!("cli.yml");
+        let matches = clap::App::from_yaml(yaml)
+            .version(crate_version!())
+            .author(crate_authors!())
+            .get_matches_from(vec!["csvpivot", "count", "test_csvs/one_liner.csv",
+                                   "--rows=0", "--cols=1", "--val=2", "--no-header"]);
+        let mut config : CliConfig<Count> = CliConfig::from_arg_matches(matches, ParsingHelper::default()).unwrap();
+        config.run_config();
+        assert!(!config.aggregator.aggregations.is_empty());
+        let correct_vals = config.aggregator.aggregations
+            .get(&("a".to_string(), "b".to_string())).is_some();
+        assert!(correct_vals);
     }
 
     #[test]

@@ -56,6 +56,8 @@ parse values as decimals, avoiding roundoff errors. And the standard deviation u
 [Welford's algorithm](https://www.johndcook.com/blog/standard_deviation/) to avoid cancellation errors.
 
 ## What isn't this? (The anti-pitch)
+* Right now, `csvpivot` only works for comma-separated values. I plan to fix that.
+
 * `csvpivot` is a tool, not a toolkit. There are too many good CSV toolkits out there for me to be able to justify
 creating a new one. However, `csvpivot` *is* designed to play nicely with other command-line CSV toolkits. In
 just a short bit, I'll show you some of my favorite toolkits and how you can use `csvpivot` in
@@ -182,8 +184,6 @@ FLAGS:
 
 OPTIONS:
     -c, --cols <columns>...    The name of the column(s) to aggregate on. Currently must be 0-indexed integers
-    -d <delimeter>             The field separator in the CSV file. Defaults to ',' if unspecified
-    -q <quotechar>             The quote character to parse the CSV records with (defaults to '"' if unspecified)
     -r, --rows <rows>...       The name of the index(es) to aggregate on. Currently must be 0-indexed integers
     -v, --val <value>          The name of the field used to determine the value (e.g. id for most count operations).
                                Currently must be 0-indexed integers
@@ -343,21 +343,6 @@ following values, they are null values and should be ignored:
 an empty string, 'n/a', 'none', 'null', 'nan'. The function determining whether
 or not to lowercase values renders text into lowercase, so uppercase versions
 of those phrases will be rendered as empty as well.
-
-### Other Options
-I've covered most of the available options already, but there are still
-two that I haven't covered. Very quickly, there's here:
-
-- Use the `-d` delimeter flag if your "comma-separated values" file is not
-actually separated by commas. If you're using this on a tab-separated file,
-write `-d '\t'`
-- CSV files often use quote characters in fields, primarily to have the parser
-ignore the delimeter within the quotes. (For instance, the
-$75,000 donation in the Post's inaugural donations dataset I referenced earlier
-uses quotes around "$75,000.00". This allows them to use a comma in the middle
-of a cell within a CSV file. You can use the `-q` flag to override the default,
-which assumes that double quotation marks like `"` serve as quote characters
-in the document.
 
 ## Developer Guide
 Now that you've used `csvpivot`, do you want to help make it better?
