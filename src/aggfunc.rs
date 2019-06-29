@@ -272,6 +272,8 @@ pub struct Mode {
     // I'm using an IndexMap for this implementation to preserve insertion order
     // It's basically the equivalent of an OrderedDict in Python
     values: IndexMap<String, usize>,
+    max_count: usize,
+    max_val: String,
 }
 
 impl AggregationMethod for Mode {
@@ -283,9 +285,9 @@ impl AggregationMethod for Mode {
             ParsingType::Text(Some(val)) => {
                 let mut init_val = IndexMap::new();
                 init_val.insert(val.to_string(), 1);
-                Mode { values: init_val }
+                Mode { values: init_val, max_count: 1, max_val: val.to_string() }
             },
-            _ => Mode { values: IndexMap::new() }
+            _ => Mode { values: IndexMap::new(), max_count: 0, max_val: "".to_string() }
         }
     }
     fn update(&mut self, parsed_val: &ParsingType) {
@@ -294,20 +296,16 @@ impl AggregationMethod for Mode {
             _ => "".to_string()
         };
         // barely adapted from https://docs.rs/indexmap/1.0.2/indexmap/map/struct.IndexMap.html
+        let new_count = *self.values.get(&entry).unwrap_or(&0) + 1;
+        if new_count > self.max_count {
+            self.max_count = new_count;
+            self.max_val = entry.clone();
+        }
         *self.values.entry(entry)
             .or_insert(0) += 1;
     }
-    fn to_output(&self) -> String {
-        let mut max_count = 0;
-        let mut max_val = "".to_string();
-        for (item, count) in &self.values {
-            if *count > max_count {
-                max_count = count.clone();
-                max_val = item.clone();
-            }
-        }
-        max_val
-    }
+
+    fn to_output(&self) -> String { self.max_val.clone() }
 }
 
 pub struct Median {
