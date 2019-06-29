@@ -69,6 +69,8 @@ impl ParsingHelper {
     }
 
     pub fn parse_val(&self, new_val: &str) -> Result<Option<ParsingType>, CsvPivotError> {
+        // list of empty values heavily borrowed from `agate` in Python
+        // https://agate.readthedocs.io/en/1.6.1/api/data_types.html
         let empty_vals = vec!["", "na", "n/a", "none", "null", "nan"];
         if empty_vals.contains(&new_val.to_ascii_lowercase().as_str()) && self.parse_empty { return Ok(None); }
         let parsed_val = match self.values_type {
