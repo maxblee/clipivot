@@ -176,7 +176,9 @@ impl <T: AggregationMethod> Aggregator<T> {
         self.columns.insert(columnnames.clone());
         let parsed_val = self.parser.parse_val(str_val)?;
         // this determines how to add the data as it's being read
-        self.update_aggregations(indexnames, columnnames, &parsed_val);
+        if parsed_val.is_some() {
+            self.update_aggregations(indexnames, columnnames, &parsed_val.unwrap());
+        }
         Ok(())
     }
 

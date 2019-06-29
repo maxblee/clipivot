@@ -34,14 +34,16 @@ pub struct ParsingHelper {
     values_type: ParsingType,
     /// Not being used right now, but designed for use when I automatically determine
     /// the data type of a given values field.
-    possible_values: Vec<ParsingType>
+    possible_values: Vec<ParsingType>,
+    parse_empty: bool,
 }
 
 impl Default for ParsingHelper {
     fn default() -> ParsingHelper {
         ParsingHelper {
             values_type: ParsingType::Text(None),
-            possible_values: vec![ParsingType::Text(None)]
+            possible_values: vec![ParsingType::Text(None)],
+            parse_empty: true,
         }
     }
 }
@@ -51,19 +53,30 @@ impl ParsingHelper {
     /// by the `values_type` attribute of `ParsingHelper`. Raises an error
     /// if the value read in is not compatible with the parsing type.
     pub fn set_numeric() -> ParsingHelper {
-        ParsingHelper { values_type: ParsingType::Numeric(None), possible_values: vec![]}
+        ParsingHelper {
+            values_type: ParsingType::Numeric(None),
+            possible_values: vec![],
+            parse_empty: true,
+        }
     }
 
     pub fn set_floating() -> ParsingHelper {
-        ParsingHelper { values_type: ParsingType::FloatingPoint(None), possible_values: vec![] }
+        ParsingHelper {
+            values_type: ParsingType::FloatingPoint(None),
+            possible_values: vec![],
+            parse_empty: true,
+        }
     }
 
-    pub fn parse_val(&self, new_val: &str) -> Result<ParsingType, CsvPivotError> {
-        match self.values_type {
+    pub fn parse_val(&self, new_val: &str) -> Result<Option<ParsingType>, CsvPivotError> {
+        let empty_vals = vec!["", "na", "n/a", "none", "null", "nan"];
+        if empty_vals.contains(&new_val.to_ascii_lowercase().as_str()) && self.parse_empty { return Ok(None); }
+        let parsed_val = match self.values_type {
             ParsingType::Text(_) => Ok(ParsingType::Text(Some(new_val.to_string()))),
             ParsingType::Numeric(_) => ParsingHelper::parse_numeric(new_val),
             ParsingType::FloatingPoint(_) => ParsingHelper::parse_floating(new_val),
-        }
+        }?;
+        Ok(Some(parsed_val))
     }
 
     fn parse_numeric(new_val: &str) -> Result<ParsingType, CsvPivotError> {
