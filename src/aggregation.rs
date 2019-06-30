@@ -253,7 +253,7 @@ impl <U: AggregationMethod> CliConfig<U> {
         };
         Ok(cfg)
     }
-    fn get_parsing_approach(&self) -> ParsingType {
+    fn get_parsing_approach(&self, parse_numeric: bool, parse_date: bool) -> ParsingType {
         match U::get_aggtype() {
             AggTypes::Count => ParsingType::Text(None),
             AggTypes::CountUnique => ParsingType::Text(None),
@@ -262,11 +262,14 @@ impl <U: AggregationMethod> CliConfig<U> {
             AggTypes::Median => ParsingType::Numeric(None),
             AggTypes::Sum => ParsingType::Numeric(None),
             AggTypes::StdDev => ParsingType::FloatingPoint(None),
+            _ => ParsingType::Numeric(None),
         }
     }
 
     fn get_parser(&self, arg_matches: &ArgMatches) -> ParsingHelper {
-        let parse_type = self.get_parsing_approach();
+        let parse_numeric = arg_matches.is_present("numeric");
+        let infer_date = arg_matches.is_present("infer");
+        let parse_type = self.get_parsing_approach(parse_numeric, infer_date);
         ParsingHelper::from_parsing_type(parse_type)
             .parse_empty_vals(!arg_matches.is_present("empty"))
     }

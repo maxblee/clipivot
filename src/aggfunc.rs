@@ -24,12 +24,22 @@ pub enum AggTypes {
     Count,
     /// Counts the number of unique records.
     CountUnique,
+    /// Computes the maximum value of the records, or the most recent date
+    Maximum,
     /// Computes a mean of the records
     Mean,
     /// Computes the median of the records
     Median,
+    /// Computes the minimum value of the records
+    ///
+    /// Requires data to be configurable as datetimes or as numbers
+    /// For datetimes, it defaults to reading values in ISO 8601 format.
+    /// Reads all numbers as decimals
+    Minimum,
     /// Computes the mode, in insertion order
     Mode,
+    /// Finds the difference between the minimum and maximum value
+    Range,
     /// Sums the records
     Sum,
     /// Computes the sample standard deviation of the matching records.
@@ -92,6 +102,123 @@ pub trait AggregationMethod {
     fn update(&mut self, parsed_val: &ParsingType);
     /// Converts to a `String` output so the value can be written to standard output
     fn to_output(&self) -> String;
+}
+
+pub struct Range {
+    min_val: ParsingType,
+    max_val: ParsingType,
+}
+
+impl AggregationMethod for Range {
+    type Aggfunc = Range;
+
+    fn get_aggtype() -> AggTypes { AggTypes::Range }
+
+    fn new(parsed_val: &ParsingType) -> Self {
+        let (min_val, max_val) = match parsed_val {
+            ParsingType::Numeric(Some(new_val)) => {
+                (ParsingType::Numeric(Some(*new_val)), ParsingType::Numeric(Some(*new_val)))
+            },
+            _ => (ParsingType::Numeric(None), ParsingType::Numeric(None))
+        };
+        Range { min_val, max_val }
+    }
+
+    fn update(&mut self, parsed_val: &ParsingType) {
+        match (&self.min_val, &self.max_val, parsed_val) {
+            (
+                ParsingType::Numeric(Some(min)),
+                ParsingType::Numeric(Some(max)),
+                ParsingType::Numeric(Some(new_val))
+            ) => {
+                if new_val > max { self.max_val = ParsingType::Numeric(Some(*new_val)); }
+                else if new_val < min { self.min_val = ParsingType::Numeric(Some(*new_val)); }
+            },
+            _ => { }
+        }
+    }
+
+    fn to_output(&self) -> String {
+        match (&self.min_val, &self.max_val) {
+            (ParsingType::Numeric(Some(min)), ParsingType::Numeric(Some(max))) => {
+                let range = max.checked_sub(*min).unwrap();
+                range.to_string()
+            },
+            _ => "".to_string()
+        }
+    }
+}
+
+pub struct Maximum {
+    max_val: ParsingType,
+}
+
+impl AggregationMethod for Maximum {
+    type Aggfunc = Maximum;
+
+    fn get_aggtype() -> AggTypes { AggTypes::Maximum }
+
+    fn new(parsed_val: &ParsingType) -> Self {
+        let max_val = match parsed_val {
+            ParsingType::Numeric(Some(val)) => ParsingType::Numeric(Some(*val)),
+            _ => ParsingType::Numeric(None)
+        };
+
+        Maximum { max_val }
+    }
+
+    fn update(&mut self, parsed_val: &ParsingType) {
+        match (&self.max_val, parsed_val) {
+            (ParsingType::Numeric(Some(min)), ParsingType::Numeric(Some(cur))) => {
+                if cur > min { self.max_val = ParsingType::Numeric(Some(*cur)); }
+            },
+            _ => { }
+        }
+    }
+
+    fn to_output(&self) -> String {
+        match self.max_val {
+            ParsingType::Numeric(Some(val)) => val.to_string(),
+            _ => "".to_string()
+        }
+    }
+}
+
+pub struct Minimum {
+    min_val: ParsingType,
+}
+
+impl AggregationMethod for Minimum {
+    type Aggfunc = Minimum;
+
+    fn get_aggtype() -> AggTypes { AggTypes::Minimum }
+
+    fn new(parsed_val: &ParsingType) -> Self {
+        // Minimum needs to be more inclusive in its matching than other methods
+        // because multiple ParsingTypes work with it
+        let min_val = match parsed_val {
+            ParsingType::Numeric(Some(val)) => ParsingType::Numeric(Some(*val)),
+            _ => ParsingType::Numeric(None)
+        };
+
+        Minimum { min_val }
+    }
+
+    fn update(&mut self, parsed_val: &ParsingType) {
+        match (&self.min_val, parsed_val) {
+            (ParsingType::Numeric(Some(min)), ParsingType::Numeric(Some(cur))) => {
+                if cur < min { self.min_val = ParsingType::Numeric(Some(*cur)); }
+            },
+            _ => { }
+        }
+    }
+
+    fn to_output(&self) -> String {
+        match self.min_val {
+            ParsingType::Numeric(Some(val)) => val.to_string(),
+            _ => "".to_string()
+        }
+    }
 }
 
 /// The aggregation method for counting records.
@@ -566,7 +693,7 @@ mod tests {
     fn test_mode_returns_first_initialized_on_tie() {
         // makes sure that if two values appear the same number of times
         // the returned value is the first value appearing in the data
-        for i in 1..=10000 {
+        for _i in 1..=10000 {
             let init_parsing = ParsingType::Text(Some("a".to_string()));
             let mut mode = Mode::new(&init_parsing);
             let addl_vals = vec!["b".to_string(), "a".to_string(), "b".to_string()];
@@ -576,5 +703,47 @@ mod tests {
             }
             assert_eq!(mode.to_output(), "a".to_string());
         }
+    }
+
+    #[test]
+    fn test_minimum_finds_smallest_val() {
+        // tests the Minimum function
+        let first_parse = ParsingType::Numeric(Some(Decimal::from_str("5").unwrap()));
+        let mut minimum = Minimum::new(&first_parse);
+        let all_vals = vec!["12", "12.3", "2", "7.8"];
+        for val in all_vals {
+            let dectype = Decimal::from_str(val).unwrap();
+            let parsing_val = ParsingType::Numeric(Some(dectype));
+            minimum.update(&parsing_val);
+        }
+        assert_eq!(minimum.to_output(), "2".to_string());
+    }
+
+    #[test]
+    fn test_maximum_finds_largest_val() {
+        // tests the maximum function
+        let first_parse = ParsingType::Numeric(Some(Decimal::from_str("5").unwrap()));
+        let mut maximum = Maximum::new(&first_parse);
+        let all_vals = vec!["12", "12.3", "2", "7.8"];
+        for val in all_vals {
+            let dectype = Decimal::from_str(val).unwrap();
+            let parsing_val = ParsingType::Numeric(Some(dectype));
+            maximum.update(&parsing_val);
+        }
+        assert_eq!(maximum.to_output(), "12.3".to_string());
+    }
+
+    #[test]
+    fn test_range() {
+        // tests the range function
+        let first_parse = ParsingType::Numeric(Some(Decimal::from_str("5").unwrap()));
+        let mut range = Range::new(&first_parse);
+        let all_vals = vec!["12", "12.3", "2", "7.8"];
+        for val in all_vals {
+            let dectype = Decimal::from_str(val).unwrap();
+            let parsing_val = ParsingType::Numeric(Some(dectype));
+            range.update(&parsing_val);
+        }
+        assert_eq!(range.to_output(), "10.3".to_string());
     }
 }
