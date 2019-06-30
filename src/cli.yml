@@ -28,9 +28,12 @@ args:
       possible_values:
         - count
         - countunique
+        - max
         - mean
         - median
+        - min
         - mode
+        - range
         - stddev
         - sum
 

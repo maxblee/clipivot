@@ -262,6 +262,9 @@ impl <U: AggregationMethod> CliConfig<U> {
             AggTypes::Median => ParsingType::Numeric(None),
             AggTypes::Sum => ParsingType::Numeric(None),
             AggTypes::StdDev => ParsingType::FloatingPoint(None),
+            AggTypes::Minimum if parse_numeric => ParsingType::Numeric(None),
+            AggTypes::Maximum if parse_numeric => ParsingType::Numeric(None),
+            AggTypes::Range if parse_numeric => ParsingType::Numeric(None),
             _ => ParsingType::Numeric(None),
         }
     }
@@ -354,6 +357,15 @@ pub fn run(arg_matches : ArgMatches) -> Result<(), CsvPivotError> {
         config.run_config()?;
     } else if aggfunc == "stddev" {
         let mut config : CliConfig<StdDev> = CliConfig::from_arg_matches(arg_matches)?;
+        config.run_config()?;
+    } else if aggfunc == "min" {
+        let mut config : CliConfig<Minimum> = CliConfig::from_arg_matches(arg_matches)?;
+        config.run_config()?;
+    } else if aggfunc == "max" {
+        let mut config : CliConfig<Maximum> = CliConfig::from_arg_matches(arg_matches)?;
+        config.run_config()?;
+    } else if aggfunc == "range" {
+        let mut config : CliConfig<Range> = CliConfig::from_arg_matches(arg_matches)?;
         config.run_config()?;
     }
     Ok(())
