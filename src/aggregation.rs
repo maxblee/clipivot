@@ -20,6 +20,9 @@ use crate::aggfunc::*;
 use crate::errors::CsvPivotError;
 use crate::parsing::{ParsingHelper, ParsingType};
 
+
+const FIELD_SEPARATOR: &'static str = "_<sep>_";
+
 /// The main struct for aggregating CSV files
 #[derive(Debug, PartialEq)]
 pub struct Aggregator<T>
@@ -165,7 +168,7 @@ impl <T: AggregationMethod> Aggregator<T> {
     }
 
     fn add_record(&mut self, record: csv::StringRecord) -> Result<(), CsvPivotError> {
-        // merges all of the index columns into a single column, separated by '$.'
+        // merges all of the index columns into a single column, separated by FIELD_SEPARATOR
         let indexnames = self.get_colname(&self.index_cols, &record)?;
         let columnnames = self.get_colname(&self.column_cols, &record)?;
         let str_val = record.get(self.values_col).ok_or(CsvPivotError::InvalidField)?;
@@ -191,7 +194,7 @@ impl <T: AggregationMethod> Aggregator<T> {
             let idx_column = record.get(*idx).ok_or(CsvPivotError::InvalidField)?;
             colnames.push(idx_column);
         }
-        Ok(colnames.join("$."))
+        Ok(colnames.join(FIELD_SEPARATOR))
     }
 
     fn update_aggregations(&mut self, indexname: String, columnname: String, parsed_val: &ParsingType) {
@@ -521,14 +524,14 @@ mod tests {
     fn test_aggregate_adds_new_member() {
         let agg = setup_simple_count();
         assert!(agg.aggregations
-            .contains_key(&("Columbus$.OH".to_string(), "Blue Jackets$.Hockey".to_string())));
+            .contains_key(&("Columbus_<sep>_OH".to_string(), "Blue Jackets_<sep>_Hockey".to_string())));
     }
 
     #[test]
     fn test_adding_record_creates_new_record() {
         let agg = setup_simple_count();
         let val = agg.aggregations
-            .get(&("Columbus$.OH".to_string(), "Blue Jackets$.Hockey".to_string()));
+            .get(&("Columbus_<sep>_OH".to_string(), "Blue Jackets_<sep>_Hockey".to_string()));
         assert!(val.is_some());
     }
 
@@ -536,7 +539,7 @@ mod tests {
     fn test_adding_record_stores_agg_indexes() {
         let agg = setup_simple_count();
         let mut expected_indexes = HashSet::new();
-        expected_indexes.insert("Columbus$.OH".to_string());
+        expected_indexes.insert("Columbus_<sep>_OH".to_string());
         assert_eq!(agg.indexes, expected_indexes);
     }
 
@@ -544,7 +547,7 @@ mod tests {
     fn test_adding_record_stores_agg_columns() {
         let agg = setup_simple_count();
         let mut expected_columns = HashSet::new();
-        expected_columns.insert("Blue Jackets$.Hockey".to_string());
+        expected_columns.insert("Blue Jackets_<sep>_Hockey".to_string());
         assert_eq!(agg.columns, expected_columns);
     }
 
@@ -552,8 +555,8 @@ mod tests {
     fn test_multiple_indexes() {
         let agg = setup_multiple_counts();
         let mut expected_indexes = HashSet::new();
-        expected_indexes.insert("Columbus$.OH".to_string());
-        expected_indexes.insert("Nashville$.TN".to_string());
+        expected_indexes.insert("Columbus_<sep>_OH".to_string());
+        expected_indexes.insert("Nashville_<sep>_TN".to_string());
         assert_eq!(agg.indexes, expected_indexes);
     }
 
@@ -561,9 +564,9 @@ mod tests {
     fn test_multiple_columns() {
         let agg = setup_multiple_counts();
         let mut expected_columns = HashSet::new();
-        expected_columns.insert("Blue Jackets$.Hockey".to_string());
-        expected_columns.insert("Predators$.Hockey".to_string());
-        expected_columns.insert("Titans$.Football".to_string());
+        expected_columns.insert("Blue Jackets_<sep>_Hockey".to_string());
+        expected_columns.insert("Predators_<sep>_Hockey".to_string());
+        expected_columns.insert("Titans_<sep>_Football".to_string());
         assert_eq!(agg.columns, expected_columns);
     }
 }
