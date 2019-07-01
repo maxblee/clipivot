@@ -12,6 +12,8 @@ use rust_decimal::Decimal;
 use crate::parsing::ParsingType;
 use std::env::var;
 
+const DATEFORMAT: &'static str = "%Y-%m-%d %H:%M:%S";
+
 
 /// An enum designed to list all of the possible types of aggregation functions.
 ///
@@ -119,6 +121,9 @@ impl AggregationMethod for Range {
             ParsingType::Numeric(Some(new_val)) => {
                 (ParsingType::Numeric(Some(*new_val)), ParsingType::Numeric(Some(*new_val)))
             },
+            ParsingType::DateTypes(Some(new_val)) => {
+                (ParsingType::DateTypes(Some(*new_val)), ParsingType::DateTypes(Some(*new_val)))
+            },
             _ => (ParsingType::Numeric(None), ParsingType::Numeric(None))
         };
         Range { min_val, max_val }
@@ -134,6 +139,14 @@ impl AggregationMethod for Range {
                 if new_val > max { self.max_val = ParsingType::Numeric(Some(*new_val)); }
                 else if new_val < min { self.min_val = ParsingType::Numeric(Some(*new_val)); }
             },
+            (
+                ParsingType::DateTypes(Some(min)),
+                ParsingType::DateTypes(Some(max)),
+                ParsingType::DateTypes(Some(new_val))
+            ) => {
+                if new_val > max { self.max_val = ParsingType::DateTypes(Some(*new_val)); }
+                else if new_val < min { self.min_val = ParsingType::DateTypes(Some(*new_val)); }
+            },
             _ => { }
         }
     }
@@ -144,6 +157,12 @@ impl AggregationMethod for Range {
                 let range = max.checked_sub(*min).unwrap();
                 range.to_string()
             },
+            (
+                ParsingType::DateTypes(Some(min)),
+                ParsingType::DateTypes(Some(max))
+            ) => {
+                "".to_string()
+            }
             _ => "".to_string()
         }
     }
@@ -161,6 +180,7 @@ impl AggregationMethod for Maximum {
     fn new(parsed_val: &ParsingType) -> Self {
         let max_val = match parsed_val {
             ParsingType::Numeric(Some(val)) => ParsingType::Numeric(Some(*val)),
+            ParsingType::DateTypes(Some(dt)) => ParsingType::DateTypes(Some(*dt)),
             _ => ParsingType::Numeric(None)
         };
 
@@ -169,9 +189,15 @@ impl AggregationMethod for Maximum {
 
     fn update(&mut self, parsed_val: &ParsingType) {
         match (&self.max_val, parsed_val) {
-            (ParsingType::Numeric(Some(min)), ParsingType::Numeric(Some(cur))) => {
-                if cur > min { self.max_val = ParsingType::Numeric(Some(*cur)); }
+            (ParsingType::Numeric(Some(max)), ParsingType::Numeric(Some(cur))) => {
+                if cur > max { self.max_val = ParsingType::Numeric(Some(*cur)); }
             },
+            (
+                ParsingType::DateTypes(Some(max)),
+                ParsingType::DateTypes(Some(cur))
+            ) => {
+                if cur > max { self.max_val = ParsingType::DateTypes(Some(*cur)); }
+            }
             _ => { }
         }
     }
@@ -179,6 +205,9 @@ impl AggregationMethod for Maximum {
     fn to_output(&self) -> String {
         match self.max_val {
             ParsingType::Numeric(Some(val)) => val.to_string(),
+            ParsingType::DateTypes(Some(dt)) => {
+                format!("{}", dt.format(DATEFORMAT))
+            },
             _ => "".to_string()
         }
     }
@@ -198,6 +227,7 @@ impl AggregationMethod for Minimum {
         // because multiple ParsingTypes work with it
         let min_val = match parsed_val {
             ParsingType::Numeric(Some(val)) => ParsingType::Numeric(Some(*val)),
+            ParsingType::DateTypes(Some(dt)) => ParsingType::DateTypes(Some(*dt)),
             _ => ParsingType::Numeric(None)
         };
 
@@ -209,6 +239,11 @@ impl AggregationMethod for Minimum {
             (ParsingType::Numeric(Some(min)), ParsingType::Numeric(Some(cur))) => {
                 if cur < min { self.min_val = ParsingType::Numeric(Some(*cur)); }
             },
+            (
+                ParsingType::DateTypes(Some(min)), ParsingType::DateTypes(Some(cur))
+            ) => {
+                if cur < min { self.min_val = ParsingType::DateTypes(Some(*cur)); }
+            }
             _ => { }
         }
     }
@@ -216,6 +251,9 @@ impl AggregationMethod for Minimum {
     fn to_output(&self) -> String {
         match self.min_val {
             ParsingType::Numeric(Some(val)) => val.to_string(),
+            ParsingType::DateTypes(Some(dt)) => {
+                format!("{}", dt.format(DATEFORMAT))
+            },
             _ => "".to_string()
         }
     }

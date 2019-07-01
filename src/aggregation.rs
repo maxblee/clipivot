@@ -265,6 +265,8 @@ impl <U: AggregationMethod> CliConfig<U> {
             AggTypes::Minimum if parse_numeric => ParsingType::Numeric(None),
             AggTypes::Maximum if parse_numeric => ParsingType::Numeric(None),
             AggTypes::Range if parse_numeric => ParsingType::Numeric(None),
+            AggTypes::Maximum => ParsingType::DateTypes(None),
+            AggTypes::Minimum => ParsingType::DateTypes(None),
             _ => ParsingType::Numeric(None),
         }
     }
