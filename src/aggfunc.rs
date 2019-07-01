@@ -161,7 +161,9 @@ impl AggregationMethod for Range {
                 ParsingType::DateTypes(Some(min)),
                 ParsingType::DateTypes(Some(max))
             ) => {
-                "".to_string()
+                let duration = max.signed_duration_since(*min);
+                let days = duration.num_seconds() as f64 / 86400.;
+                format!("{}", days)
             }
             _ => "".to_string()
         }
