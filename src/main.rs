@@ -43,10 +43,10 @@ extern crate clap;
 use clap::App;
 use std::process;
 
-pub mod aggregation;
-pub mod parsing;
 pub mod aggfunc;
+pub mod aggregation;
 pub mod errors;
+pub mod parsing;
 
 fn main() {
     let yaml_file = load_yaml!("cli.yml");

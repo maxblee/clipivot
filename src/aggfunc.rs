@@ -7,13 +7,12 @@
 //!
 //! The API for the main `AggregationMethod` should provide more information
 //! on how to create your own new method.
-use std::collections::{BTreeMap, HashSet, HashMap};
-use rust_decimal::Decimal;
 use crate::parsing::ParsingType;
+use rust_decimal::Decimal;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::env::var;
 
 const DATEFORMAT: &'static str = "%Y-%m-%d %H:%M:%S";
-
 
 /// An enum designed to list all of the possible types of aggregation functions.
 ///
@@ -114,17 +113,21 @@ pub struct Range {
 impl AggregationMethod for Range {
     type Aggfunc = Range;
 
-    fn get_aggtype() -> AggTypes { AggTypes::Range }
+    fn get_aggtype() -> AggTypes {
+        AggTypes::Range
+    }
 
     fn new(parsed_val: &ParsingType) -> Self {
         let (min_val, max_val) = match parsed_val {
-            ParsingType::Numeric(Some(new_val)) => {
-                (ParsingType::Numeric(Some(*new_val)), ParsingType::Numeric(Some(*new_val)))
-            },
-            ParsingType::DateTypes(Some(new_val)) => {
-                (ParsingType::DateTypes(Some(*new_val)), ParsingType::DateTypes(Some(*new_val)))
-            },
-            _ => (ParsingType::Numeric(None), ParsingType::Numeric(None))
+            ParsingType::Numeric(Some(new_val)) => (
+                ParsingType::Numeric(Some(*new_val)),
+                ParsingType::Numeric(Some(*new_val)),
+            ),
+            ParsingType::DateTypes(Some(new_val)) => (
+                ParsingType::DateTypes(Some(*new_val)),
+                ParsingType::DateTypes(Some(*new_val)),
+            ),
+            _ => (ParsingType::Numeric(None), ParsingType::Numeric(None)),
         };
         Range { min_val, max_val }
     }
@@ -134,20 +137,26 @@ impl AggregationMethod for Range {
             (
                 ParsingType::Numeric(Some(min)),
                 ParsingType::Numeric(Some(max)),
-                ParsingType::Numeric(Some(new_val))
+                ParsingType::Numeric(Some(new_val)),
             ) => {
-                if new_val > max { self.max_val = ParsingType::Numeric(Some(*new_val)); }
-                else if new_val < min { self.min_val = ParsingType::Numeric(Some(*new_val)); }
-            },
+                if new_val > max {
+                    self.max_val = ParsingType::Numeric(Some(*new_val));
+                } else if new_val < min {
+                    self.min_val = ParsingType::Numeric(Some(*new_val));
+                }
+            }
             (
                 ParsingType::DateTypes(Some(min)),
                 ParsingType::DateTypes(Some(max)),
-                ParsingType::DateTypes(Some(new_val))
+                ParsingType::DateTypes(Some(new_val)),
             ) => {
-                if new_val > max { self.max_val = ParsingType::DateTypes(Some(*new_val)); }
-                else if new_val < min { self.min_val = ParsingType::DateTypes(Some(*new_val)); }
-            },
-            _ => { }
+                if new_val > max {
+                    self.max_val = ParsingType::DateTypes(Some(*new_val));
+                } else if new_val < min {
+                    self.min_val = ParsingType::DateTypes(Some(*new_val));
+                }
+            }
+            _ => {}
         }
     }
 
@@ -156,16 +165,13 @@ impl AggregationMethod for Range {
             (ParsingType::Numeric(Some(min)), ParsingType::Numeric(Some(max))) => {
                 let range = max.checked_sub(*min).unwrap();
                 range.to_string()
-            },
-            (
-                ParsingType::DateTypes(Some(min)),
-                ParsingType::DateTypes(Some(max))
-            ) => {
+            }
+            (ParsingType::DateTypes(Some(min)), ParsingType::DateTypes(Some(max))) => {
                 let duration = max.signed_duration_since(*min);
                 let days = duration.num_seconds() as f64 / 86400.;
                 format!("{}", days)
             }
-            _ => "".to_string()
+            _ => "".to_string(),
         }
     }
 }
@@ -177,13 +183,15 @@ pub struct Maximum {
 impl AggregationMethod for Maximum {
     type Aggfunc = Maximum;
 
-    fn get_aggtype() -> AggTypes { AggTypes::Maximum }
+    fn get_aggtype() -> AggTypes {
+        AggTypes::Maximum
+    }
 
     fn new(parsed_val: &ParsingType) -> Self {
         let max_val = match parsed_val {
             ParsingType::Numeric(Some(val)) => ParsingType::Numeric(Some(*val)),
             ParsingType::DateTypes(Some(dt)) => ParsingType::DateTypes(Some(*dt)),
-            _ => ParsingType::Numeric(None)
+            _ => ParsingType::Numeric(None),
         };
 
         Maximum { max_val }
@@ -192,25 +200,24 @@ impl AggregationMethod for Maximum {
     fn update(&mut self, parsed_val: &ParsingType) {
         match (&self.max_val, parsed_val) {
             (ParsingType::Numeric(Some(max)), ParsingType::Numeric(Some(cur))) => {
-                if cur > max { self.max_val = ParsingType::Numeric(Some(*cur)); }
-            },
-            (
-                ParsingType::DateTypes(Some(max)),
-                ParsingType::DateTypes(Some(cur))
-            ) => {
-                if cur > max { self.max_val = ParsingType::DateTypes(Some(*cur)); }
+                if cur > max {
+                    self.max_val = ParsingType::Numeric(Some(*cur));
+                }
             }
-            _ => { }
+            (ParsingType::DateTypes(Some(max)), ParsingType::DateTypes(Some(cur))) => {
+                if cur > max {
+                    self.max_val = ParsingType::DateTypes(Some(*cur));
+                }
+            }
+            _ => {}
         }
     }
 
     fn to_output(&self) -> String {
         match self.max_val {
             ParsingType::Numeric(Some(val)) => val.to_string(),
-            ParsingType::DateTypes(Some(dt)) => {
-                format!("{}", dt.format(DATEFORMAT))
-            },
-            _ => "".to_string()
+            ParsingType::DateTypes(Some(dt)) => format!("{}", dt.format(DATEFORMAT)),
+            _ => "".to_string(),
         }
     }
 }
@@ -222,7 +229,9 @@ pub struct Minimum {
 impl AggregationMethod for Minimum {
     type Aggfunc = Minimum;
 
-    fn get_aggtype() -> AggTypes { AggTypes::Minimum }
+    fn get_aggtype() -> AggTypes {
+        AggTypes::Minimum
+    }
 
     fn new(parsed_val: &ParsingType) -> Self {
         // Minimum needs to be more inclusive in its matching than other methods
@@ -230,7 +239,7 @@ impl AggregationMethod for Minimum {
         let min_val = match parsed_val {
             ParsingType::Numeric(Some(val)) => ParsingType::Numeric(Some(*val)),
             ParsingType::DateTypes(Some(dt)) => ParsingType::DateTypes(Some(*dt)),
-            _ => ParsingType::Numeric(None)
+            _ => ParsingType::Numeric(None),
         };
 
         Minimum { min_val }
@@ -239,24 +248,24 @@ impl AggregationMethod for Minimum {
     fn update(&mut self, parsed_val: &ParsingType) {
         match (&self.min_val, parsed_val) {
             (ParsingType::Numeric(Some(min)), ParsingType::Numeric(Some(cur))) => {
-                if cur < min { self.min_val = ParsingType::Numeric(Some(*cur)); }
-            },
-            (
-                ParsingType::DateTypes(Some(min)), ParsingType::DateTypes(Some(cur))
-            ) => {
-                if cur < min { self.min_val = ParsingType::DateTypes(Some(*cur)); }
+                if cur < min {
+                    self.min_val = ParsingType::Numeric(Some(*cur));
+                }
             }
-            _ => { }
+            (ParsingType::DateTypes(Some(min)), ParsingType::DateTypes(Some(cur))) => {
+                if cur < min {
+                    self.min_val = ParsingType::DateTypes(Some(*cur));
+                }
+            }
+            _ => {}
         }
     }
 
     fn to_output(&self) -> String {
         match self.min_val {
             ParsingType::Numeric(Some(val)) => val.to_string(),
-            ParsingType::DateTypes(Some(dt)) => {
-                format!("{}", dt.format(DATEFORMAT))
-            },
-            _ => "".to_string()
+            ParsingType::DateTypes(Some(dt)) => format!("{}", dt.format(DATEFORMAT)),
+            _ => "".to_string(),
         }
     }
 }
@@ -271,7 +280,9 @@ pub struct Count {
 impl AggregationMethod for Count {
     type Aggfunc = Count;
 
-    fn get_aggtype() -> AggTypes { AggTypes::Count }
+    fn get_aggtype() -> AggTypes {
+        AggTypes::Count
+    }
     fn new(parsed_val: &ParsingType) -> Self {
         Count { val: 1 }
     }
@@ -290,18 +301,20 @@ pub struct CountUnique {
 impl AggregationMethod for CountUnique {
     type Aggfunc = CountUnique;
 
-    fn get_aggtype() -> AggTypes { AggTypes::CountUnique }
+    fn get_aggtype() -> AggTypes {
+        AggTypes::CountUnique
+    }
     fn new(parsed_val: &ParsingType) -> Self {
         match parsed_val {
             ParsingType::Text(Some(str_val)) => {
                 let mut vals = HashSet::new();
                 vals.insert(str_val.to_string());
-                CountUnique {vals}
-            },
+                CountUnique { vals }
+            }
             _ => {
                 let mut vals = HashSet::new();
                 vals.insert("".to_string());
-                CountUnique {vals}
+                CountUnique { vals }
             }
         }
     }
@@ -309,12 +322,14 @@ impl AggregationMethod for CountUnique {
     fn update(&mut self, parsed_val: &ParsingType) {
         let val = match parsed_val {
             ParsingType::Text(Some(new_val)) => new_val.to_string(),
-            _ => "".to_string()
+            _ => "".to_string(),
         };
         self.vals.insert(val);
     }
 
-    fn to_output(&self) -> String { self.vals.len().to_string() }
+    fn to_output(&self) -> String {
+        self.vals.len().to_string()
+    }
 }
 
 pub struct Sum {
@@ -324,23 +339,29 @@ pub struct Sum {
 impl AggregationMethod for Sum {
     type Aggfunc = Sum;
 
-    fn get_aggtype() -> AggTypes { AggTypes::Sum }
+    fn get_aggtype() -> AggTypes {
+        AggTypes::Sum
+    }
     fn new(parsed_val: &ParsingType) -> Self {
         match parsed_val {
             ParsingType::Numeric(Some(num)) => Sum { cur_total: *num },
             // Note: I really need to make this more robust
-            _ => Sum {cur_total: Decimal::new(0, 0)}
+            _ => Sum {
+                cur_total: Decimal::new(0, 0),
+            },
         }
     }
     fn update(&mut self, parsed_val: &ParsingType) {
         let total = self.cur_total.checked_add(match parsed_val {
             ParsingType::Numeric(Some(num)) => *num,
-            _ => Decimal::new(0, 0)
+            _ => Decimal::new(0, 0),
         });
         // Again, need to make this more robust
         self.cur_total = total.unwrap();
     }
-    fn to_output(&self) -> String { self.cur_total.to_string() }
+    fn to_output(&self) -> String {
+        self.cur_total.to_string()
+    }
 }
 
 pub struct StdDev {
@@ -355,13 +376,21 @@ pub struct StdDev {
 impl AggregationMethod for StdDev {
     type Aggfunc = StdDev;
 
-    fn get_aggtype() -> AggTypes { AggTypes::StdDev }
+    fn get_aggtype() -> AggTypes {
+        AggTypes::StdDev
+    }
     fn new(parsed_val: &ParsingType) -> Self {
         match parsed_val {
-            ParsingType::FloatingPoint(Some(num)) => {
-                StdDev { q: 0., m: *num, num_records: 1.}
+            ParsingType::FloatingPoint(Some(num)) => StdDev {
+                q: 0.,
+                m: *num,
+                num_records: 1.,
             },
-            _ => StdDev { q: 0., m: 0., num_records: 0. }
+            _ => StdDev {
+                q: 0.,
+                m: 0.,
+                num_records: 0.,
+            },
         }
     }
     fn update(&mut self, parsed_val: &ParsingType) {
@@ -371,7 +400,7 @@ impl AggregationMethod for StdDev {
                 let squared_diff = (num - self.m).powi(2);
                 self.q += ((self.num_records - 1.) * squared_diff) / self.num_records;
                 self.m += (num - self.m) / self.num_records;
-            },
+            }
             _ => {}
         }
     }
@@ -385,12 +414,16 @@ impl AggregationMethod for StdDev {
 impl StdDev {
     fn compute(&self) -> Option<f64> {
         // we do the if statement and return Option to avoid divide by 0 error
-        if self.num_records <= 1. { return None; }
-        else {
+        if self.num_records <= 1. {
+            return None;
+        } else {
             let variance = self.q / (self.num_records - 1.);
             let stdev = variance.sqrt();
-            if stdev.is_nan() { return None; }
-            else { return Some(stdev); }
+            if stdev.is_nan() {
+                return None;
+            } else {
+                return Some(stdev);
+            }
         }
     }
 }
@@ -403,18 +436,26 @@ pub struct Mean {
 impl AggregationMethod for Mean {
     type Aggfunc = Mean;
 
-    fn get_aggtype() -> AggTypes { AggTypes::Mean }
+    fn get_aggtype() -> AggTypes {
+        AggTypes::Mean
+    }
     fn new(parsed_val: &ParsingType) -> Self {
         match parsed_val {
-            ParsingType::Numeric(Some(num)) => Mean { cur_total: *num, num: 1 },
+            ParsingType::Numeric(Some(num)) => Mean {
+                cur_total: *num,
+                num: 1,
+            },
             // This will never be implemented, but it's needed bc compiler can't tell that
-            _ => Mean {cur_total: Decimal::new(0, 0), num: 0 }
+            _ => Mean {
+                cur_total: Decimal::new(0, 0),
+                num: 0,
+            },
         }
     }
     fn update(&mut self, parsed_val: &ParsingType) {
         let total = self.cur_total.checked_add(match parsed_val {
             ParsingType::Numeric(Some(num)) => *num,
-            _ => Decimal::new(0, 0)
+            _ => Decimal::new(0, 0),
         });
         // Unwrap is OK because ParsingType should always be Some when `update` is implemented
         self.cur_total = total.unwrap();
@@ -430,7 +471,8 @@ impl AggregationMethod for Mean {
 impl Mean {
     fn compute(&self) -> Decimal {
         self.cur_total
-            .checked_div(Decimal::new(self.num as i64, 0)).unwrap()
+            .checked_div(Decimal::new(self.num as i64, 0))
+            .unwrap()
     }
 }
 
@@ -445,21 +487,31 @@ pub struct Mode {
 impl AggregationMethod for Mode {
     type Aggfunc = Mode;
 
-    fn get_aggtype() -> AggTypes { AggTypes::Mode }
+    fn get_aggtype() -> AggTypes {
+        AggTypes::Mode
+    }
     fn new(parsed_val: &ParsingType) -> Self {
         match parsed_val {
             ParsingType::Text(Some(val)) => {
                 let mut init_val = HashMap::new();
                 init_val.insert(val.to_string(), 1);
-                Mode { values: init_val, max_count: 1, max_val: val.to_string() }
+                Mode {
+                    values: init_val,
+                    max_count: 1,
+                    max_val: val.to_string(),
+                }
+            }
+            _ => Mode {
+                values: HashMap::new(),
+                max_count: 0,
+                max_val: "".to_string(),
             },
-            _ => Mode { values: HashMap::new(), max_count: 0, max_val: "".to_string() }
         }
     }
     fn update(&mut self, parsed_val: &ParsingType) {
         let entry = match parsed_val {
             ParsingType::Text(Some(val)) => val.to_string(),
-            _ => "".to_string()
+            _ => "".to_string(),
         };
         // barely adapted from https://docs.rs/indexmap/1.0.2/indexmap/map/struct.IndexMap.html
         let new_count = *self.values.get(&entry).unwrap_or(&0) + 1;
@@ -467,11 +519,12 @@ impl AggregationMethod for Mode {
             self.max_count = new_count;
             self.max_val = entry.clone();
         }
-        *self.values.entry(entry)
-            .or_insert(0) += 1;
+        *self.values.entry(entry).or_insert(0) += 1;
     }
 
-    fn to_output(&self) -> String { self.max_val.clone() }
+    fn to_output(&self) -> String {
+        self.max_val.clone()
+    }
 }
 
 pub struct Median {
@@ -491,26 +544,35 @@ pub struct Median {
 impl AggregationMethod for Median {
     type Aggfunc = Median;
 
-    fn get_aggtype() -> AggTypes { AggTypes::Median }
+    fn get_aggtype() -> AggTypes {
+        AggTypes::Median
+    }
     fn new(parsed_val: &ParsingType) -> Self {
         match parsed_val {
             ParsingType::Numeric(Some(num)) => {
                 let mut b = BTreeMap::new();
                 b.insert(*num, 1);
-                Median { values: b, num: 1}
+                Median { values: b, num: 1 }
+            }
+            _ => Median {
+                values: BTreeMap::new(),
+                num: 0,
             },
-            _ => Median { values: BTreeMap::new(), num: 0 }
         }
     }
     fn update(&mut self, parsed_val: &ParsingType) {
-        self.values.entry(match  parsed_val {
-            ParsingType::Numeric(Some(num)) => *num,
-            _ => Decimal::new(0, 0)
-        }).and_modify(|val| *val += 1)
+        self.values
+            .entry(match parsed_val {
+                ParsingType::Numeric(Some(num)) => *num,
+                _ => Decimal::new(0, 0),
+            })
+            .and_modify(|val| *val += 1)
             .or_insert(1);
         self.num += 1;
     }
-    fn to_output(&self) -> String { self.compute().to_string() }
+    fn to_output(&self) -> String {
+        self.compute().to_string()
+    }
 }
 
 impl Median {
@@ -518,7 +580,7 @@ impl Median {
         // we set up a running count to track where our index would be were this a sorted vec
         // instead of a sorted histogram
         let mut cur_count = 0;
-        let mut cur_val  = Decimal::new(0, 0);
+        let mut cur_val = Decimal::new(0, 0);
         // creating an iter bc we're stopping at N/2
         let mut iter = self.values.iter();
         while (cur_count as f64) < (self.num as f64 / 2.) {
@@ -544,19 +606,24 @@ impl Median {
             // checked_add I should maybe find a robust alternative to unwrap for
             // checked_div will only panic if checked_add panics or if other == Decimal::new(0, 0)
             // which it does not
-            let mean = cur_val.checked_add(*iter.next().unwrap().0).unwrap()
-                .checked_div(Decimal::new(2, 0)).unwrap();
+            let mean = cur_val
+                .checked_add(*iter.next().unwrap().0)
+                .unwrap()
+                .checked_div(Decimal::new(2, 0))
+                .unwrap();
             return mean;
-        } else { return cur_val; }
+        } else {
+            return cur_val;
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
     use super::*;
-    use rand::prelude::*;
     use approx::assert_abs_diff_eq;
+    use rand::prelude::*;
+    use std::str::FromStr;
 
     #[test]
     fn adding_count_creates_single_count() {
@@ -603,7 +670,7 @@ mod tests {
         // This tests that; this edge case comes from
         // https://www.johndcook.com/blog/2008/09/26/comparing-three-methods-of-computing-standard-deviation/
         let large_num = 1e9;
-        let randnum : f64 = random();
+        let randnum: f64 = random();
         // taking a standard deviation of 10^6 random (0,1) values
         // shouldn't suffer catastrophic cancellation, so we'll use as baseline
         let small_rand = ParsingType::FloatingPoint(Some(randnum));
@@ -613,7 +680,7 @@ mod tests {
         let init_parsing = ParsingType::FloatingPoint(Some(randnum + large_num));
         let mut error_prone_stddev = StdDev::new(&init_parsing);
         for i in 1..=1000000 {
-            let randnum : f64 = random();
+            let randnum: f64 = random();
             let new_large = ParsingType::FloatingPoint(Some(randnum + large_num));
             let new_small = ParsingType::FloatingPoint(Some(randnum));
             decent_stddev.update(&new_small);
@@ -622,7 +689,11 @@ mod tests {
         // checks that the two standard deviations are equal to within 7 significant digits
         // From what I've seen, it'll typically pass within 8 sig digits, but occasionally will fail there
         // EXAMPLE: left = 0.28864050983648876, right = 0.28864049865571434
-        assert_abs_diff_eq!(decent_stddev.compute().unwrap(), error_prone_stddev.compute().unwrap(), epsilon = 1e-7);
+        assert_abs_diff_eq!(
+            decent_stddev.compute().unwrap(),
+            error_prone_stddev.compute().unwrap(),
+            epsilon = 1e-7
+        );
     }
 
     // test median

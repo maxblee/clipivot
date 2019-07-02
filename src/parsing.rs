@@ -8,12 +8,12 @@
 //! `&str` record to a record of the `ParsingType` enum. However,
 //! I eventually want to extend the functionality of this so the program
 //! can automatically determine the type of record appearing in the values column.
-use std::str::FromStr;
-use std::fmt;
-use rust_decimal::Decimal;
-use chrono::{Datelike, DateTime, NaiveDateTime, TimeZone, Utc};
 use crate::errors::CsvPivotError;
+use chrono::{DateTime, Datelike, NaiveDateTime, TimeZone, Utc};
+use rust_decimal::Decimal;
 use std::collections::HashMap;
+use std::fmt;
+use std::str::FromStr;
 
 /// The types of data `csvpivot` converts `&str` records into.
 /// `csvpivot` only does these conversions on the values column.
@@ -53,9 +53,12 @@ impl Default for DateFormatter {
         let parsing_info = dtparse::ParserInfo::default();
         let parser = dtparse::Parser::default();
         let cur_year = chrono::Local::today().year();
-        let default_date = chrono::NaiveDate::from_ymd(cur_year, 1, 1)
-            .and_hms(0,0,0);
-        DateFormatter { parsing_info, parser, default_date }
+        let default_date = chrono::NaiveDate::from_ymd(cur_year, 1, 1).and_hms(0, 0, 0);
+        DateFormatter {
+            parsing_info,
+            parser,
+            default_date,
+        }
     }
 }
 
@@ -63,10 +66,19 @@ impl DateFormatter {
     pub fn parse(&self, new_val: &str) -> Result<NaiveDateTime, CsvPivotError> {
         // ignore tokens (not using in impl)
         // TODO handle offsets/timezones
-        let (dt, offset, _tokens) = self.parser.parse(
-            new_val, Some(self.parsing_info.dayfirst), Some(self.parsing_info.yearfirst),
-            false, false, Some(&self.default_date), false, &HashMap::new()
-        ).or(Err(CsvPivotError::ParsingError))?;
+        let (dt, offset, _tokens) = self
+            .parser
+            .parse(
+                new_val,
+                Some(self.parsing_info.dayfirst),
+                Some(self.parsing_info.yearfirst),
+                false,
+                false,
+                Some(&self.default_date),
+                false,
+                &HashMap::new(),
+            )
+            .or(Err(CsvPivotError::ParsingError))?;
         Ok(dt)
     }
 }
@@ -107,7 +119,7 @@ impl ParsingHelper {
             values_type: parsing,
             possible_values: vec![],
             parse_empty: true,
-            date_helper
+            date_helper,
         }
     }
 
@@ -135,7 +147,7 @@ impl ParsingHelper {
     fn parse_datetime(&self, new_val: &str) -> Result<ParsingType, CsvPivotError> {
         let parsed_dt = match &self.date_helper {
             Some(helper) => helper.parse(new_val),
-            None => Err(CsvPivotError::ParsingError)
+            None => Err(CsvPivotError::ParsingError),
         }?;
         Ok(ParsingType::DateTypes(Some(parsed_dt)))
     }
@@ -146,7 +158,7 @@ impl ParsingHelper {
     }
 
     fn parse_floating(new_val: &str) -> Result<ParsingType, CsvPivotError> {
-        let num : f64 = new_val.parse().or(Err(CsvPivotError::ParsingError))?;
+        let num: f64 = new_val.parse().or(Err(CsvPivotError::ParsingError))?;
         Ok(ParsingType::FloatingPoint(Some(num)))
     }
 }
@@ -161,16 +173,28 @@ mod tests {
     fn test_automatic_date_conversion() -> Result<(), CsvPivotError> {
         // determines whether valid month, day, year formats get properly handled
         // Note that this should also handle ISO8601 formats
-        let parsable_dates = vec!["2003-01-03", "1/3/03", "January 3, 2003",
-        "Jan 3, 2003", "3 Jan 2003", "3 January 2003", "Jan 3, 2003 12:00 a.m.",
-        "Jan 3, 2003 12:00:00 a.m.", "Jan 3, 2003 00:00", "Jan 3, 2003 00:00:00",
-        "2003-01-03T00:00:00", "2003-01-03T00:00:00+00:00", "2003.01.03", "Jan. 3, 2003"];
+        let parsable_dates = vec![
+            "2003-01-03",
+            "1/3/03",
+            "January 3, 2003",
+            "Jan 3, 2003",
+            "3 Jan 2003",
+            "3 January 2003",
+            "Jan 3, 2003 12:00 a.m.",
+            "Jan 3, 2003 12:00:00 a.m.",
+            "Jan 3, 2003 00:00",
+            "Jan 3, 2003 00:00:00",
+            "2003-01-03T00:00:00",
+            "2003-01-03T00:00:00+00:00",
+            "2003.01.03",
+            "Jan. 3, 2003",
+        ];
         let helper = ParsingHelper::from_parsing_type(DateTypes(None));
         for date in parsable_dates {
             let parsed_opt_date = helper.parse_val(date)?;
             let parsed_date = match parsed_opt_date {
                 Some(ParsingType::DateTypes(Some(val))) => Ok(val),
-                _ => Err(CsvPivotError::ParsingError)
+                _ => Err(CsvPivotError::ParsingError),
             }?;
             let naive_date = NaiveDate::from_ymd(2003, 1, 3);
             let naive_time = NaiveTime::from_hms(0, 0, 0);

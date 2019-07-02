@@ -15,8 +15,8 @@
 
 extern crate csv;
 
-use std::fmt;
 use std::error::Error;
+use std::fmt;
 use std::io;
 use std::num;
 
@@ -59,19 +59,28 @@ impl fmt::Display for CsvPivotError {
         match *self {
             CsvPivotError::CsvError(ref err) => err.fmt(f),
             // TODO: I need to work on making this message more helpful
-            CsvPivotError::InvalidField => write!(f, "Invalid field error: You tried to access a \
-             field that does not exist."),
+            CsvPivotError::InvalidField => write!(
+                f,
+                "Invalid field error: You tried to access a \
+                 field that does not exist."
+            ),
             // This error only appears if you enter an aggregation function that isn't supported
             // But Clap should prevent those messages from ever getting passed through
             // to CliConfig, so it shouldn't be a problem
             // tldr: the error exists bc I needed a comprehensive match statement in aggregation.rs
-            CsvPivotError::InvalidAggregator => write!(f, "Invalid aggregation error: \
-             You should never get this error. If you see it,\
-             please send a bug report to maxbmhlee@gmail.com"),
+            CsvPivotError::InvalidAggregator => write!(
+                f,
+                "Invalid aggregation error: \
+                 You should never get this error. If you see it,\
+                 please send a bug report to maxbmhlee@gmail.com"
+            ),
             CsvPivotError::Io(ref err) => err.fmt(f),
             CsvPivotError::ParseInt(ref err) => err.fmt(f),
-            CsvPivotError::ParsingError => write!(f, "Ran into an error parsing one of the fields \
-            as a numerical type."),
+            CsvPivotError::ParsingError => write!(
+                f,
+                "Ran into an error parsing one of the fields \
+                 as a numerical type."
+            ),
         }
     }
 }

@@ -8,13 +8,10 @@ So far, no one has contributed to `csvpivot` other than me.
 
 But that's not to say that it would be possible without a bunch of other people.
 
-I'll leave out a lot of the specifics; if you care to figure them out,
-contact me or read through the comments in the source code and the
-Cargo.toml file in the root directory. But I specifically wanted to make
-a note of the `agate` library, which motivated how I determined whether or not
-a cell was null, and
-[this fantastic guide to error handling in Rust](https://blog.burntsushi.net/rust-error-handling/),
-which formed the basis for the error handling of this program.
+Among others, the methodology for parsing null values came from the `agate`
+library in Python (which is the backbone for `csvkit`), and the mechanics for
+handling errors came from
+[this fantastic guide to error handling in Rust](https://blog.burntsushi.net/rust-error-handling/).
 
 ## Table of Contents
 * **[What is this?](#what-is-this-the-pitch)**
@@ -47,7 +44,7 @@ into standard output in a standardized CSV format. That means that it interfaces
 some examples of that in a bit), allowing you to take output from another CSV tool or to use the results from this tool
 as the input for another CSV tool. 
 
-In addition, `csvpivot` is fast and should be able to handle extremely large datasets, even those that exceed the RAM
+In addition, `csvpivot` is fairly fast and should be able to handle extremely large datasets, even those that exceed the RAM
 of your device. (However, it does hold a significant amount of information in memory, especially when calculating
 the mode and median, so it is possible for you to run into memory issues when using it.)
 
@@ -56,28 +53,22 @@ parse values as decimals, avoiding roundoff errors. And the standard deviation u
 [Welford's algorithm](https://www.johndcook.com/blog/standard_deviation/) to avoid cancellation errors.
 
 ## What isn't this? (The anti-pitch)
-* Right now, `csvpivot` only works for comma-separated values. I plan to fix that.
+The advantages and disadvantages to `csvpivot` come down to the fact
+that it is a narrowly focused command-line tool. In practical terms, that
+means that it plays nicely with a wide variety of other command-line tools,
+from CSV tools like `csvkit`, `csvtk`, and `xsv`, to UNIX tools
+like `grep`. But it is not particularly flexible; you can't create a pivot table
+from a custom aggregation method, the way you can in `pandas`, and you can't use it
+to clean data.
 
-* `csvpivot` is a tool, not a toolkit. There are too many good CSV toolkits out there for me to be able to justify
-creating a new one. However, `csvpivot` *is* designed to play nicely with other command-line CSV toolkits. In
-just a short bit, I'll show you some of my favorite toolkits and how you can use `csvpivot` in
-conjunction with them. (You'll also get a brief introduction to them in the tutorial shortly.)
+I hope to eventually change some aspects of `csvpivot` that can make it
+hard to use and that can make it unreasonably inflexible. Specifically:
 
-* `csvpivot` is not flexible. I've tried to anticipate the most common aggregation methods, from counting to calculating
-the standard deviation on a column of values given a set of constraints. But if the available aggregation methods do not
-support your particular use case, you should probably use `SQL` or a data science library like `pandas`.
-
-* `csvpivot` is not going to outperform `SQL`. While I've tried to keep the program reasonably fast, it will not reach
-the speeds of `SQL` performance. Queries should be easier to write, however.
-
-* `csvpivot` is not designed for dirty data. Its numeric functions require that data be easily parsed
-as numeric data, and the only text cleaning it does is trimming whitespace from the beginning and ends of each cell.
-This means that all of your data must be clean enough to aggregate on *before* you put it into this tool.
-
-* `csvpivot` is not a publication tool. Finding decent ways to aggregate data in a way that is reproducible for a large
-number of datasets and a large number of stories is not easy. So a lot of the time, you will have to clean the CSV
-files after running it through this program. However, I have tried to design the program to operate predictably so
-cleaning data should be somewhat easy.
+* Currently, `csvpivot` only supports comma-separated files. I want to eventually
+build support for files with other delimiters.
+* I want to build support for DD.MM.YY and YY.MM.DD formatted dates, on user request
+* Support for CSV files that use characters other than double quotes `"` to
+denote fields and escape separators
 
 ## Usage Guide
 ### Installation
@@ -101,18 +92,29 @@ that forms the basis for this part of our analysis. Specifically, here's the par
 
 > Of the money that was raised, more than half came from individual donors, according to data compiled by CBNC’s 
 Christina Wilkie and the Center for Responsive Politics. No single entity gave more than casino mogul Sheldon Adelson,
- who ponied up <img src="/tex/5f7bb13d1221cff0da2f386a3d488f68.svg?invert_in_darkmode&sanitize=true" align=middle width=3041.24601165pt height=78.90410880000002pt/> xsv select donation | xsv slice -e 4 inaugural_donations.csv
+ who ponied up $5 million.
+ 
+How do we validate these findings? Well, if we look at our data, there's a field called `entity_type` that refers to
+the type of donation (whether it came from an individual donor or an organization, primarily). And there's a `donation` field
+that corresponds to the total amount of each individual donation. So what we need is a sum of the `donation`
+field aggregated by `entity_type`. But before we do that in `csvpivot`, let's take a look at that `donation` field:
+
+```bash
+$ xsv select donation | xsv slice -e 4 inaugural_donations.csv
 donation
-<img src="/tex/f66fd5e3c990259b6b7d988009d2fcda.svg?invert_in_darkmode&sanitize=true" align=middle width=53.88148094999998pt height=22.831056599999986pt/>75,000.00"
-"<img src="/tex/5b7ad803b0ef25f5de7e4f640f4372f1.svg?invert_in_darkmode&sanitize=true" align=middle width=85.84499219999998pt height=22.831056599999986pt/>100.00
+$100.00
+"$75,000.00"
+"$100,000.00"
+$100.00
 ```
 (The command above simply selects the `donation` column and then displays the first four rows of that column.
 
 There are a few problems with this data that might or might not stick out to you. In order to calculate the sum of
-something, we need to add up a bunch of numbers. But it's hard for a computer to read "<img src="/tex/e5d62b38dee59afd945a3863ebf80248.svg?invert_in_darkmode&sanitize=true" align=middle width=402.21711915pt height=22.831056599999986pt/>" and "," from all records in the `donation` field. (You might also think
+something, we need to add up a bunch of numbers. But it's hard for a computer to read "$100,000.00" as a number.
+So we need to strip the characters "$" and "," from all records in the `donation` field. (You might also think
 that we need to strip the quotation marks, but `csvpivot` does that by default.) Here's how you'd do that with `csvtk`:
 ```bash
-<img src="/tex/134319747d751788b8daa09fcc6fc067.svg?invert_in_darkmode&sanitize=true" align=middle width=138.45724529999998pt height=24.7161288pt/>|,)' -r '' -f donation inaugural_donations.csv | xsv select donation | xsv slice -e 4
+$ csvtk replace -p '(\$|,)' -r '' -f donation inaugural_donations.csv | xsv select donation | xsv slice -e 4
 donation
 100.00
 75000.00
@@ -122,13 +124,15 @@ donation
 That's better! Now, we can combine the `csvtk` method with `csvpivot`, and finally sort the resulting CSV file
 to show us whether individual donors did, in fact, donate more than organizational or corporate donors:
 ```bash
-<img src="/tex/134319747d751788b8daa09fcc6fc067.svg?invert_in_darkmode&sanitize=true" align=middle width=138.45724529999998pt height=24.7161288pt/>|,)' -r '' -f donation inaugural_donations.csv | csvpivot sum -r 2 -v 4 | xsv sort -N -s total -R
+$ csvtk replace -p '(\$|,)' -r '' -f donation inaugural_donations.csv | csvpivot sum -r 2 -v 4 | xsv sort -N -s total -R
 ,total
 IND,59538730.00
 ORG,47171478.29
 MOC,5100.00
 ```
-And sure enough! Individual donors spent about <img src="/tex/e1d089aea64d1d1965a7ba8093ee9aad.svg?invert_in_darkmode&sanitize=true" align=middle width=453.6997773pt height=45.84475500000001pt/>5 million, more than any other individual or entity.
+And sure enough! Individual donors spent about $2 million more than organizational donors did.
+
+Now, for the fun of it, we'll make sure Sheldon Adelson donated $5 million, more than any other individual or entity.
 Intuitively, this should seem easy; it's the same thing we just did, but we're aggregating by `name/org` instead of
 by `entity_type`:
 ```bash
@@ -140,9 +144,19 @@ AT&T,2082483.43
 BOEING COMPANY,1000000.00
 KUMAR FAMILY LTD,1000000.00
 ```
-And, indeed, Sheldon Adelson donated more than any other individual or entity, at <img src="/tex/63f67c497e2880d2f4f8a8a65a7040c6.svg?invert_in_darkmode&sanitize=true" align=middle width=700.2746058pt height=78.90410880000002pt/>." separator, and you can decide to aggregate on columns, which will
+And, indeed, Sheldon Adelson donated more than any other individual or entity, at $5 million.
+
+`csvpivot` can do a lot more. You can decide to aggregate on multiple rows, which will separate the values from the
+individual rows with a "$." separator, and you can decide to aggregate on columns, which will
 act similarly to aggregating on rows. (That is, you'll get a new column for each unique item in that column(s),
-and, if you select multiple columns, the unique value in each column will be marked with a "<img src="/tex/abfc43ce44d3dc407572b3100d07246e.svg?invert_in_darkmode&sanitize=true" align=middle width=700.2746371499999pt height=157.8082209pt/> csvpivot --help
+and, if you select multiple columns, the unique value in each column will be marked with a "$." separator.)
+
+Finally, there are a host of other functions `csvpivot` supports in addition to sum. We'll take a look at those next.
+### Basic Usage
+The best place to start for a general understanding of `csvpivot` is
+
+```bash
+$ csvpivot --help
 csvpivot 0.1.0
 Max Lee <maxbmhlee@gmail.com>
 A tool for creating pivot tables from the command line. 
@@ -207,7 +221,41 @@ for each name appearing in your table.
 
 The same basic command can be performed easily in `csvpivot`:
 ```bash
-<img src="/tex/fe8229923ef8457ee8242661fad0bd59.svg?invert_in_darkmode&sanitize=true" align=middle width=1290.05594355pt height=710.1369857999999pt/> csvpivot count layoffs.csv -r 3 -c 1 -v 0
+$ csvpivot count my_table.csv -r 1 -v 0
+```
+assuming the `id` field is the first column in the dataset and the `name` field is the second.
+(Note: `csvpivot` uses 0-indexed field naming conventions. So if a given field is the first field
+in the CSV file, you describe it with "0", if it's the second field in the file, you describe it with a "1", etc.)
+
+But pivot tables extend a bit beyond that. In addition to allowing you to aggregate fields into rows
+in your new datasets, you can aggregate them by columns. This especially comes in handy with fields that have a
+specified set of possible values, like boolean TRUE/FALSE fields.
+
+Let's see a mock example of this. Here's our data -- we'll call it `layoffs.csv` -- which is a completely made up
+dataset displaying a unique identifier for each person working in Company A, that person's salary, the department
+they work in, and whether or not they were just fired. Here's what it looks like:
+
+```csv
+id,was_fired,salary,department
+1,true,25000,sales
+2,true,75000,engineering
+3,false,175000,engineering
+4,true,65000,sales
+5,false,85000,sales
+```
+
+Now, let's say we want to know the total number of people who were fired from this company, aggregated
+by the department they worked in. We'll set the values column to 0 because each row refers to a unique record,
+but because we're just working with counts we can set it to any field, from 0 to 3.
+
+The other fields matter more. In order to aggregate by `department`, we'll set the rows of our pivot table
+to 3 (since `department` is the fourth field and `csvpivot` uses 0-indexed columns). And we'll set the
+columns for our pivot table to 1, for the `was_fired` field.
+
+Let's see that in action.
+
+```bash
+$ csvpivot count layoffs.csv -r 3 -c 1 -v 0
 ,true,false
 sales,2,1
 engineering,1,1
@@ -222,12 +270,45 @@ Instinctively, you should be able to see the advantage of using pivot tables. Im
 And your data is set up so you can easily compute the percentage of employees from each department that were fired
 (with another program). To output the data as a CSV file, you'd simply type:
 ```bash
-<img src="/tex/837402cd883c81a276996fc1b53f66e6.svg?invert_in_darkmode&sanitize=true" align=middle width=1060.5346686pt height=197.26027530000002pt/> csvpivot sum layoffs.csv -r 3 -c 1 -v 2
+$ csvpivot count layoffs.csv -r 3 -c 1 -v 0 > new_layoffs.csv
+```
+which would create a new file called `new_layoffs.csv` with the information you just saw.
+
+But pivot tables don't need to be performed just on the total number of rows. You can also apply a specified function
+to be applied on a specific column. For instance, you could determine the total salary of the employees,
+aggregated by whether or not they were fired and by what department they work for:
+
+```bash
+$ csvpivot sum layoffs.csv -r 3 -c 1 -v 2
 ,false,true
 sales,85000,90000
 engineering,175000,75000
 ```
-So now we know that the combined salaries of all of the sales department employees who were fired is <img src="/tex/b044e8055394a3e0811457b4c5fa48f3.svg?invert_in_darkmode&sanitize=true" align=middle width=225.68024324999993pt height=22.831056599999986pt/>25,000 salary and the <img src="/tex/834a37a798caf1e2d48a011f8fe6610c.svg?invert_in_darkmode&sanitize=true" align=middle width=701.5532188499999pt height=519.2694144000001pt/>s = \sqrt{\frac{1}{N - 1}\sum_{i=1}^{N}{(x - \bar{x})^{2}}}<img src="/tex/2bc549675ca5cb0cbe80672218c7138e.svg?invert_in_darkmode&sanitize=true" align=middle width=471.3154512pt height=22.831056599999986pt/>\sigma = \sqrt{\frac{1}{N}\sum_{i=1}^{N}{(x - \mu)^{2}}}$
+So now we know that the combined salaries of all of the sales department employees who were fired is $90,000,
+or the combination of the $25,000 salary and the $65,000 salary of the two sales department employees who were fired.
+
+And there are a number of other functions you can apply on your given data.
+
+### Supported functions
+`csvpivot` has support for a number of functions, fitting into the following
+categories: text functions, numeric functions, and type independent functions.
+You can get a full description of those by typing `csvpivot --help`. But here
+are a few general tips to help you understand the methods:
+
+- The text functions don't require anything special of your text; they
+will simply take the text data as it is. However, the data should be clean
+before processing because the tool has no way of knowing that
+BANK OF AMERICA and Bank of America NA are referring to the same thing.
+- The numeric functions *require* that data be in a numeric format.
+This includes the median, because the median will commonly be the mean
+of two values. Note that there is no support currently for parsing thousands
+separators or currency markers, as noted at the beginning of this user guide,
+so you must remove them prior to using `csvpivot`. Additionally,
+keep in mind that the standard deviation is referring to the *sample*
+standard deviation, which is equivalent to 
+$s = \sqrt{\frac{1}{N - 1}\sum_{i=1}^{N}{(x - \bar{x})^{2}}}$
+rather than the population standard deviation, which is equivalent to
+$\sigma = \sqrt{\frac{1}{N}\sum_{i=1}^{N}{(x - \mu)^{2}}}$
 - type independent fields work on a number of different types and are
 mainly designed for parsing numbers and dates. (In fact, `range` only works
 on numbers and dates.) These all have default types that can be overridden

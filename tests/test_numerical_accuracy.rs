@@ -18,9 +18,9 @@
 //! algorithms perform accurately on NIST's dataset to at least 12 significant digits;
 //! more typically, they perform perfectly accurately. There are some extreme cases in which
 //! summation might cause an overflow. Those currently will panic and eventually will throw an error.
-use std::str;
-use std::process::Command;
 use approx::assert_abs_diff_eq;
+use std::process::Command;
+use std::str;
 
 type NumericRecord = (String, f64);
 
@@ -37,11 +37,13 @@ fn get_actual_result(filename: &str, aggfunc: &str) -> f64 {
     // Returns the result from NIST's dataset given the relative file path
     let output = Command::new("./target/debug/csvpivot")
         .args(&[aggfunc, filename, "-v", "0"])
-        .output().expect("Process failed to execute").stdout;
+        .output()
+        .expect("Process failed to execute")
+        .stdout;
     let stroutput = str::from_utf8(&output).unwrap();
     let mut rdr = csv::Reader::from_reader(stroutput.as_bytes());
     let mut iter = rdr.deserialize();
-    let item : NumericRecord = iter.next().unwrap().unwrap();
+    let item: NumericRecord = iter.next().unwrap().unwrap();
     item.1
 }
 

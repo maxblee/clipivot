@@ -11,23 +11,22 @@
 //! I eventually want to support delimiters other than commas, and I eventually
 //! want to support non-UTF-8 text. Any additional flags or options I add
 //! (or you add) to `csvpivot` also will have to result in changes to `CliConfig`.
-use std::collections::{HashSet, HashMap};
-use std::io;
+use std::collections::{HashMap, HashSet};
 use std::fs;
+use std::io;
 
-use clap::ArgMatches;
 use crate::aggfunc::*;
 use crate::errors::CsvPivotError;
 use crate::parsing::{ParsingHelper, ParsingType};
-
+use clap::ArgMatches;
 
 const FIELD_SEPARATOR: &'static str = "_<sep>_";
 
 /// The main struct for aggregating CSV files
 #[derive(Debug, PartialEq)]
 pub struct Aggregator<T>
-    where
-        T: AggregationMethod,
+where
+    T: AggregationMethod,
 {
     /// Holds the aggregations, mapping (row, column) matches to an object implementing the
     /// `AggregationMethod` trait, like `Count`.
@@ -47,8 +46,7 @@ pub struct Aggregator<T>
     values_col: usize,
 }
 
-impl <T: AggregationMethod> Aggregator<T> {
-
+impl<T: AggregationMethod> Aggregator<T> {
     pub fn new() -> Aggregator<T> {
         Aggregator {
             aggregations: HashMap::new(),
@@ -111,7 +109,10 @@ impl <T: AggregationMethod> Aggregator<T> {
     /// Additionally, the aggregator currently only supports valid UTF-8
     /// data, so it won't work on all CSV files. I'd eventually like to support
     /// all ASCII data.
-    pub fn aggregate_from_file(&mut self, mut rdr: csv::Reader<fs::File>) -> Result<(), CsvPivotError> {
+    pub fn aggregate_from_file(
+        &mut self,
+        mut rdr: csv::Reader<fs::File>,
+    ) -> Result<(), CsvPivotError> {
         for result in rdr.records() {
             let record = result?;
             self.add_record(record)?;
@@ -125,7 +126,10 @@ impl <T: AggregationMethod> Aggregator<T> {
     ///
     /// In the spirit of DRY, I'm open to suggestions for refactoring this code. But
     /// it's not really pressing, since we're talking about 5-ish lines of code.
-    pub fn aggregate_from_stdin(&mut self, mut rdr: csv::Reader<io::Stdin>) -> Result<(), CsvPivotError> {
+    pub fn aggregate_from_stdin(
+        &mut self,
+        mut rdr: csv::Reader<io::Stdin>,
+    ) -> Result<(), CsvPivotError> {
         for result in rdr.records() {
             let record = result?;
             self.add_record(record)?;
@@ -159,11 +163,10 @@ impl <T: AggregationMethod> Aggregator<T> {
     /// This method parses a given cell, outputting it as a string so the CSV
     /// writer can write the data to standard output
     fn parse_writing(&self, row: &String, col: &String) -> String {
-        let aggval = self.aggregations
-            .get(&(row.to_string(), col.to_string()));
+        let aggval = self.aggregations.get(&(row.to_string(), col.to_string()));
         match aggval {
             Some(agg) => agg.to_output(),
-            None => "".to_string()
+            None => "".to_string(),
         }
     }
 
@@ -171,7 +174,9 @@ impl <T: AggregationMethod> Aggregator<T> {
         // merges all of the index columns into a single column, separated by FIELD_SEPARATOR
         let indexnames = self.get_colname(&self.index_cols, &record)?;
         let columnnames = self.get_colname(&self.column_cols, &record)?;
-        let str_val = record.get(self.values_col).ok_or(CsvPivotError::InvalidField)?;
+        let str_val = record
+            .get(self.values_col)
+            .ok_or(CsvPivotError::InvalidField)?;
         // This isn't memory efficient, but it should be OK for now
         // (i.e. I should eventually get self.indexes and self.columns
         // be tied to self.aggregations, rather than cloned)
@@ -185,10 +190,14 @@ impl <T: AggregationMethod> Aggregator<T> {
         Ok(())
     }
 
-    fn get_colname(&self, columns: &Vec<usize>, record: &csv::StringRecord) -> Result<String, CsvPivotError> {
-        let mut colnames : Vec<&str> = Vec::new();
+    fn get_colname(
+        &self,
+        columns: &Vec<usize>,
+        record: &csv::StringRecord,
+    ) -> Result<String, CsvPivotError> {
+        let mut colnames: Vec<&str> = Vec::new();
         if columns.is_empty() {
-            return Ok("total".to_string())
+            return Ok("total".to_string());
         }
         for idx in columns {
             let idx_column = record.get(*idx).ok_or(CsvPivotError::InvalidField)?;
@@ -197,10 +206,16 @@ impl <T: AggregationMethod> Aggregator<T> {
         Ok(colnames.join(FIELD_SEPARATOR))
     }
 
-    fn update_aggregations(&mut self, indexname: String, columnname: String, parsed_val: &ParsingType) {
+    fn update_aggregations(
+        &mut self,
+        indexname: String,
+        columnname: String,
+        parsed_val: &ParsingType,
+    ) {
         // modified from
         // https://users.rust-lang.org/t/efficient-string-hashmaps-for-a-frequency-count/7752
-        self.aggregations.entry((indexname, columnname))
+        self.aggregations
+            .entry((indexname, columnname))
             .and_modify(|val| val.update(parsed_val))
             .or_insert(T::new(parsed_val));
     }
@@ -209,8 +224,8 @@ impl <T: AggregationMethod> Aggregator<T> {
 /// This struct is intended for converting from Clap's `ArgMatches` to the `Aggregator` struct
 #[derive(Debug, PartialEq)]
 pub struct CliConfig<U>
-    where U:
-        AggregationMethod,
+where
+    U: AggregationMethod,
 {
     // set as an option so I can handle standard input
     filename: Option<String>,
@@ -218,32 +233,39 @@ pub struct CliConfig<U>
     has_header: bool,
 }
 
-impl <U: AggregationMethod> CliConfig<U> {
+impl<U: AggregationMethod> CliConfig<U> {
     /// Creates a new, basic CliConfig
     pub fn new() -> CliConfig<U> {
-        CliConfig {filename: None, aggregator: Aggregator::new(), has_header: true }
+        CliConfig {
+            filename: None,
+            aggregator: Aggregator::new(),
+            has_header: true,
+        }
     }
     /// Takes argument matches from main and tries to convert them into CliConfig
     pub fn from_arg_matches(arg_matches: ArgMatches) -> Result<CliConfig<U>, CsvPivotError> {
-        let mut base_config : CliConfig<U> = CliConfig::new();
+        let mut base_config: CliConfig<U> = CliConfig::new();
         // This method of error handling from
         // https://medium.com/@fredrikanderzon/custom-error-types-in-rust-and-the-operator-b499d0fb2925
-        let values: usize = arg_matches.value_of("value").unwrap()
-            .parse().or(Err(CsvPivotError::InvalidField))?;
+        let values: usize = arg_matches
+            .value_of("value")
+            .unwrap()
+            .parse()
+            .or(Err(CsvPivotError::InvalidField))?;
         // This makes it so set_indexes and set_columns can set an empty vector (for totals)
         let rowvec = match arg_matches.values_of("rows") {
             Some(vals) => vals.collect(),
-            None => Vec::new()
+            None => Vec::new(),
         };
         let colvec = match arg_matches.values_of("columns") {
             Some(vals) => vals.collect(),
-            None => Vec::new()
+            None => Vec::new(),
         };
         let rows = parse_column(rowvec)?;
         let columns = parse_column(colvec)?;
         let filename = arg_matches.value_of("filename").map(String::from);
         let parser = base_config.get_parser(&arg_matches);
-        let aggregator : Aggregator<U> = Aggregator::new()
+        let aggregator: Aggregator<U> = Aggregator::new()
             .set_value_column(values)
             .set_columns(columns)
             .set_indexes(rows)
@@ -328,8 +350,8 @@ impl <U: AggregationMethod> CliConfig<U> {
 }
 
 /// Tries to convert the --columns and --rows flags from the CLI into
-    /// a vector of (positive) integers. If it cannot do so, it returns an
-    /// `InvalidField` error.
+/// a vector of (positive) integers. If it cannot do so, it returns an
+/// `InvalidField` error.
 pub fn parse_column(column: Vec<&str>) -> Result<Vec<usize>, CsvPivotError> {
     let mut indexes = Vec::new();
     for idx in column {
@@ -340,37 +362,37 @@ pub fn parse_column(column: Vec<&str>) -> Result<Vec<usize>, CsvPivotError> {
 }
 
 /// This function is the part of the program that directly interacts with `main`.
-pub fn run(arg_matches : ArgMatches) -> Result<(), CsvPivotError> {
+pub fn run(arg_matches: ArgMatches) -> Result<(), CsvPivotError> {
     let aggfunc = arg_matches.value_of("aggfunc").unwrap();
     if aggfunc == "count" {
-        let mut config : CliConfig<Count> = CliConfig::from_arg_matches(arg_matches)?;
+        let mut config: CliConfig<Count> = CliConfig::from_arg_matches(arg_matches)?;
         config.run_config()?;
     } else if aggfunc == "countunique" {
-        let mut config : CliConfig<CountUnique> = CliConfig::from_arg_matches(arg_matches)?;
+        let mut config: CliConfig<CountUnique> = CliConfig::from_arg_matches(arg_matches)?;
         config.run_config()?;
     } else if aggfunc == "mode" {
-        let mut config : CliConfig<Mode> = CliConfig::from_arg_matches(arg_matches)?;
+        let mut config: CliConfig<Mode> = CliConfig::from_arg_matches(arg_matches)?;
         config.run_config()?;
     } else if aggfunc == "mean" {
-        let mut config : CliConfig<Mean> = CliConfig::from_arg_matches(arg_matches)?;
+        let mut config: CliConfig<Mean> = CliConfig::from_arg_matches(arg_matches)?;
         config.run_config()?;
     } else if aggfunc == "sum" {
-        let mut config : CliConfig<Sum> = CliConfig::from_arg_matches(arg_matches)?;
+        let mut config: CliConfig<Sum> = CliConfig::from_arg_matches(arg_matches)?;
         config.run_config()?;
     } else if aggfunc == "median" {
-        let mut config : CliConfig<Median> = CliConfig::from_arg_matches(arg_matches)?;
+        let mut config: CliConfig<Median> = CliConfig::from_arg_matches(arg_matches)?;
         config.run_config()?;
     } else if aggfunc == "stddev" {
-        let mut config : CliConfig<StdDev> = CliConfig::from_arg_matches(arg_matches)?;
+        let mut config: CliConfig<StdDev> = CliConfig::from_arg_matches(arg_matches)?;
         config.run_config()?;
     } else if aggfunc == "min" {
-        let mut config : CliConfig<Minimum> = CliConfig::from_arg_matches(arg_matches)?;
+        let mut config: CliConfig<Minimum> = CliConfig::from_arg_matches(arg_matches)?;
         config.run_config()?;
     } else if aggfunc == "max" {
-        let mut config : CliConfig<Maximum> = CliConfig::from_arg_matches(arg_matches)?;
+        let mut config: CliConfig<Maximum> = CliConfig::from_arg_matches(arg_matches)?;
         config.run_config()?;
     } else if aggfunc == "range" {
-        let mut config : CliConfig<Range> = CliConfig::from_arg_matches(arg_matches)?;
+        let mut config: CliConfig<Range> = CliConfig::from_arg_matches(arg_matches)?;
         config.run_config()?;
     }
     Ok(())
@@ -387,8 +409,8 @@ mod tests {
 
     fn setup_simple_count() -> Aggregator<Count> {
         let mut agg = Aggregator::new()
-            .set_indexes(vec![0,1])
-            .set_columns(vec![2,3])
+            .set_indexes(vec![0, 1])
+            .set_columns(vec![2, 3])
             .set_value_column(4);
         agg.add_record(setup_simple_record());
         agg
@@ -409,7 +431,7 @@ mod tests {
     }
 
     fn setup_one_liners() -> CliConfig<Count> {
-        let agg : Aggregator<Count> = Aggregator::new()
+        let agg: Aggregator<Count> = Aggregator::new()
             .set_indexes(vec![2])
             .set_columns(vec![1])
             .set_value_column(0);
@@ -421,7 +443,7 @@ mod tests {
     }
 
     fn setup_config() -> CliConfig<Count> {
-        let agg : Aggregator<Count> = Aggregator::new()
+        let agg: Aggregator<Count> = Aggregator::new()
             .set_indexes(vec![3])
             .set_columns(vec![1])
             .set_value_column(0);
@@ -440,9 +462,16 @@ mod tests {
         let matches = clap::App::from_yaml(yaml)
             .version(crate_version!())
             .author(crate_authors!())
-            .get_matches_from(vec!["csvpivot", "count", "test_csvs/layoffs.csv", "--rows=3", "--cols=1", "--val=0"]);
+            .get_matches_from(vec![
+                "csvpivot",
+                "count",
+                "test_csvs/layoffs.csv",
+                "--rows=3",
+                "--cols=1",
+                "--val=0",
+            ]);
         let expected_config = setup_config();
-        let actual_config : CliConfig<Count> = CliConfig::from_arg_matches(matches).unwrap();
+        let actual_config: CliConfig<Count> = CliConfig::from_arg_matches(matches).unwrap();
         assert_eq!(actual_config, expected_config);
     }
 
@@ -459,7 +488,6 @@ mod tests {
         }
     }
 
-
     #[test]
     fn test_aggregating_records_ignores_header() {
         let mut config = setup_one_liners();
@@ -473,13 +501,23 @@ mod tests {
         let matches = clap::App::from_yaml(yaml)
             .version(crate_version!())
             .author(crate_authors!())
-            .get_matches_from(vec!["csvpivot", "count", "test_csvs/one_liner.csv",
-                                   "--rows=0", "--cols=1", "--val=2", "--no-header"]);
-        let mut config : CliConfig<Count> = CliConfig::from_arg_matches(matches).unwrap();
+            .get_matches_from(vec![
+                "csvpivot",
+                "count",
+                "test_csvs/one_liner.csv",
+                "--rows=0",
+                "--cols=1",
+                "--val=2",
+                "--no-header",
+            ]);
+        let mut config: CliConfig<Count> = CliConfig::from_arg_matches(matches).unwrap();
         config.run_config();
         assert!(!config.aggregator.aggregations.is_empty());
-        let correct_vals = config.aggregator.aggregations
-            .get(&("a".to_string(), "b".to_string())).is_some();
+        let correct_vals = config
+            .aggregator
+            .aggregations
+            .get(&("a".to_string(), "b".to_string()))
+            .is_some();
         assert!(correct_vals);
     }
 
@@ -487,14 +525,17 @@ mod tests {
     fn test_aggregating_records_adds_records() {
         let mut config = setup_config();
         config.run_config();
-        assert!(config.aggregator.aggregations.contains_key(&("sales".to_string(), "true".to_string())));
+        assert!(config
+            .aggregator
+            .aggregations
+            .contains_key(&("sales".to_string(), "true".to_string())));
     }
 
     #[test]
     fn test_invalid_indexes_raise_error() {
-        let mut agg : Aggregator<Count> = Aggregator::new()
-            .set_indexes(vec![0,5])
-            .set_columns(vec![2,3])
+        let mut agg: Aggregator<Count> = Aggregator::new()
+            .set_indexes(vec![0, 5])
+            .set_columns(vec![2, 3])
             .set_value_column(4);
         let record = setup_simple_record();
         assert!(agg.add_record(record).is_err());
@@ -502,9 +543,9 @@ mod tests {
 
     #[test]
     fn test_invalid_columns_raise_error() {
-        let mut agg : Aggregator<Count> = Aggregator::new()
-            .set_indexes(vec![0,1])
-            .set_columns(vec![5,2])
+        let mut agg: Aggregator<Count> = Aggregator::new()
+            .set_indexes(vec![0, 1])
+            .set_columns(vec![5, 2])
             .set_value_column(4);
         let record = setup_simple_record();
         assert!(agg.add_record(record).is_err());
@@ -512,9 +553,9 @@ mod tests {
 
     #[test]
     fn test_invalid_value_raises_error() {
-        let mut agg : Aggregator<Count> = Aggregator::new()
-            .set_indexes(vec![0,1])
-            .set_columns(vec![2,3])
+        let mut agg: Aggregator<Count> = Aggregator::new()
+            .set_indexes(vec![0, 1])
+            .set_columns(vec![2, 3])
             .set_value_column(5);
         let record = setup_simple_record();
         assert!(agg.add_record(record).is_err());
@@ -523,15 +564,19 @@ mod tests {
     #[test]
     fn test_aggregate_adds_new_member() {
         let agg = setup_simple_count();
-        assert!(agg.aggregations
-            .contains_key(&("Columbus_<sep>_OH".to_string(), "Blue Jackets_<sep>_Hockey".to_string())));
+        assert!(agg.aggregations.contains_key(&(
+            "Columbus_<sep>_OH".to_string(),
+            "Blue Jackets_<sep>_Hockey".to_string()
+        )));
     }
 
     #[test]
     fn test_adding_record_creates_new_record() {
         let agg = setup_simple_count();
-        let val = agg.aggregations
-            .get(&("Columbus_<sep>_OH".to_string(), "Blue Jackets_<sep>_Hockey".to_string()));
+        let val = agg.aggregations.get(&(
+            "Columbus_<sep>_OH".to_string(),
+            "Blue Jackets_<sep>_Hockey".to_string(),
+        ));
         assert!(val.is_some());
     }
 
