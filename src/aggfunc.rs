@@ -239,6 +239,7 @@ impl AggregationMethod for Minimum {
         let min_val = match parsed_val {
             ParsingType::Numeric(Some(val)) => ParsingType::Numeric(Some(*val)),
             ParsingType::DateTypes(Some(dt)) => ParsingType::DateTypes(Some(*dt)),
+            ParsingType::Text(Some(str_val)) => ParsingType::Text(Some(str_val.to_string())),
             _ => ParsingType::Numeric(None),
         };
 
@@ -257,14 +258,20 @@ impl AggregationMethod for Minimum {
                     self.min_val = ParsingType::DateTypes(Some(*cur));
                 }
             }
+            (ParsingType::Text(Some(min)), ParsingType::Text(Some(cur))) => {
+                if cur < min {
+                    self.min_val = ParsingType::Text(Some(cur.to_string()))
+                }
+            }
             _ => {}
         }
     }
 
     fn to_output(&self) -> String {
-        match self.min_val {
+        match &self.min_val {
             ParsingType::Numeric(Some(val)) => val.to_string(),
             ParsingType::DateTypes(Some(dt)) => format!("{}", dt.format(DATEFORMAT)),
+            ParsingType::Text(Some(val)) => val.to_string(),
             _ => "".to_string(),
         }
     }

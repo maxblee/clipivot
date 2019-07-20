@@ -291,8 +291,9 @@ impl<U: AggregationMethod> CliConfig<U> {
             AggTypes::Maximum if parse_numeric => ParsingType::Numeric(None),
             AggTypes::Range if parse_numeric => ParsingType::Numeric(None),
             AggTypes::Maximum => ParsingType::DateTypes(None),
-            AggTypes::Minimum => ParsingType::DateTypes(None),
+            AggTypes::Minimum if parse_date => ParsingType::DateTypes(None),
             AggTypes::Range => ParsingType::DateTypes(None),
+            AggTypes::Minimum => ParsingType::Text(None),
         }
     }
 

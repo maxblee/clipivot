@@ -153,7 +153,9 @@ impl ParsingHelper {
     }
 
     fn parse_numeric(new_val: &str) -> Result<ParsingType, CsvPivotError> {
-        let dec = Decimal::from_str(new_val).or(Err(CsvPivotError::ParsingError))?;
+        let dec = Decimal::from_str(new_val)
+            .or(Decimal::from_scientific(&new_val.to_ascii_lowercase()))  // infer scientific notation on error
+            .or(Err(CsvPivotError::ParsingError))?;
         Ok(ParsingType::Numeric(Some(dec)))
     }
 
@@ -166,8 +168,29 @@ impl ParsingHelper {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parsing::ParsingType::DateTypes;
     use chrono::{NaiveDate, NaiveTime};
+
+    #[test]
+    fn test_scientific_notation_parsed() -> Result<(), CsvPivotError> {
+        // Makes sure Decimal conversion parses numbers as scientific notation
+        let scinot1 = ParsingHelper::parse_numeric("1e-4");
+        assert!(scinot1.is_ok());
+        let scinot1_extract = match scinot1 {
+            Ok(ParsingType::Numeric(Some(val))) => Ok(val.to_string()),
+            Ok(_) => Ok("".to_string()),
+            Err(e) => Err(e)
+        }?;
+        assert_eq!(scinot1_extract, "0.0001".to_string());
+        let scinot2 = ParsingHelper::parse_numeric("1.3E4");
+        assert!(scinot2.is_ok());
+        let scinot2_extract = match scinot2 {
+            Ok(ParsingType::Numeric(Some(val))) => Ok(val.to_string()),
+            Ok(_) => Ok("".to_string()),
+            Err(e) => Err(e)
+        }?;
+        assert_eq!(scinot2_extract, "13000".to_string());
+        Ok(())
+    }
 
     #[test]
     fn test_automatic_date_conversion() -> Result<(), CsvPivotError> {
@@ -189,7 +212,7 @@ mod tests {
             "2003.01.03",
             "Jan. 3, 2003",
         ];
-        let helper = ParsingHelper::from_parsing_type(DateTypes(None));
+        let helper = ParsingHelper::from_parsing_type(ParsingType::DateTypes(None));
         for date in parsable_dates {
             let parsed_opt_date = helper.parse_val(date)?;
             let parsed_date = match parsed_opt_date {

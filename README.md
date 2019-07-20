@@ -107,7 +107,7 @@ $100.00
 "$100,000.00"
 $100.00
 ```
-(The command above simply selects the `donation` column and then displays the first four rows of that column.
+(The command above simply selects the `donation` column and then displays the first four rows of that column.)
 
 There are a few problems with this data that might or might not stick out to you. In order to calculate the sum of
 something, we need to add up a bunch of numbers. But it's hard for a computer to read "$100,000.00" as a number.
@@ -130,7 +130,7 @@ IND,59538730.00
 ORG,47171478.29
 MOC,5100.00
 ```
-And sure enough! Individual donors spent about $2 million more than organizational donors did.
+And sure enough! Individual donors spent about $12 million more than organizational donors did.
 
 Now, for the fun of it, we'll make sure Sheldon Adelson donated $5 million, more than any other individual or entity.
 Intuitively, this should seem easy; it's the same thing we just did, but we're aggregating by `name/org` instead of
@@ -147,9 +147,9 @@ KUMAR FAMILY LTD,1000000.00
 And, indeed, Sheldon Adelson donated more than any other individual or entity, at $5 million.
 
 `csvpivot` can do a lot more. You can decide to aggregate on multiple rows, which will separate the values from the
-individual rows with a "$." separator, and you can decide to aggregate on columns, which will
+individual rows with a "\_\<sep\>\_" separator, and you can decide to aggregate on columns, which will
 act similarly to aggregating on rows. (That is, you'll get a new column for each unique item in that column(s),
-and, if you select multiple columns, the unique value in each column will be marked with a "$." separator.)
+and, if you select multiple columns, the unique value in each column will be marked with a "\_\<sep\>\_" separator.)
 
 Finally, there are a host of other functions `csvpivot` supports in addition to sum. We'll take a look at those next.
 ### Basic Usage
@@ -198,7 +198,7 @@ ARGS:
                         -`min` works identically to `max` but for computing the minimum value (or oldest date) 
                         -`range` computes the difference between `min` and `max`. Only works for valid numeric and date
                   formats. 
-                   [values: count, countunique, mean, median, mode, stddev, sum]
+                   [values: count, countunique, max, mean, median, min, mode, range, stddev, sum]
     <filename>    The path to the delimited file you want to create a pivot table from
 ```
 That should provide you with a basic understanding of the tool, assuming you know what a pivot table is.
@@ -305,15 +305,9 @@ of two values. Note that there is no support currently for parsing thousands
 separators or currency markers, as noted at the beginning of this user guide,
 so you must remove them prior to using `csvpivot`. Additionally,
 keep in mind that the standard deviation is referring to the *sample*
-standard deviation, which is equivalent to 
-$s = \sqrt{\frac{1}{N - 1}\sum_{i=1}^{N}{(x - \bar{x})^{2}}}$
-rather than the population standard deviation, which is equivalent to
-$\sigma = \sqrt{\frac{1}{N}\sum_{i=1}^{N}{(x - \mu)^{2}}}$
-- type independent fields work on a number of different types and are
-mainly designed for parsing numbers and dates. (In fact, `range` only works
-on numbers and dates.) These all have default types that can be overridden
-by using the `-i` or `-N` flags, which infer values as dates or parse them as numbers,
-respectively.
+standard deviation, rather than the population standard deviation.
+- Type-independent fields work on date types and numeric types. They default to reading
+dates, unless you use the `-N` flag for parsing numeric data.
     - `max` defaults to reading values as strings (mainly under the understanding
     that YYYYMMDD formatted dates sort in chronological order)
     - `min` works like `max` but for minimum values
