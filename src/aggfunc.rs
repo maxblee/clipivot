@@ -10,7 +10,6 @@
 use crate::parsing::ParsingType;
 use rust_decimal::Decimal;
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::env::var;
 
 const DATEFORMAT: &'static str = "%Y-%m-%d %H:%M:%S";
 
@@ -290,10 +289,10 @@ impl AggregationMethod for Count {
     fn get_aggtype() -> AggTypes {
         AggTypes::Count
     }
-    fn new(parsed_val: &ParsingType) -> Self {
+    fn new(_parsed_val: &ParsingType) -> Self {
         Count { val: 1 }
     }
-    fn update(&mut self, parsed_val: &ParsingType) {
+    fn update(&mut self, _parsed_val: &ParsingType) {
         self.val += 1;
     }
     fn to_output(&self) -> String {

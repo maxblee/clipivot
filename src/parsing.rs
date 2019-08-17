@@ -9,7 +9,7 @@
 //! I eventually want to extend the functionality of this so the program
 //! can automatically determine the type of record appearing in the values column.
 use crate::errors::CsvPivotError;
-use chrono::{DateTime, Datelike, NaiveDateTime, TimeZone, Utc};
+use chrono::{Datelike, NaiveDateTime};
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 use std::fmt;
@@ -66,7 +66,7 @@ impl DateFormatter {
     pub fn parse(&self, new_val: &str) -> Result<NaiveDateTime, CsvPivotError> {
         // ignore tokens (not using in impl)
         // TODO handle offsets/timezones
-        let (dt, offset, _tokens) = self
+        let (dt, _offset, _tokens) = self
             .parser
             .parse(
                 new_val,

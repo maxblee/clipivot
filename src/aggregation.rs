@@ -244,7 +244,7 @@ impl<U: AggregationMethod> CliConfig<U> {
     }
     /// Takes argument matches from main and tries to convert them into CliConfig
     pub fn from_arg_matches(arg_matches: ArgMatches) -> Result<CliConfig<U>, CsvPivotError> {
-        let mut base_config: CliConfig<U> = CliConfig::new();
+        let base_config: CliConfig<U> = CliConfig::new();
         // This method of error handling from
         // https://medium.com/@fredrikanderzon/custom-error-types-in-rust-and-the-operator-b499d0fb2925
         let values: usize = arg_matches
@@ -264,6 +264,7 @@ impl<U: AggregationMethod> CliConfig<U> {
         let rows = parse_column(rowvec)?;
         let columns = parse_column(colvec)?;
         let filename = arg_matches.value_of("filename").map(String::from);
+        // TODO This is hacky
         let parser = base_config.get_parser(&arg_matches);
         let aggregator: Aggregator<U> = Aggregator::new()
             .set_value_column(values)
