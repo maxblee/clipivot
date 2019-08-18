@@ -190,6 +190,7 @@ impl AggregationMethod for Maximum {
         let max_val = match parsed_val {
             ParsingType::Numeric(Some(val)) => ParsingType::Numeric(Some(*val)),
             ParsingType::DateTypes(Some(dt)) => ParsingType::DateTypes(Some(*dt)),
+            ParsingType::Text(Some(string_date)) => ParsingType::Text(Some(string_date.to_string())),
             _ => ParsingType::Numeric(None),
         };
 
@@ -202,20 +203,26 @@ impl AggregationMethod for Maximum {
                 if cur > max {
                     self.max_val = ParsingType::Numeric(Some(*cur));
                 }
-            }
+            },
             (ParsingType::DateTypes(Some(max)), ParsingType::DateTypes(Some(cur))) => {
                 if cur > max {
                     self.max_val = ParsingType::DateTypes(Some(*cur));
                 }
-            }
+            },
+            (ParsingType::Text(Some(max)), ParsingType::Text(Some(cur))) => {
+                if cur > max {
+                    self.max_val = ParsingType::Text(Some(cur.to_string()));
+                }
+            },
             _ => {}
         }
     }
 
     fn to_output(&self) -> String {
-        match self.max_val {
+        match &self.max_val {
             ParsingType::Numeric(Some(val)) => val.to_string(),
             ParsingType::DateTypes(Some(dt)) => format!("{}", dt.format(DATEFORMAT)),
+            ParsingType::Text(Some(string_date)) => string_date.to_string(),
             _ => "".to_string(),
         }
     }
@@ -259,7 +266,7 @@ impl AggregationMethod for Minimum {
             }
             (ParsingType::Text(Some(min)), ParsingType::Text(Some(cur))) => {
                 if cur < min {
-                    self.min_val = ParsingType::Text(Some(cur.to_string()))
+                    self.min_val = ParsingType::Text(Some(cur.to_string()));
                 }
             }
             _ => {}
@@ -685,7 +692,7 @@ mod tests {
         // standard deviation implementations
         let init_parsing = ParsingType::FloatingPoint(Some(randnum + large_num));
         let mut error_prone_stddev = StdDev::new(&init_parsing);
-        for i in 1..=1000000 {
+        for _ in 1..=1000000 {
             let randnum: f64 = random();
             let new_large = ParsingType::FloatingPoint(Some(randnum + large_num));
             let new_small = ParsingType::FloatingPoint(Some(randnum));
@@ -720,7 +727,7 @@ mod tests {
         let mut median = Median::new(&init_parsing);
         let addl_vals = vec!["1", "2", "3"];
         for val in addl_vals {
-            let parsed_val = ParsingType::Numeric((Some(Decimal::from_str(val).unwrap())));
+            let parsed_val = ParsingType::Numeric(Some(Decimal::from_str(val).unwrap()));
             median.update(&parsed_val);
         }
         assert_eq!(median.compute().to_string(), "1.5");

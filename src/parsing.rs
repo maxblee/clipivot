@@ -66,6 +66,8 @@ impl DateFormatter {
     pub fn parse(&self, new_val: &str) -> Result<NaiveDateTime, CsvPivotError> {
         // ignore tokens (not using in impl)
         // TODO handle offsets/timezones
+        // TODO Currently fails on "01042007" formatted dates because of underlying dtparser/Python dateutil issue
+        // (See https://github.com/dateutil/dateutil/issues/796 )
         let (dt, _offset, _tokens) = self
             .parser
             .parse(
@@ -96,7 +98,6 @@ pub struct ParsingHelper {
     date_helper: Option<DateFormatter>,
 }
 
-// TODO: Get rid of this
 impl Default for ParsingHelper {
     fn default() -> ParsingHelper {
         ParsingHelper {

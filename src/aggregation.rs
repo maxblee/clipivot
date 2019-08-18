@@ -291,10 +291,11 @@ impl<U: AggregationMethod> CliConfig<U> {
             AggTypes::Minimum if parse_numeric => ParsingType::Numeric(None),
             AggTypes::Maximum if parse_numeric => ParsingType::Numeric(None),
             AggTypes::Range if parse_numeric => ParsingType::Numeric(None),
-            AggTypes::Maximum => ParsingType::DateTypes(None),
+            AggTypes::Maximum if parse_date => ParsingType::DateTypes(None),
             AggTypes::Minimum if parse_date => ParsingType::DateTypes(None),
             AggTypes::Range => ParsingType::DateTypes(None),
             AggTypes::Minimum => ParsingType::Text(None),
+            AggTypes::Maximum => ParsingType::Text(None)
         }
     }
 
@@ -414,7 +415,7 @@ mod tests {
             .set_indexes(vec![0, 1])
             .set_columns(vec![2, 3])
             .set_value_column(4);
-        agg.add_record(setup_simple_record());
+        agg.add_record(setup_simple_record()).unwrap();
         agg
     }
 
@@ -422,13 +423,13 @@ mod tests {
         let mut agg = setup_simple_count();
         let second_vec = vec!["Nashville", "TN", "Predators", "Hockey", "Playoffs"];
         let second_record = csv::StringRecord::from(second_vec);
-        agg.add_record(second_record);
+        agg.add_record(second_record).unwrap();
         let third_vec = vec!["Nashville", "TN", "Titans", "Football", "Bad"];
         let third_record = csv::StringRecord::from(third_vec);
-        agg.add_record(third_record);
+        agg.add_record(third_record).unwrap();
         let fourth_vec = vec!["Columbus", "OH", "Blue Jackets", "Hockey", "Bad"];
         let fourth_record = csv::StringRecord::from(fourth_vec);
-        agg.add_record(fourth_record);
+        agg.add_record(fourth_record).unwrap();
         agg
     }
 
@@ -493,7 +494,7 @@ mod tests {
     #[test]
     fn test_aggregating_records_ignores_header() {
         let mut config = setup_one_liners();
-        config.run_config();
+        config.run_config().unwrap();
         assert!(config.aggregator.aggregations.is_empty());
     }
 
@@ -513,7 +514,7 @@ mod tests {
                 "--no-header",
             ]);
         let mut config: CliConfig<Count> = CliConfig::from_arg_matches(matches).unwrap();
-        config.run_config();
+        config.run_config().unwrap();
         assert!(!config.aggregator.aggregations.is_empty());
         let correct_vals = config
             .aggregator
@@ -526,7 +527,7 @@ mod tests {
     #[test]
     fn test_aggregating_records_adds_records() {
         let mut config = setup_config();
-        config.run_config();
+        config.run_config().unwrap();
         assert!(config
             .aggregator
             .aggregations
