@@ -231,6 +231,7 @@ where
     filename: Option<String>,
     aggregator: Aggregator<U>,
     has_header: bool,
+    delimiter: u8
 }
 
 impl<U: AggregationMethod> CliConfig<U> {
@@ -240,6 +241,7 @@ impl<U: AggregationMethod> CliConfig<U> {
             filename: None,
             aggregator: Aggregator::new(),
             has_header: true,
+            delimiter: b',',
         }
     }
     /// Takes argument matches from main and tries to convert them into CliConfig
@@ -272,10 +274,18 @@ impl<U: AggregationMethod> CliConfig<U> {
             .set_indexes(rows)
             .set_parser(parser);
 
+        let delimiter = match filename.as_ref() {
+            None => b',',
+            // altered from https://github.com/BurntSushi/xsv/blob/master/src/config.rs
+            Some(fname) if fname.ends_with(".tsv") || fname.ends_with(".tab") => b'\t',
+            Some(_) => b',', 
+        };
+
         let cfg = CliConfig {
             filename,
             aggregator,
             has_header: !arg_matches.is_present("noheader"),
+            delimiter
         };
         Ok(cfg)
     }
@@ -318,6 +328,7 @@ impl<U: AggregationMethod> CliConfig<U> {
     // TODO: Refactor this code
     pub fn get_reader_from_path(&self) -> Result<csv::Reader<fs::File>, csv::Error> {
         csv::ReaderBuilder::new()
+            .delimiter(self.delimiter)
             .trim(csv::Trim::All)
             .has_headers(self.has_header)
             // this function is only run if self.filename.is_some() so unwrap() is fine
@@ -330,12 +341,6 @@ impl<U: AggregationMethod> CliConfig<U> {
             .trim(csv::Trim::All)
             .has_headers(self.has_header)
             .from_reader(io::stdin())
-    }
-
-    /// Returns `true` if the user entered a filename. Used to determine
-    /// whether the program should read from standard input or from a file
-    pub fn is_from_path(&self) -> bool {
-        self.filename.is_some()
     }
 
     /// Runs the `Aggregator` for the given type.
