@@ -20,6 +20,16 @@ use std::fmt;
 use std::io;
 use std::num;
 
+// // from https://github.com/BurntSushi/rust-csv/blob/master/src/error.rs
+// #[derive(Debug)]
+// pub struct CsvPivotError(Box<CsvPivotErrorKind>);
+
+// impl CsvPivotError {
+//     pub(crate) fn new(kind: CsvPivotErrorKind) -> CsvPivotError {
+//         Error(Box::new(kind))
+//     }
+// }
+
 /// Covers all errors in `csvpivot`. Most of these are outside errors.
 /// However, I use the InvalidField error to note when the user
 /// made an error in declaring which fields to aggregate on.
@@ -39,6 +49,10 @@ pub enum CsvPivotError {
     /// interacts with `Clap`, you should never see this. If you do, please contact me
     /// at maxbmhlee@gmail.com or send a pull request.
     InvalidAggregator,
+    /// This error is thrown if your initial configuration is not valid. 
+    /// 
+    /// For instance, you will receive this error if you set a delimiter as a multi-character string.
+    InvalidConfiguration(String),
     /// Errors caused by trying to access a field that doesn't exist. Either appears
     /// when trying to search by column name (instead of by index) or when trying
     /// to access, say, the 5th field of a CSV file that has 4 fields.
@@ -74,6 +88,9 @@ impl fmt::Display for CsvPivotError {
                  You should never get this error. If you see it,\
                  please send a bug report to maxbmhlee@gmail.com"
             ),
+            CsvPivotError::InvalidConfiguration(ref err) => write!(
+                f, "Could not properly configure the aggregator: {}", err
+            ),
             CsvPivotError::Io(ref err) => err.fmt(f),
             CsvPivotError::ParseInt(ref err) => err.fmt(f),
             CsvPivotError::ParsingError => write!(
@@ -91,6 +108,7 @@ impl Error for CsvPivotError {
             CsvPivotError::CsvError(ref err) => err.description(),
             CsvPivotError::Io(ref err) => err.description(),
             CsvPivotError::InvalidAggregator => "aggregation failed",
+            CsvPivotError::InvalidConfiguration(ref _err) => "could not configure the aggregator",
             CsvPivotError::InvalidField => "field not found",
             CsvPivotError::ParseInt(ref err) => err.description(),
             CsvPivotError::ParsingError => "failed to parse field as decimal",
@@ -99,7 +117,7 @@ impl Error for CsvPivotError {
 }
 
 impl From<io::Error> for CsvPivotError {
-    fn from(err: io::Error) -> CsvPivotError {
+    fn from(err: io::Error) -> CsvPivotError {         
         CsvPivotError::Io(err)
     }
 }

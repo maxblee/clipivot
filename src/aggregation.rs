@@ -275,17 +275,29 @@ impl<U: AggregationMethod> CliConfig<U> {
             .set_parser(parser);
 
         let delimiter = match filename.as_ref() {
-            None => b',',
+            None => vec![b','],
             // altered from https://github.com/BurntSushi/xsv/blob/master/src/config.rs
-            Some(fname) if fname.ends_with(".tsv") || fname.ends_with(".tab") => b'\t',
-            Some(_) => b',', 
+            Some(fname) if fname.ends_with(".tsv") || fname.ends_with(".tab") => vec![b'\t'],
+            Some(_fname) if arg_matches.is_present("tab") => vec![b'\t'],
+            Some(_fname) if arg_matches.is_present("delim") => {
+                let delim = arg_matches.value_of("delim").unwrap();
+                if let r"\t" = delim {
+                    vec![b'\t']
+                } else { delim.as_bytes().to_vec() }
+            },
+            Some(_) => vec![b','], 
         };
+
+        if  !(delimiter.len() == 1) {
+            let msg = format!("Could not convert `{}` delimiter to a single ASCII character", String::from_utf8(delimiter).unwrap());
+            return Err(CsvPivotError::InvalidConfiguration(msg));
+        }
 
         let cfg = CliConfig {
             filename,
             aggregator,
             has_header: !arg_matches.is_present("noheader"),
-            delimiter
+            delimiter: delimiter[0]
         };
         Ok(cfg)
     }
@@ -338,6 +350,7 @@ impl<U: AggregationMethod> CliConfig<U> {
     /// Converts from standard input to a CSV reader.
     pub fn get_reader_from_stdin(&self) -> csv::Reader<io::Stdin> {
         csv::ReaderBuilder::new()
+            .delimiter(self.delimiter)
             .trim(csv::Trim::All)
             .has_headers(self.has_header)
             .from_reader(io::stdin())

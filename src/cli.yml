@@ -73,3 +73,11 @@ args:
   - noheader:
       help: Used when the CSV file does not have a header row
       long: no-header
+  - delim:
+      help: The delimiter used to separate fields (defaults to ',')
+      short: d
+      long: delim
+      takes_value: true
+  - tab:
+      help: Fields are tab-separated (equivalent of setting delimiter to '\t')
+      short: t
