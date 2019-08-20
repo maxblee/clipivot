@@ -285,9 +285,9 @@ impl<U: AggregationMethod> CliConfig<U> {
     pub fn from_arg_matches(arg_matches: ArgMatches) -> Result<CliConfig<U>, CsvPivotError> {
         let base_config: CliConfig<U> = CliConfig::new();
         let values_col = arg_matches.value_of("value").unwrap().to_string();    // unwrap safe because required arg
-        let column_cols = arg_matches.values_of("rows")
+        let column_cols = arg_matches.values_of("columns")
             .map_or(vec![], |it| it.map(|val| val.to_string()).collect());
-        let indexes = arg_matches.values_of("columns")
+        let indexes = arg_matches.values_of("rows")
             .map_or(vec![], |it| it.map(|val| val.to_string()).collect());
         let filename = arg_matches.value_of("filename");
         // TODO This is hacky
@@ -597,7 +597,7 @@ mod tests {
     }
 
     fn setup_simple_count() -> Aggregator<Count> {
-        let mut agg = Aggregator<Count> {
+        let mut agg: Aggregator<Count> = Aggregator {
             aggregations: HashMap::new(),
             indexes: HashSet::new(),
             columns: HashSet::new(),
@@ -605,7 +605,7 @@ mod tests {
             index_cols: vec![0,1],
             column_cols: vec![2,3],
             values_col: 4
-        }
+        };
         agg.add_record(setup_simple_record()).unwrap();
         agg
     }
@@ -625,10 +625,15 @@ mod tests {
     }
 
     fn setup_one_liners() -> CliConfig<Count> {
-        let agg: Aggregator<Count> = Aggregator::new()
-            .set_indexes(vec![2])
-            .set_columns(vec![1])
-            .set_value_column(0);
+        let agg: Aggregator<Count> = Aggregator {
+            aggregations: HashMap::new(),
+            indexes: HashSet::new(),
+            columns: HashSet::new(),
+            parser: ParsingHelper::default(),
+            index_cols: vec![2],
+            column_cols: vec![1],
+            values_col: 0
+        };
         CliConfig {
             filename: Some("test_csvs/one_liner.csv".to_string()),
             aggregator: agg,
@@ -641,10 +646,15 @@ mod tests {
     }
 
     fn setup_config() -> CliConfig<Count> {
-        let agg: Aggregator<Count> = Aggregator::new()
-            .set_indexes(vec![3])
-            .set_columns(vec![1])
-            .set_value_column(0);
+        let agg: Aggregator<Count> = Aggregator {
+            aggregations: HashMap::new(),
+            indexes: HashSet::new(),
+            columns: HashSet::new(),
+            parser: ParsingHelper::default(),
+            index_cols: vec![3],
+            column_cols: vec![1],
+            values_col: 0
+        };
         CliConfig {
             filename: Some("test_csvs/layoffs.csv".to_string()),
             aggregator: agg,
@@ -675,23 +685,23 @@ mod tests {
     fn test_colnames_split_properly() {
         // Makes sure that fields like `1,3` split properly
         let config : CliConfig<Count> = CliConfig::new();
-        let empty_vec : Vec<&str> = vec![];
+        let empty_vec : Vec<String> = vec![];
         assert_eq!(config.get_multiple_header_columns(&empty_vec).unwrap(), empty_vec);
-        let simple_single_input = vec!["a"];
+        let simple_single_input = vec!["a".to_string()];
         assert_eq!(config.get_multiple_header_columns(&simple_single_input).unwrap(), vec!["a".to_string()]);
-        let comma_sep = vec!["a,b"];
+        let comma_sep = vec!["a,b".to_string()];
         assert_eq!(config.get_multiple_header_columns(&comma_sep).unwrap(), vec!["a".to_string(), "b".to_string()]);
-        let two_records = vec!["a", "b"];
+        let two_records = vec!["a".to_string(), "b".to_string()];
         assert_eq!(config.get_multiple_header_columns(&two_records).unwrap(), vec!["a".to_string(), "b".to_string()]);
-        let two_to_three = vec!["a", "b,c"];
+        let two_to_three = vec!["a".to_string(), "b,c".to_string()];
         assert_eq!(config.get_multiple_header_columns(&two_to_three).unwrap(), vec!["a".to_string(), "b".to_string(), "c".to_string()]);
-        let quoted = vec!["'a,b,c',c"];
+        let quoted = vec!["'a,b,c',c".to_string()];
         assert_eq!(config.get_multiple_header_columns(&quoted).unwrap(), vec!["'a,b,c'".to_string(), "c".to_string()]);
-        let empty_comma = vec![","];
+        let empty_comma = vec![",".to_string()];
         assert!(config.get_multiple_header_columns(&empty_comma).is_err());
-        let open_quote = vec!["'a,b"];
+        let open_quote = vec!["'a,b".to_string()];
         assert!(config.get_multiple_header_columns(&open_quote).is_err());
-        let ends_comma = vec!["a,"];
+        let ends_comma = vec!["a,".to_string()];
         assert!(config.get_multiple_header_columns(&ends_comma).is_err());
     }
 
@@ -711,8 +721,10 @@ mod tests {
                 "--cols=1",
                 "--val=0",
             ]);
-        let expected_config = setup_config();
-        let actual_config: CliConfig<Count> = CliConfig::from_arg_matches(matches).unwrap();
+        let mut expected_config = setup_config();
+        expected_config.run_config().unwrap();
+        let mut actual_config: CliConfig<Count> = CliConfig::from_arg_matches(matches).unwrap();
+        actual_config.run_config().unwrap();
         assert_eq!(actual_config, expected_config);
     }
 
@@ -774,30 +786,45 @@ mod tests {
 
     #[test]
     fn test_invalid_indexes_raise_error() {
-        let mut agg: Aggregator<Count> = Aggregator::new()
-            .set_indexes(vec![0, 5])
-            .set_columns(vec![2, 3])
-            .set_value_column(4);
+        let mut agg: Aggregator<Count> = Aggregator {
+            aggregations: HashMap::new(),
+            indexes: HashSet::new(),
+            columns: HashSet::new(),
+            parser: ParsingHelper::default(),
+            index_cols: vec![0,5],
+            column_cols: vec![2,3],
+            values_col: 4
+        };
         let record = setup_simple_record();
         assert!(agg.add_record(record).is_err());
     }
 
     #[test]
     fn test_invalid_columns_raise_error() {
-        let mut agg: Aggregator<Count> = Aggregator::new()
-            .set_indexes(vec![0, 1])
-            .set_columns(vec![5, 2])
-            .set_value_column(4);
+        let mut agg: Aggregator<Count> = Aggregator {
+            aggregations: HashMap::new(),
+            indexes: HashSet::new(),
+            columns: HashSet::new(),
+            parser: ParsingHelper::default(),
+            index_cols: vec![0,1],
+            column_cols: vec![5,2],
+            values_col: 4
+        };
         let record = setup_simple_record();
         assert!(agg.add_record(record).is_err());
     }
 
     #[test]
     fn test_invalid_value_raises_error() {
-        let mut agg: Aggregator<Count> = Aggregator::new()
-            .set_indexes(vec![0, 1])
-            .set_columns(vec![2, 3])
-            .set_value_column(5);
+        let mut agg : Aggregator<Count> = Aggregator {
+            aggregations: HashMap::new(),
+            indexes: HashSet::new(),
+            columns: HashSet::new(),
+            parser: ParsingHelper::default(),
+            index_cols: vec![0,1],
+            column_cols: vec![2,3],
+            values_col: 5
+        };
         let record = setup_simple_record();
         assert!(agg.add_record(record).is_err());
     }
