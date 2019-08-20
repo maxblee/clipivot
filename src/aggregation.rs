@@ -361,37 +361,37 @@ impl<U: AggregationMethod> CliConfig<U> {
         let mut all_numeric = true; // default to reading the field as a 0-indexed number
         let chars = colname.chars();
         if (self.has_header) {
-            for (i, char) in chars.enumerate() {
-                if !(char.is_ascii_digit()) { all_numeric = false; }
-                if (char == '\'' || char == '\"') && !(in_quotes) { 
+            for (i, c) in chars.enumerate() {
+                if !(c.is_ascii_digit()) { all_numeric = false; }
+                if (c == '\'' || c == '\"') && !(in_quotes) { 
                     in_quotes = true; 
                     continue;
                     }
-                if (char == '\'' || char == '\"') && in_quotes { 
+                if (c == '\'' || c == '\"') && in_quotes { 
                     in_quotes = false; 
                     continue;
                     }
                 if in_quotes { 
                     continue; 
                     }
-                if char == '[' && !(in_quotes) { 
+                if c == '[' && !(in_quotes) { 
                     order_specification = true; 
                     if i + 1 < colname.len() { occurrence_start = i + 1; }
                     continue;
                 }
-                if char == ']' { 
+                if c == ']' { 
                     occurrence_end = i;
                     continue; 
                     }
                 if order_specification {
-                    if !(char.is_ascii_digit()) { 
+                    if !(c.is_ascii_digit()) { 
                         let msg = format!(
                             "Could not parse the fieldname {}. You may need to encapsulate the field in quotes",
                             colname
                         );
                         return Err(CsvPivotError::InvalidConfiguration(msg));
                     }
-                    fieldname_occurrence.push_str(&char.to_string());
+                    fieldname_occurrence.push_str(&c.to_string());
                 }
             }
         }
@@ -430,22 +430,59 @@ impl<U: AggregationMethod> CliConfig<U> {
         }
     }
 
-    fn get_multiple_header_columns(&self, colnames: &Vec<&str>, headers: &Vec<&str>) -> Result<Vec<String>, CsvPivotError> {
-        let header_length = headers.len();
-        match colnames.len() {
-            0 => Ok(vec![]),
-            // 1 => {
-            //     let in_quote = false;
-            //     let col_string = colnames[0].to_string();
-            //     let range_start = 0;
-            //     let range_end = None;
-            //     let chars = col_string.chars();
-            //     for char in chars {
-            //     }
-            //     Ok(vec![])
-            // },
-            _ => Ok(colnames.iter().map(|v| v.to_string()).collect())
+    fn parse_combined_col(&self, combined_name: &str) -> Result<Vec<String>, CsvPivotError> {
+        let mut output_vec = Vec::new();
+        let mut in_quotes = false;
+        let mut cur_string = String::new();
+        // Option<char> where None == No previous quote, Some('\'' == previous single quote)
+        let mut prev_quote = None;
+        let mut last_parsed = None;
+        for c in combined_name.chars() {
+            last_parsed = Some(c);
+            if !in_quotes {
+                if (c == '\'' || c == '\"') && cur_string.is_empty() {
+                    prev_quote = Some(c);
+                    in_quotes = true;
+                    cur_string.push(c);
+                    continue;
+                } if c == ',' {
+                    output_vec.push(cur_string);
+                    cur_string = String::new();
+                } else {
+                    cur_string.push(c);
+                }
+            } else {
+                if c== '\'' || c== '\"' {
+                    if prev_quote != Some(c) {
+                        return Err(CsvPivotError::InvalidConfiguration("Quotes inside fieldname were not properly closed".to_string()))
+                    }
+                    in_quotes = false;
+                    cur_string.push(c);
+                    continue;
+                } else { 
+                    cur_string.push(c); 
+                    }
+            }
         }
+        if !cur_string.is_empty() {
+            output_vec.push(cur_string);
+        }
+        if in_quotes { 
+            return Err(CsvPivotError::InvalidConfiguration("Quotes inside fieldname were not properly closed".to_string()));
+            }
+        if last_parsed == Some(',') {
+            return Err(CsvPivotError::InvalidConfiguration("One of the fieldnames ends with an unquoted comma".to_string()));
+        }
+        Ok(output_vec)
+    }
+
+    fn get_multiple_header_columns(&self, colnames: &Vec<&str>) -> Result<Vec<String>, CsvPivotError> {
+        let mut expected_columns = Vec::new();
+        for col in colnames {
+            let parsed_col = self.parse_combined_col(col)?;
+            expected_columns.extend(parsed_col);
+        }
+        Ok(expected_columns)
     }
 
     fn validate_headers(&self, headers: Vec<&str>) -> Result<(), CsvPivotError> {
@@ -598,19 +635,27 @@ mod tests {
     }
 
     #[test]
-    fn test_multiple_headers_split_properly() {
-        // Makes sure that fields like `1-3` split properly
-        let headers = vec!["a", "b", "c", "e-1", "d", "f"];
+    fn test_colnames_split_properly() {
+        // Makes sure that fields like `1,3` split properly
         let config : CliConfig<Count> = CliConfig::new();
-        let empty_vec : Vec<&str> = Vec::new();
-        let separated_vals = vec!["a", "b"];
-        assert_eq!(config.get_multiple_header_columns(&empty_vec, &headers).unwrap(), empty_vec);
-        assert_eq!(config.get_multiple_header_columns(&separated_vals, &headers).unwrap(), vec!["a".to_string(), "b".to_string()]);
-        assert_eq!(config.get_multiple_header_columns(&vec!["a,b"], &headers).unwrap(), vec!["a".to_string(), "b".to_string()]);
-        assert_eq!(config.get_multiple_header_columns(&vec!["a-c"], &headers).unwrap(), vec!["a".to_string(), "b".to_string(), "c".to_string()]);
-        assert_eq!(config.get_multiple_header_columns(&vec!["'e-1'"], &headers).unwrap(), vec!["'e-1'".to_string()]);
-        assert_eq!(config.get_multiple_header_columns(&vec!["'e-1'-f"], &headers).unwrap(), vec!["'e-1'".to_string(), "d".to_string(), "f".to_string()]);
-        assert_eq!(config.get_multiple_header_columns(&vec!["0-2"], &headers).unwrap(), vec!["0".to_string(), "1".to_string(), "2".to_string()]);
+        let empty_vec : Vec<&str> = vec![];
+        assert_eq!(config.get_multiple_header_columns(&empty_vec).unwrap(), empty_vec);
+        let simple_single_input = vec!["a"];
+        assert_eq!(config.get_multiple_header_columns(&simple_single_input).unwrap(), vec!["a".to_string()]);
+        let comma_sep = vec!["a,b"];
+        assert_eq!(config.get_multiple_header_columns(&comma_sep).unwrap(), vec!["a".to_string(), "b".to_string()]);
+        let two_records = vec!["a", "b"];
+        assert_eq!(config.get_multiple_header_columns(&two_records).unwrap(), vec!["a".to_string(), "b".to_string()]);
+        let two_to_three = vec!["a", "b,c"];
+        assert_eq!(config.get_multiple_header_columns(&two_to_three).unwrap(), vec!["a".to_string(), "b".to_string(), "c".to_string()]);
+        let quoted = vec!["'a,b,c',c"];
+        assert_eq!(config.get_multiple_header_columns(&quoted).unwrap(), vec!["'a,b,c'".to_string(), "c".to_string()]);
+        let empty_comma = vec![","];
+        assert!(config.get_multiple_header_columns(&empty_comma).is_err());
+        let open_quote = vec!["'a,b"];
+        assert!(config.get_multiple_header_columns(&open_quote).is_err());
+        let ends_comma = vec!["a,"];
+        assert!(config.get_multiple_header_columns(&ends_comma).is_err());
     }
 
     #[test]
