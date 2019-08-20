@@ -231,7 +231,10 @@ where
     filename: Option<String>,
     aggregator: Aggregator<U>,
     has_header: bool,
-    delimiter: u8
+    delimiter: u8,
+    values_col: String,
+    column_cols: Vec<String>,
+    indexes: Vec<String>,
 }
 
 impl<U: AggregationMethod> CliConfig<U> {
@@ -242,6 +245,9 @@ impl<U: AggregationMethod> CliConfig<U> {
             aggregator: Aggregator::new(),
             has_header: true,
             delimiter: b',',
+            values_col: "".to_string(),
+            column_cols: vec![],
+            indexes: vec![],
         }
     }
     /// Takes argument matches from main and tries to convert them into CliConfig
@@ -356,10 +362,115 @@ impl<U: AggregationMethod> CliConfig<U> {
             .from_reader(io::stdin())
     }
 
+    fn get_header_idx(&self, colname: &str, headers: &Vec<&str>) -> Result<usize, CsvPivotError> {
+        let mut in_quotes = false;
+        let mut order_specification = false; // True if we've passed a '['
+        // fieldname occurrence is the order in which a field occurs. Defaults to 0.
+        let mut fieldname_occurrence : String = "".to_string(); 
+        let mut occurrence_start = 0;
+        let mut occurrence_end = 0;
+        let header_length = headers.len();  
+        let mut all_numeric = true; // default to reading the field as a 0-indexed number
+        let chars = colname.chars();
+        if (self.has_header) {
+            for (i, char) in chars.enumerate() {
+                if !(char.is_ascii_digit()) { all_numeric = false; }
+                if (char == '\'' || char == '\"') && !(in_quotes) { 
+                    in_quotes = true; 
+                    continue;
+                    }
+                if (char == '\'' || char == '\"') && in_quotes { 
+                    in_quotes = false; 
+                    continue;
+                    }
+                if in_quotes { 
+                    continue; 
+                    }
+                if char == '[' && !(in_quotes) { 
+                    order_specification = true; 
+                    if i + 1 < colname.len() { occurrence_start = i + 1; }
+                    continue;
+                }
+                if char == ']' { 
+                    occurrence_end = i;
+                    continue; 
+                    }
+                if order_specification {
+                    if !(char.is_ascii_digit()) { 
+                        let msg = format!(
+                            "Could not parse the fieldname {}. You may need to encapsulate the field in quotes",
+                            colname
+                        );
+                        return Err(CsvPivotError::InvalidConfiguration(msg));
+                    }
+                    fieldname_occurrence.push_str(&char.to_string());
+                }
+            }
+        }
+        if all_numeric {
+            let parsed_val : usize = colname.parse()?;
+            if !((0 <= parsed_val) && (parsed_val < header_length)) {
+                let msg = format!("Column selection must be between
+                0 <= selection < {}", header_length);
+                return Err(CsvPivotError::InvalidConfiguration(msg));
+            } else { return Ok(parsed_val); }
+        } else if order_specification {
+            let orig_end = match occurrence_start {
+                i if i - 1 >= 0 => Ok(i - 1),
+                i => Err(CsvPivotError::InvalidConfiguration("Couldn't parse field.".to_string()))
+            }?;
+            let orig_name = &colname[..orig_end];
+            let parsed_val : usize = colname[occurrence_start..occurrence_end].parse()?;
+            let mut count = 0;
+            for (i, field) in headers.iter().enumerate() {
+                if field == &orig_name {
+                    count += 1;
+                    if count == parsed_val + 1 { {
+                        return Ok(i); 
+                        }}
+                }
+            }
+            let msg = format!("There are only {} occurrences of the fieldname {}", count, orig_name);
+            return Err(CsvPivotError::InvalidConfiguration(msg));
+        } else { match headers.iter().position(|&i| i == colname) {
+            Some(position) => { return Ok(position); },
+            None => {
+                let msg = format!("Could not find the fieldname `{}` in the header", colname);
+                return Err(CsvPivotError::InvalidConfiguration(msg));
+            }
+        }
+        }
+    }
+
+    fn get_multiple_header_columns(&self, colnames: &Vec<&str>, headers: &Vec<&str>) -> Result<Vec<String>, CsvPivotError> {
+        let header_length = headers.len();
+        match colnames.len() {
+            0 => Ok(vec![]),
+            // 1 => {
+            //     let in_quote = false;
+            //     let col_string = colnames[0].to_string();
+            //     let range_start = 0;
+            //     let range_end = None;
+            //     let chars = col_string.chars();
+            //     for char in chars {
+            //     }
+            //     Ok(vec![])
+            // },
+            _ => Ok(colnames.iter().map(|v| v.to_string()).collect())
+        }
+    }
+
+    fn validate_headers(&self, headers: Vec<&str>) -> Result<(), CsvPivotError> {
+
+        Ok(())
+    }
+
     /// Runs the `Aggregator` for the given type.
     pub fn run_config(&mut self) -> Result<(), CsvPivotError> {
         if self.filename.is_some() {
-            let rdr = self.get_reader_from_path()?;
+            let mut rdr = self.get_reader_from_path()?;
+            let headers = rdr.headers()?;
+            self.validate_headers(headers.iter().collect())?;
             self.aggregator.aggregate_from_file(rdr)?;
         } else {
             let rdr = self.get_reader_from_stdin();
@@ -460,6 +571,7 @@ mod tests {
             filename: Some("test_csvs/one_liner.csv".to_string()),
             aggregator: agg,
             has_header: true,
+            delimiter: b',',
         }
     }
 
@@ -472,7 +584,39 @@ mod tests {
             filename: Some("test_csvs/layoffs.csv".to_string()),
             aggregator: agg,
             has_header: true,
+            delimiter: b',',
         }
+    }
+
+    #[test]
+    fn test_header_index_parses_variety_of_vals() {
+        // Makes sure that CliConfig can parse a variety of different headers
+        let headers = vec!["FIELDNAME1", 
+        "FIELDNAME2", "FIELDNAME1", "'FIELDNAME2[0]'", "'FIELDNAME2[0]'"];
+        let config : CliConfig<Count> = CliConfig::new();
+        assert_eq!(config.get_header_idx("FIELDNAME1", &headers).unwrap(), 0);
+        assert_eq!(config.get_header_idx("FIELDNAME1[1]", &headers).unwrap(), 2);
+        assert_eq!(config.get_header_idx("'FIELDNAME2[0]'", &headers).unwrap(), 3);
+        assert_eq!(config.get_header_idx("'FIELDNAME2[0]'[1]", &headers).unwrap(), 4);
+        assert_eq!(config.get_header_idx("0", &headers).unwrap(), 0);
+        assert_eq!(config.get_header_idx("4", &headers).unwrap(), 4);
+        assert!(!(config.get_header_idx("5", &headers)).is_ok());
+    }
+
+    #[test]
+    fn test_multiple_headers_split_properly() {
+        // Makes sure that fields like `1-3` split properly
+        let headers = vec!["a", "b", "c", "e-1", "d", "f"];
+        let config : CliConfig<Count> = CliConfig::new();
+        let empty_vec : Vec<&str> = Vec::new();
+        let separated_vals = vec!["a", "b"];
+        assert_eq!(config.get_multiple_header_columns(&empty_vec, &headers).unwrap(), empty_vec);
+        assert_eq!(config.get_multiple_header_columns(&separated_vals, &headers).unwrap(), vec!["a".to_string(), "b".to_string()]);
+        assert_eq!(config.get_multiple_header_columns(&vec!["a,b"], &headers).unwrap(), vec!["a".to_string(), "b".to_string()]);
+        assert_eq!(config.get_multiple_header_columns(&vec!["a-c"], &headers).unwrap(), vec!["a".to_string(), "b".to_string(), "c".to_string()]);
+        assert_eq!(config.get_multiple_header_columns(&vec!["'e-1'"], &headers).unwrap(), vec!["'e-1'".to_string()]);
+        assert_eq!(config.get_multiple_header_columns(&vec!["'e-1'-f"], &headers).unwrap(), vec!["'e-1'".to_string(), "d".to_string(), "f".to_string()]);
+        assert_eq!(config.get_multiple_header_columns(&vec!["0-2"], &headers).unwrap(), vec!["0".to_string(), "1".to_string(), "2".to_string()]);
     }
 
     #[test]
