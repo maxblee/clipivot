@@ -18,6 +18,7 @@ use std::io;
 use crate::aggfunc::*;
 use crate::errors::CsvPivotError;
 use crate::parsing::{ParsingHelper, ParsingType};
+use crate::config;
 use clap::ArgMatches;
 
 const FIELD_SEPARATOR: &'static str = "_<sep>_";
@@ -64,19 +65,20 @@ impl<T: AggregationMethod> Aggregator<T> {
     /// Adds the list of index columns to the default aggregator.
     /// (This approach to method chaining comes from
     /// [http://www.ameyalokare.com/rust/2017/11/02/rust-builder-pattern.html](http://www.ameyalokare.com/rust/2017/11/02/rust-builder-pattern.html).)
-    pub fn set_indexes(mut self, new_indexes: Vec<usize>) -> Self {
+    /// and later from https://github.com/BurntSushi/rust-csv/blob/master/csv-core/src/reader.rs
+    pub fn set_indexes(&mut self, new_indexes: Vec<usize>) -> &mut Aggregator<T> {
         self.index_cols = new_indexes;
         self
     }
 
     /// Adds the list of columns to the aggregator
-    pub fn set_columns(mut self, new_cols: Vec<usize>) -> Self {
+    pub fn set_columns(&mut self, new_cols: Vec<usize>) -> &mut Aggregator<T> {
         self.column_cols = new_cols;
         self
     }
 
     /// Adds a `ParsingHelper` (if you're not using the default of Text(Option<String>))
-    pub fn set_parser(mut self, new_parser: ParsingHelper) -> Self {
+    pub fn set_parser(&mut self, new_parser: ParsingHelper) -> &mut Aggregator<T> {
         self.parser = new_parser;
         self
     }
@@ -93,7 +95,7 @@ impl<T: AggregationMethod> Aggregator<T> {
     /// As a tool designed for data exploration, I feel that users should limit themselves
     /// to a single aggregation method. Users can take a different approach
     /// by joining the data from one pivot table output to the data from another pivot table output.
-    pub fn set_value_column(mut self, value_col: usize) -> Self {
+    pub fn set_value_column(&mut self, value_col: usize) -> &mut Aggregator<T> {
         self.values_col = value_col;
         self
     }
@@ -239,7 +241,7 @@ where
 
 impl<U: AggregationMethod> CliConfig<U> {
     /// Creates a new, basic CliConfig
-    pub fn new() -> CliConfig<U> {
+    pub fn new() -> CliConfig<U>  {
         CliConfig {
             filename: None,
             aggregator: Aggregator::new(),
@@ -476,17 +478,46 @@ impl<U: AggregationMethod> CliConfig<U> {
         Ok(output_vec)
     }
 
-    fn get_multiple_header_columns(&self, colnames: &Vec<&str>) -> Result<Vec<String>, CsvPivotError> {
+    fn get_multiple_header_columns(&self, colnames: &Vec<String>) -> Result<Vec<String>, CsvPivotError> {
         let mut expected_columns = Vec::new();
         for col in colnames {
-            let parsed_col = self.parse_combined_col(col)?;
+            let parsed_col = self.parse_combined_col(&col)?;
             expected_columns.extend(parsed_col);
         }
         Ok(expected_columns)
     }
 
-    fn validate_headers(&self, headers: Vec<&str>) -> Result<(), CsvPivotError> {
+    fn get_idx_vec(&self, expected_cols: &Vec<String>, headers: &Vec<&str>) -> Result<Vec<usize>, CsvPivotError> {
+        let mut all_cols = Vec::new();
+        for col in expected_cols {
+            let col_idx = self.get_header_idx(&col, headers)?;
+            all_cols.push(col_idx);
+        }
+        let mut parsed_cols = HashSet::new();
+        let mut output_cols = Vec::new();
+        for col in all_cols {
+            if !parsed_cols.contains(&col) {
+                output_cols.push(col);
+            } else {
+                parsed_cols.insert(col);
+            }
+        }
+        Ok(output_cols)
+    }
 
+    fn validate_columns(&mut self, headers: &Vec<&str>) -> Result<(), CsvPivotError> {
+        // validates the aggregation columns and then updates the aggregator
+        let expected_indexes = self.get_multiple_header_columns(&self.indexes)?;
+        let index_vec = self.get_idx_vec(&expected_indexes, headers)?;
+        let expected_columns = self.get_multiple_header_columns(&self.column_cols)?;
+        let column_vec = self.get_idx_vec(&expected_columns, headers)?;
+        let values_vec = self.get_header_idx(&self.values_col, headers)?;
+        // need self.aggregator = .. right now bc set_indexes etc return Self (rather than mutating)
+        // TODO clean up method chaining to avoid this mess
+        self.aggregator
+            .set_indexes(index_vec)
+            .set_columns(column_vec)
+            .set_value_column(values_vec);
         Ok(())
     }
 
@@ -495,10 +526,12 @@ impl<U: AggregationMethod> CliConfig<U> {
         if self.filename.is_some() {
             let mut rdr = self.get_reader_from_path()?;
             let headers = rdr.headers()?;
-            self.validate_headers(headers.iter().collect())?;
+            self.validate_columns(&headers.iter().collect())?;
             self.aggregator.aggregate_from_file(rdr)?;
         } else {
-            let rdr = self.get_reader_from_stdin();
+            let mut rdr = self.get_reader_from_stdin();
+            let headers = rdr.headers()?;
+            self.validate_columns(&headers.iter().collect())?;
             self.aggregator.aggregate_from_stdin(rdr)?;
         }
         self.aggregator.write_results()?;
