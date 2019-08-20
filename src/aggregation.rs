@@ -253,33 +253,18 @@ impl<U: AggregationMethod> CliConfig<U> {
     /// Takes argument matches from main and tries to convert them into CliConfig
     pub fn from_arg_matches(arg_matches: ArgMatches) -> Result<CliConfig<U>, CsvPivotError> {
         let base_config: CliConfig<U> = CliConfig::new();
-        // This method of error handling from
-        // https://medium.com/@fredrikanderzon/custom-error-types-in-rust-and-the-operator-b499d0fb2925
-        let values: usize = arg_matches
-            .value_of("value")
-            .unwrap()
-            .parse()
-            .or(Err(CsvPivotError::InvalidField))?;
-        // This makes it so set_indexes and set_columns can set an empty vector (for totals)
-        let rowvec = match arg_matches.values_of("rows") {
-            Some(vals) => vals.collect(),
-            None => Vec::new(),
-        };
-        let colvec = match arg_matches.values_of("columns") {
-            Some(vals) => vals.collect(),
-            None => Vec::new(),
-        };
-        let rows = parse_column(rowvec)?;
-        let columns = parse_column(colvec)?;
+        let values_col = arg_matches.value_of("value").unwrap().to_string();    // unwrap safe because required arg
+        let column_cols = arg_matches.values_of("rows")
+            .map_or(vec![], |it| it.map(|val| val.to_string()).collect());
+        let indexes = arg_matches.values_of("columns")
+            .map_or(vec![], |it| it.map(|val| val.to_string()).collect());
         let filename = arg_matches.value_of("filename").map(String::from);
         // TODO This is hacky
         let parser = base_config.get_parser(&arg_matches);
         let aggregator: Aggregator<U> = Aggregator::new()
-            .set_value_column(values)
-            .set_columns(columns)
-            .set_indexes(rows)
             .set_parser(parser);
 
+        // TODO create new function for this
         let delimiter = match filename.as_ref() {
             None => vec![b','],
             // altered from https://github.com/BurntSushi/xsv/blob/master/src/config.rs
@@ -303,7 +288,10 @@ impl<U: AggregationMethod> CliConfig<U> {
             filename,
             aggregator,
             has_header: !arg_matches.is_present("noheader"),
-            delimiter: delimiter[0]
+            delimiter: delimiter[0],
+            values_col,
+            indexes,
+            column_cols
         };
         Ok(cfg)
     }
@@ -572,6 +560,9 @@ mod tests {
             aggregator: agg,
             has_header: true,
             delimiter: b',',
+            values_col: "0".to_string(),
+            column_cols: vec!["1".to_string()],
+            indexes: vec!["2".to_string()]
         }
     }
 
@@ -585,6 +576,9 @@ mod tests {
             aggregator: agg,
             has_header: true,
             delimiter: b',',
+            values_col: "0".to_string(),
+            column_cols: vec!["1".to_string()],
+            indexes: vec!["3".to_string()]
         }
     }
 
