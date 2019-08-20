@@ -18,7 +18,6 @@ use std::io;
 use crate::aggfunc::*;
 use crate::errors::CsvPivotError;
 use crate::parsing::{ParsingHelper, ParsingType};
-use crate::config;
 use clap::ArgMatches;
 
 const FIELD_SEPARATOR: &'static str = "_<sep>_";
@@ -58,6 +57,12 @@ impl<T: AggregationMethod> Aggregator<T> {
             column_cols: Vec::new(),
             values_col: 0,
         }
+    }
+
+    pub fn from_parser(parser: ParsingHelper) -> Aggregator<T> {
+        let mut agg = Aggregator::new();
+        agg.parser = parser;
+        agg
     }
 
     // the following approach to method chaining comes from
@@ -223,6 +228,30 @@ impl<T: AggregationMethod> Aggregator<T> {
     }
 }
 
+
+fn parse_delimiter(filename: &Option<&str>, arg_matches: &ArgMatches) -> Result<u8, CsvPivotError> {
+    let default_delim = match filename {
+        _ if arg_matches.is_present("tab") => vec![b'\t'],
+        _ if arg_matches.is_present("delim") => {
+            let delim = arg_matches.value_of("delim").unwrap();
+            if let r"\t" = delim {
+                vec![b'\t']
+            } else { delim.as_bytes().to_vec() }
+        },
+        // altered from https://github.com/BurntSushi/xsv/blob/master/src/config.rs
+        Some(fname) if fname.ends_with(".tsv") || fname.ends_with(".tab") => vec![b'\t'],
+        _ => vec![b',']
+    };
+    if !(default_delim.len() == 1) {
+        let msg = format!(
+            "Could not convert `{}` delimiter to a single ASCII character",
+             String::from_utf8(default_delim).unwrap()
+             );
+        return Err(CsvPivotError::InvalidConfiguration(msg));
+    }
+    Ok(default_delim[0])
+}
+
 /// This struct is intended for converting from Clap's `ArgMatches` to the `Aggregator` struct
 #[derive(Debug, PartialEq)]
 pub struct CliConfig<U>
@@ -260,37 +289,18 @@ impl<U: AggregationMethod> CliConfig<U> {
             .map_or(vec![], |it| it.map(|val| val.to_string()).collect());
         let indexes = arg_matches.values_of("columns")
             .map_or(vec![], |it| it.map(|val| val.to_string()).collect());
-        let filename = arg_matches.value_of("filename").map(String::from);
+        let filename = arg_matches.value_of("filename");
         // TODO This is hacky
         let parser = base_config.get_parser(&arg_matches);
-        let aggregator: Aggregator<U> = Aggregator::new()
-            .set_parser(parser);
+        let aggregator: Aggregator<U> = Aggregator::from_parser(parser);
 
-        // TODO create new function for this
-        let delimiter = match filename.as_ref() {
-            None => vec![b','],
-            // altered from https://github.com/BurntSushi/xsv/blob/master/src/config.rs
-            Some(fname) if fname.ends_with(".tsv") || fname.ends_with(".tab") => vec![b'\t'],
-            Some(_fname) if arg_matches.is_present("tab") => vec![b'\t'],
-            Some(_fname) if arg_matches.is_present("delim") => {
-                let delim = arg_matches.value_of("delim").unwrap();
-                if let r"\t" = delim {
-                    vec![b'\t']
-                } else { delim.as_bytes().to_vec() }
-            },
-            Some(_) => vec![b','], 
-        };
-
-        if  !(delimiter.len() == 1) {
-            let msg = format!("Could not convert `{}` delimiter to a single ASCII character", String::from_utf8(delimiter).unwrap());
-            return Err(CsvPivotError::InvalidConfiguration(msg));
-        }
+        let delimiter = parse_delimiter(&filename, &arg_matches)?;
 
         let cfg = CliConfig {
-            filename,
+            filename: filename.map(String::from),
             aggregator,
             has_header: !arg_matches.is_present("noheader"),
-            delimiter: delimiter[0],
+            delimiter,
             values_col,
             indexes,
             column_cols
@@ -362,7 +372,7 @@ impl<U: AggregationMethod> CliConfig<U> {
         let header_length = headers.len();  
         let mut all_numeric = true; // default to reading the field as a 0-indexed number
         let chars = colname.chars();
-        if (self.has_header) {
+        if self.has_header {
             for (i, c) in chars.enumerate() {
                 if !(c.is_ascii_digit()) { all_numeric = false; }
                 if (c == '\'' || c == '\"') && !(in_quotes) { 
@@ -400,6 +410,7 @@ impl<U: AggregationMethod> CliConfig<U> {
         if all_numeric {
             let parsed_val : usize = colname.parse()?;
             if !((0 <= parsed_val) && (parsed_val < header_length)) {
+                println!("{}", self.delimiter == b'\t');
                 let msg = format!("Column selection must be between
                 0 <= selection < {}", header_length);
                 return Err(CsvPivotError::InvalidConfiguration(msg));
@@ -539,18 +550,6 @@ impl<U: AggregationMethod> CliConfig<U> {
     }
 }
 
-/// Tries to convert the --columns and --rows flags from the CLI into
-/// a vector of (positive) integers. If it cannot do so, it returns an
-/// `InvalidField` error.
-pub fn parse_column(column: Vec<&str>) -> Result<Vec<usize>, CsvPivotError> {
-    let mut indexes = Vec::new();
-    for idx in column {
-        let index_val = idx.parse().or(Err(CsvPivotError::InvalidField))?;
-        indexes.push(index_val);
-    }
-    Ok(indexes)
-}
-
 /// This function is the part of the program that directly interacts with `main`.
 pub fn run(arg_matches: ArgMatches) -> Result<(), CsvPivotError> {
     let aggfunc = arg_matches.value_of("aggfunc").unwrap();
@@ -598,10 +597,15 @@ mod tests {
     }
 
     fn setup_simple_count() -> Aggregator<Count> {
-        let mut agg = Aggregator::new()
-            .set_indexes(vec![0, 1])
-            .set_columns(vec![2, 3])
-            .set_value_column(4);
+        let mut agg = Aggregator<Count> {
+            aggregations: HashMap::new(),
+            indexes: HashSet::new(),
+            columns: HashSet::new(),
+            parser: ParsingHelper::default(),
+            index_cols: vec![0,1],
+            column_cols: vec![2,3],
+            values_col: 4
+        }
         agg.add_record(setup_simple_record()).unwrap();
         agg
     }
