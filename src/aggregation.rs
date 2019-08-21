@@ -108,9 +108,10 @@ impl<T: AggregationMethod> Aggregator<T> {
         &mut self,
         mut rdr: csv::Reader<fs::File>,
     ) -> Result<(), CsvPivotError> {
-        for result in rdr.records() {
+        let mut iter = rdr.into_records();
+        for (line_num, result) in iter.enumerate() {
             let record = result?;
-            self.add_record(record)?;
+            self.add_record(record, line_num)?;
         }
         Ok(())
     }
@@ -125,9 +126,10 @@ impl<T: AggregationMethod> Aggregator<T> {
         &mut self,
         mut rdr: csv::Reader<io::Stdin>,
     ) -> Result<(), CsvPivotError> {
-        for result in rdr.records() {
+        let mut iter = rdr.into_records();
+        for (line_num, result) in iter.enumerate() {
             let record = result?;
-            self.add_record(record)?;
+            self.add_record(record, line_num)?;
         }
         Ok(())
     }
@@ -165,7 +167,7 @@ impl<T: AggregationMethod> Aggregator<T> {
         }
     }
 
-    fn add_record(&mut self, record: csv::StringRecord) -> Result<(), CsvPivotError> {
+    fn add_record(&mut self, record: csv::StringRecord, line_num: usize) -> Result<(), CsvPivotError> {
         // merges all of the index columns into a single column, separated by FIELD_SEPARATOR
         let indexnames = self.get_colname(&self.index_cols, &record);
         let columnnames = self.get_colname(&self.column_cols, &record);
@@ -177,7 +179,7 @@ impl<T: AggregationMethod> Aggregator<T> {
         // be tied to self.aggregations, rather than cloned)
         self.indexes.insert(indexnames.clone());
         self.columns.insert(columnnames.clone());
-        let parsed_val = self.parser.parse_val(str_val, record.position().map(|pos| pos.line()))?;
+        let parsed_val = self.parser.parse_val(str_val, line_num)?;
         // this determines how to add the data as it's being read
         if parsed_val.is_some() {
             self.update_aggregations(indexnames, columnnames, &parsed_val.unwrap());
@@ -637,7 +639,7 @@ mod tests {
             column_cols: vec![2, 3],
             values_col: 4,
         };
-        agg.add_record(setup_simple_record()).unwrap();
+        agg.add_record(setup_simple_record(), 0).unwrap();
         agg
     }
 
@@ -645,13 +647,13 @@ mod tests {
         let mut agg = setup_simple_count();
         let second_vec = vec!["Nashville", "TN", "Predators", "Hockey", "Playoffs"];
         let second_record = csv::StringRecord::from(second_vec);
-        agg.add_record(second_record).unwrap();
+        agg.add_record(second_record, 0).unwrap();
         let third_vec = vec!["Nashville", "TN", "Titans", "Football", "Bad"];
         let third_record = csv::StringRecord::from(third_vec);
-        agg.add_record(third_record).unwrap();
+        agg.add_record(third_record, 0).unwrap();
         let fourth_vec = vec!["Columbus", "OH", "Blue Jackets", "Hockey", "Bad"];
         let fourth_record = csv::StringRecord::from(fourth_vec);
-        agg.add_record(fourth_record).unwrap();
+        agg.add_record(fourth_record, 0).unwrap();
         agg
     }
 

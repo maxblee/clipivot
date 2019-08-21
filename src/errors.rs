@@ -30,7 +30,7 @@ pub enum CsvPivotError {
     Io(io::Error),
     /// Errors trying to parse a new value
     ParsingError {
-        line_num: Option<u64>,
+        line_num: usize,
         err: String,
     }
 }
@@ -44,17 +44,14 @@ impl fmt::Display for CsvPivotError {
             }
             CsvPivotError::Io(ref err) => err.fmt(f),
             // adapted from https://github.com/BurntSushi/rust-csv/blob/master/src/error.rs
-            CsvPivotError::ParsingError { line_num: Some(ref line_num), err: ref err } => {
+            CsvPivotError::ParsingError { line_num: ref line_num, err: ref err } => {
                 write!(
                     f,
-                    "Could not parse record on line {}: {}",
-                    line_num,
+                    "Could not parse record {}: {}",
+                    line_num + 1,
                     err
                 )
             },
-            CsvPivotError::ParsingError { line_num: None, err: ref err } => {
-                write!(f, "Could not parse record: {}", err)
-            }
         }
     }
 }
@@ -65,7 +62,7 @@ impl Error for CsvPivotError {
             CsvPivotError::CsvError(ref err) => err.description(),
             CsvPivotError::Io(ref err) => err.description(),
             CsvPivotError::InvalidConfiguration(ref _err) => "could not configure the aggregator",
-            CsvPivotError::ParsingError {line_num: ref _num, err: ref _err } => "failed to parse field as decimal",
+            CsvPivotError::ParsingError {line_num: ref _num, err: ref _err } => "failed to parse values column",
         }
     }
 }
