@@ -167,17 +167,17 @@ impl<T: AggregationMethod> Aggregator<T> {
 
     fn add_record(&mut self, record: csv::StringRecord) -> Result<(), CsvPivotError> {
         // merges all of the index columns into a single column, separated by FIELD_SEPARATOR
-        let indexnames = self.get_colname(&self.index_cols, &record)?;
-        let columnnames = self.get_colname(&self.column_cols, &record)?;
+        let indexnames = self.get_colname(&self.index_cols, &record);
+        let columnnames = self.get_colname(&self.column_cols, &record);
+        // CliConfig + csv crate do error handling that should prevent get from being None
         let str_val = record
-            .get(self.values_col)
-            .ok_or(CsvPivotError::InvalidField)?;
+            .get(self.values_col).unwrap();
         // This isn't memory efficient, but it should be OK for now
         // (i.e. I should eventually get self.indexes and self.columns
         // be tied to self.aggregations, rather than cloned)
         self.indexes.insert(indexnames.clone());
         self.columns.insert(columnnames.clone());
-        let parsed_val = self.parser.parse_val(str_val)?;
+        let parsed_val = self.parser.parse_val(str_val, record.position().map(|pos| pos.line()))?;
         // this determines how to add the data as it's being read
         if parsed_val.is_some() {
             self.update_aggregations(indexnames, columnnames, &parsed_val.unwrap());
@@ -189,16 +189,18 @@ impl<T: AggregationMethod> Aggregator<T> {
         &self,
         columns: &[usize],
         record: &csv::StringRecord,
-    ) -> Result<String, CsvPivotError> {
+    ) -> String {
         let mut colnames: Vec<&str> = Vec::new();
         if columns.is_empty() {
-            return Ok("total".to_string());
+            "total".to_string();
         }
         for idx in columns {
-            let idx_column = record.get(*idx).ok_or(CsvPivotError::InvalidField)?;
+            // unwrap should be safe bc CliConfig + csv crate error handling should prevent
+            // record.get(idx) == None
+            let idx_column = record.get(*idx).unwrap();
             colnames.push(idx_column);
         }
-        Ok(colnames.join(FIELD_SEPARATOR))
+        colnames.join(FIELD_SEPARATOR)
     }
 
     fn update_aggregations(
@@ -403,9 +405,11 @@ impl<U: AggregationMethod> CliConfig<U> {
             }
         }
         if all_numeric {
-            let parsed_val: usize = colname.parse()?;
+            // Unwrap should be fine because we know that every character is an ASCII digit
+            // and .parse() automatically removes leading zeros
+            // AND (this is key) clap should prevent colname from ever being an empty string
+            let parsed_val: usize = colname.parse().unwrap();
             if parsed_val >= header_length {
-                println!("{}", self.delimiter == b'\t');
                 let msg = format!(
                     "Column selection must be between
                 0 <= selection < {}",
@@ -423,7 +427,10 @@ impl<U: AggregationMethod> CliConfig<U> {
                 )),
             }?;
             let orig_name = &colname[..orig_end];
-            let parsed_val: usize = colname[occurrence_start..occurrence_end].parse()?;
+            let parsed_val = colname[occurrence_start..occurrence_end].parse::<usize>()
+                .or(Err(CsvPivotError::InvalidConfiguration(
+                    "Fieldnames with brackets must be in quotes or have at least one ASCII digit within the brackets (e.g. FIELDNAME[0]".to_string()
+                    )))?;
             let mut count = 0;
             for (i, field) in headers.iter().enumerate() {
                 if field == &orig_name {
@@ -839,51 +846,6 @@ mod tests {
             .aggregator
             .aggregations
             .contains_key(&("sales".to_string(), "true".to_string())));
-    }
-
-    #[test]
-    fn test_invalid_indexes_raise_error() {
-        let mut agg: Aggregator<Count> = Aggregator {
-            aggregations: HashMap::new(),
-            indexes: HashSet::new(),
-            columns: HashSet::new(),
-            parser: ParsingHelper::default(),
-            index_cols: vec![0, 5],
-            column_cols: vec![2, 3],
-            values_col: 4,
-        };
-        let record = setup_simple_record();
-        assert!(agg.add_record(record).is_err());
-    }
-
-    #[test]
-    fn test_invalid_columns_raise_error() {
-        let mut agg: Aggregator<Count> = Aggregator {
-            aggregations: HashMap::new(),
-            indexes: HashSet::new(),
-            columns: HashSet::new(),
-            parser: ParsingHelper::default(),
-            index_cols: vec![0, 1],
-            column_cols: vec![5, 2],
-            values_col: 4,
-        };
-        let record = setup_simple_record();
-        assert!(agg.add_record(record).is_err());
-    }
-
-    #[test]
-    fn test_invalid_value_raises_error() {
-        let mut agg: Aggregator<Count> = Aggregator {
-            aggregations: HashMap::new(),
-            indexes: HashSet::new(),
-            columns: HashSet::new(),
-            parser: ParsingHelper::default(),
-            index_cols: vec![0, 1],
-            column_cols: vec![2, 3],
-            values_col: 5,
-        };
-        let record = setup_simple_record();
-        assert!(agg.add_record(record).is_err());
     }
 
     #[test]

@@ -63,7 +63,7 @@ impl Default for DateFormatter {
 }
 
 impl DateFormatter {
-    pub fn parse(&self, new_val: &str) -> Result<NaiveDateTime, CsvPivotError> {
+    pub fn parse(&self, new_val: &str, line_num: Option<u64>) -> Result<NaiveDateTime, CsvPivotError> {
         // ignore tokens (not using in impl)
         // TODO handle offsets/timezones
         // TODO Currently fails on "01042007" formatted dates because of underlying dtparser/Python dateutil issue
@@ -80,7 +80,9 @@ impl DateFormatter {
                 false,
                 &HashMap::new(),
             )
-            .or(Err(CsvPivotError::ParsingError))?;
+            .or(Err(CsvPivotError::ParsingError {
+                line_num, err: "Failed to parse datetime".to_string()
+    }))?;
         Ok(dt)
     }
 }
@@ -134,7 +136,7 @@ impl ParsingHelper {
         self
     }
 
-    pub fn parse_val(&self, new_val: &str) -> Result<Option<ParsingType>, CsvPivotError> {
+    pub fn parse_val(&self, new_val: &str, line_num: Option<u64>) -> Result<Option<ParsingType>, CsvPivotError> {
         // list of empty values heavily borrowed from `agate` in Python
         // https://agate.readthedocs.io/en/1.6.1/api/data_types.html
         let empty_vals = vec!["", "na", "n/a", "none", "null", "nan"];
@@ -143,30 +145,36 @@ impl ParsingHelper {
         }
         let parsed_val = match self.values_type {
             ParsingType::Text(_) => Ok(ParsingType::Text(Some(new_val.to_string()))),
-            ParsingType::Numeric(_) => ParsingHelper::parse_numeric(new_val),
-            ParsingType::FloatingPoint(_) => ParsingHelper::parse_floating(new_val),
-            ParsingType::DateTypes(_) => self.parse_datetime(new_val),
+            ParsingType::Numeric(_) => ParsingHelper::parse_numeric(new_val, line_num),
+            ParsingType::FloatingPoint(_) => ParsingHelper::parse_floating(new_val, line_num),
+            ParsingType::DateTypes(_) => self.parse_datetime(new_val, line_num),
         }?;
         Ok(Some(parsed_val))
     }
 
-    fn parse_datetime(&self, new_val: &str) -> Result<ParsingType, CsvPivotError> {
+    fn parse_datetime(&self, new_val: &str, line_num: Option<u64>) -> Result<ParsingType, CsvPivotError> {
         let parsed_dt = match &self.date_helper {
-            Some(helper) => helper.parse(new_val),
-            None => Err(CsvPivotError::ParsingError),
+            Some(helper) => helper.parse(new_val, line_num),
+            None => Err(CsvPivotError::ParsingError {
+                line_num, err: "Failed to parse datetime".to_string()
+            }),
         }?;
         Ok(ParsingType::DateTypes(Some(parsed_dt)))
     }
 
-    fn parse_numeric(new_val: &str) -> Result<ParsingType, CsvPivotError> {
+    fn parse_numeric(new_val: &str, line_num: Option<u64>) -> Result<ParsingType, CsvPivotError> {
         let dec = Decimal::from_str(new_val)
             .or_else(|_| Decimal::from_scientific(&new_val.to_ascii_lowercase())) // infer scientific notation on error
-            .or(Err(CsvPivotError::ParsingError))?;
+            .or(Err(CsvPivotError::ParsingError {
+                line_num, err: "Failed to parse as numeric type".to_string()
+            }))?;
         Ok(ParsingType::Numeric(Some(dec)))
     }
 
-    fn parse_floating(new_val: &str) -> Result<ParsingType, CsvPivotError> {
-        let num: f64 = new_val.parse().or(Err(CsvPivotError::ParsingError))?;
+    fn parse_floating(new_val: &str, line_num: Option<u64>) -> Result<ParsingType, CsvPivotError> {
+        let num: f64 = new_val.parse().or(Err(CsvPivotError::ParsingError {
+            line_num, err: "Failed to parse floating point number".to_string()
+        }))?;
         Ok(ParsingType::FloatingPoint(Some(num)))
     }
 }
@@ -179,7 +187,7 @@ mod tests {
     #[test]
     fn test_scientific_notation_parsed() -> Result<(), CsvPivotError> {
         // Makes sure Decimal conversion parses numbers as scientific notation
-        let scinot1 = ParsingHelper::parse_numeric("1e-4");
+        let scinot1 = ParsingHelper::parse_numeric("1e-4", None);
         assert!(scinot1.is_ok());
         let scinot1_extract = match scinot1 {
             Ok(ParsingType::Numeric(Some(val))) => Ok(val.to_string()),
@@ -187,7 +195,7 @@ mod tests {
             Err(e) => Err(e),
         }?;
         assert_eq!(scinot1_extract, "0.0001".to_string());
-        let scinot2 = ParsingHelper::parse_numeric("1.3E4");
+        let scinot2 = ParsingHelper::parse_numeric("1.3E4", None);
         assert!(scinot2.is_ok());
         let scinot2_extract = match scinot2 {
             Ok(ParsingType::Numeric(Some(val))) => Ok(val.to_string()),
@@ -220,11 +228,12 @@ mod tests {
         ];
         let helper = ParsingHelper::from_parsing_type(ParsingType::DateTypes(None));
         for date in parsable_dates {
-            let parsed_opt_date = helper.parse_val(date)?;
+            let parsed_opt_date = helper.parse_val(date, None)?;
             let parsed_date = match parsed_opt_date {
-                Some(ParsingType::DateTypes(Some(val))) => Ok(val),
-                _ => Err(CsvPivotError::ParsingError),
-            }?;
+                Some(ParsingType::DateTypes(Some(val))) => val,
+                // Since we're parsing from ParsingType::DateTypes, this should never happen
+                _ => panic!(),
+            };
             let naive_date = NaiveDate::from_ymd(2003, 1, 3);
             let naive_time = NaiveTime::from_hms(0, 0, 0);
             let expected_utc = NaiveDateTime::new(naive_date, naive_time);
