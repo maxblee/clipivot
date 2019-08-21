@@ -5,38 +5,80 @@
 //! and usage instructions. If, on the other hand, you want to contribute to `csvpivot`'s
 //! development, read on.
 //!
-//! This tool is designed for easily and quickly creating pivot tables. Right now, there
-//! are a few areas where I'd like to see improvement. Specifically, here are the ways
-//! I'd like to see this project improve, ranked by how important I feel they are:
-//! 1. More aggregation methods: Right now, I only have support for aggregating by count.
-//! But I'd like this program to become a lot more extensive. (View the
-//! [relevant](aggfunc/trait.AggregationMethod.html) documentation.)
-//! 2. Text parsing: Currently, the program only parsing text as just that: text.
-//! But in order to deal with sums, minimums, etc. I need to be able to handle numbers.
-//! (See the [parsing](parsing/index.html) documentation.)
-//! I'd also *eventually* like to handle dates in a reasonable manner.
-//! 3. Better error messages: Right now, my custom error messages are pretty vague.
-//! If you have ideas of how I could change that (and most importantly, an understanding
-//! of how to implement those changes), please let me know).
-//! (See the [errors](errors/index.html) documentation.)
-//! 4. Allowing for aggregating solely based on a column/row: Right now, you have to aggregate
-//! based on column AND row AND select a value. But I'd like to make that optional,
-//! replacing the null vector with "total."
-//! 6. Handling non-UTF-8 data: Right now, ASCII data that isn't UTF-8 will
-//! return an error. That should eventually be changed.
-//! 7. Right now, if you aggregate based on multiple rows or columns, the name of the values
-//! are separated by a "$." separator. I suspect there is a better solution, but I don't know what it is.
-//! If you have an idea, let me know.
-//! 8. Additional configuration options, for instance allowing for files that aren't comma-separated
-//! to be properly handled. (See the [CliConfig](aggregation/struct.CliConfig.html) documentation.)
-//! 9. Performance considerations: I've built this to be *reasonably* performant, in the sense
-//! that I've tried to use online algorithms that can be processed with one read through the original
-//! data and with one read through the aggregated data when possible. But I'm sure there are a number
-//! of places where performance could be improved (especially, I suspect, by limiting the degree
-//! to which I've copied, rather than referenced/borrowed, strings).
+//! # How to help
+//! Regardless of your programming experience, you can help make `csvpivot` a better tool.
+//! 
+//! ## Requires programming experience
+//! - Performance: I've tried to design `csvpivot` to be reasonably performant, but I'm sure there
+//! are places where performance could be optimized. If you have any suggestions, I'd love to hear them.
+//! (Note: I'm aware that there are technically faster algorithms for computing median than the one I
+//! wound up with, the [`BTreeMap`](https://doc.rust-lang.org/std/collections/struct.BTreeMap.html)
+//! in Rust's standard library. The reason I chose the `BTreeMap` is that it is well-suited for
+//! adding items from a stream and it is more memory efficient than other algorithms I'm aware of.
+//! But let me know if you're aware of a way to improve the speed of the median computation
+//! while maintaining the best case memory efficiency of `BTreeMap`.)
+//! - Coding style: This is my first project in Rust, so I'm sure there are parts of the code 
+//! that are not idiomatic in Rust or that are poorly structured.
+//! - Testing: I've tried to have robust testing for this tool, but text data and (barely existent)
+//! CSV standards are both full of edge cases. So if there are any additional tests you think the program
+//! needs, let me know or make a pull request.
 //!
-//! If you want to work on addressing any of these issues or have ideas of your own
-//! you'd like to see implemented here, contact me at maxbmhlee@gmail.com.
+//! ## Doesn't require programming experience
+//! - Bugs: If something in this program doesn't work like you think it's supposed to, please let me know.
+//! - Error handling: I've tried to make error handling as clear and helpful as possible, so if an error
+//!  message you get from `csvpivot` confuses you, let me know and I'll do what I can to fix it.
+//!
+//! In particular, nothing you run should ever result in what Rust calls a "panic" -- basically an unanticipated,
+//! fast exit from a program. Panics look something like:
+//!
+//! ```sh
+//! thread 'main' panicked at 'explicit_panic', src/main.rs:5:1
+//! note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+//! ```
+//! 
+//! If you ever run into this, please send me a bit of information about the query you ran so I can fix this.
+//!
+//! - Documentation: You shouldn't be confused about how to get `csvpivot` to work. If you've read the guide
+//! on GitHub and the help message and are confused by part of it, please let me know.
+//!
+//! - Features: I'm not particularly envisioning any new features for `csvpivot`, but if you have an idea for a feature,
+//! let me know and I'll consider whether or not I think it makes sense to add the feature.
+//!
+//! # Development Environment
+//! In order to contribute, first clone the repository to install the source code:
+//!
+//! ```sh
+//! $ git clone https://github.com/maxblee/csvpivot
+//! ```
+//!
+//! Then, make changes to the code and/or add/change tests, and then run
+//!
+//! ```sh
+//! $ cargo test
+//! ``` 
+//!
+//! to run tests.
+//! ## Formatting
+//! In addition, I use `clippy` to lint code and `rustfmt` to automatically format code.
+//!
+//! To install them, type
+//! ```sh
+//! $ rustup update
+//! $ rustup component add rustfmt --toolchain stable
+//! $ rustup component add clippy --toolchain stable
+//! ``` 
+//! And from there, you can run `rustfmt` with
+//! ```sh
+//! $ cargo fmt --all
+//! ```
+//! Or `clippy` with
+//! ```sh
+//! $ cargo clippy
+//! ```
+//! # Contact me
+//! To get in touch with me about `csvpivot`, send me an email at <maxbmhlee@gmail.com> or submit an issue on
+//! the GitHub page.
+
 #[macro_use]
 extern crate clap;
 
