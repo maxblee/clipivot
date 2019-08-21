@@ -1,14 +1,23 @@
-// The entire structure of this file / these error messages comes from
-// https://blog.burntsushi.net/rust-error-handling/
-// Which, such a good guide
-
 //! The module for describing recoverable errors in `csvpivot`.
 //!
-//! Finally, I'd be remiss if I failed to mention the inspiration for this particular
-//! format of error handling. I *heavily* based this module on
-//! [the error handling guide](https://blog.burntsushi.net/rust-error-handling/)
-//! from Andrew Gallant, which is a terrific research for handling errors
-//! and understanding combinators in Rust.
+//! > *Note:* All of the error handling for `csvpivot` is structured from 
+//! > [this error handling guide](https://blog.burntsushi.net/rust-error-handling)
+//! > and from the source code of the [csv crate](https://github.com/BurntSushi/rust-csv)
+//! > in Rust. If you're hoping to implement you're own library or binary in Rust,
+//! > I highly recommend both (and, especiialy, the guide).
+//!
+//! You can characterize all four error types in two general categories: 
+//! errors configuring the CSV reader and errors parsing individual lines.
+//! For errors relating to configuration, my goal is simply to be as specific
+//! and clear as possible about the nature of a given error. For errors relating to
+//! parsing, however, I also think it's important to display record numbers to help
+//! users debug errors they run into. Currently, this refers to the 1-indexed number in
+//! which a record appears in a CSV document. So record 5 of a CSV would be the sixth line
+//! of a CSV with a header row (again, 1-indexed) and the fifth line of a CSV without a header row.
+//!
+//! If you plan on altering the error handling in `csvpivot`, whether because you think
+//! a particular error message is confusing or because the current program panics under some condition(s),
+//! I want you to stick to this approach. 
 
 extern crate csv;
 
@@ -19,16 +28,23 @@ use std::num;
 
 #[derive(Debug)]
 pub enum CsvPivotError {
-    /// Errors caused from reading a CSV file, either because of problems in the
-    /// formatting of the file or because of problems accessing a given field
-    CsvError(csv::Error),
-    /// This error is thrown if your initial configuration is not valid.
+    /// Errors from reading a CSV file. 
     ///
-    /// For instance, you will receive this error if you set a delimiter as a multi-character string.
+    /// This should be limited to inconsistencies in the number of lines appearing in a given row.
+    CsvError(csv::Error),
+    /// Errors in the initial configuration from command-line arguments.
+    ///
+    /// This error likely occurs most frequently because of problems in how fields are named
+    /// but can also occur because of errors parsing delimiters as single UTF-8 characters.
+
     InvalidConfiguration(String),
     /// A standard IO error. Typically from trying to read a file that does not exist
     Io(io::Error),
-    /// Errors trying to parse a new value
+    /// Errors trying to parse a new value. 
+
+    /// The way in which `csvpivot` parses values depends on the aggregation function
+    /// and command-line flags, but all errors in converting the string records in the values
+    /// column into a particular data type result in a `ParsingError`.
     ParsingError {
         line_num: usize,
         err: String,
