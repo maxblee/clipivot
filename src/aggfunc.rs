@@ -11,7 +11,7 @@ use crate::parsing::ParsingType;
 use rust_decimal::Decimal;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-const DATEFORMAT: &'static str = "%Y-%m-%d %H:%M:%S";
+const DATEFORMAT: &str = "%Y-%m-%d %H:%M:%S";
 
 /// An enum designed to list all of the possible types of aggregation functions.
 ///
@@ -409,14 +409,11 @@ impl AggregationMethod for StdDev {
         }
     }
     fn update(&mut self, parsed_val: &ParsingType) {
-        match parsed_val {
-            ParsingType::FloatingPoint(Some(num)) => {
-                self.num_records += 1.;
-                let squared_diff = (num - self.m).powi(2);
-                self.q += ((self.num_records - 1.) * squared_diff) / self.num_records;
-                self.m += (num - self.m) / self.num_records;
-            }
-            _ => {}
+        if let ParsingType::FloatingPoint(Some(num)) = parsed_val {
+            self.num_records += 1.;
+            let squared_diff = (num - self.m).powi(2);
+            self.q += ((self.num_records - 1.) * squared_diff) / self.num_records;
+            self.m += (num - self.m) / self.num_records;
         }
     }
 
@@ -430,14 +427,14 @@ impl StdDev {
     fn compute(&self) -> Option<f64> {
         // we do the if statement and return Option to avoid divide by 0 error
         if self.num_records <= 1. {
-            return None;
+            None
         } else {
             let variance = self.q / (self.num_records - 1.);
             let stdev = variance.sqrt();
             if stdev.is_nan() {
-                return None;
+                None
             } else {
-                return Some(stdev);
+                Some(stdev)
             }
         }
     }
@@ -621,14 +618,13 @@ impl Median {
             // checked_add I should maybe find a robust alternative to unwrap for
             // checked_div will only panic if checked_add panics or if other == Decimal::new(0, 0)
             // which it does not
-            let mean = cur_val
+            cur_val
                 .checked_add(*iter.next().unwrap().0)
                 .unwrap()
                 .checked_div(Decimal::new(2, 0))
-                .unwrap();
-            return mean;
+                .unwrap()
         } else {
-            return cur_val;
+            cur_val
         }
     }
 }

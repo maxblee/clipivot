@@ -124,6 +124,11 @@ impl ParsingHelper {
         }
     }
 
+        // the following approach to method chaining comes from
+    // http://www.ameyalokare.com/rust/2017/11/02/rust-builder-pattern.html
+    /// Adds the list of index columns to the default aggregator.
+    /// (This approach to method chaining comes from
+    /// [http://www.ameyalokare.com/rust/2017/11/02/rust-builder-pattern.html](http://www.ameyalokare.com/rust/2017/11/02/rust-builder-pattern.html).)
     pub fn parse_empty_vals(mut self, yes: bool) -> Self {
         self.parse_empty = yes;
         self
@@ -155,7 +160,7 @@ impl ParsingHelper {
 
     fn parse_numeric(new_val: &str) -> Result<ParsingType, CsvPivotError> {
         let dec = Decimal::from_str(new_val)
-            .or(Decimal::from_scientific(&new_val.to_ascii_lowercase())) // infer scientific notation on error
+            .or_else(|_| Decimal::from_scientific(&new_val.to_ascii_lowercase())) // infer scientific notation on error
             .or(Err(CsvPivotError::ParsingError))?;
         Ok(ParsingType::Numeric(Some(dec)))
     }

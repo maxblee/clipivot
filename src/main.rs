@@ -48,6 +48,7 @@ pub mod aggregation;
 pub mod errors;
 pub mod parsing;
 
+
 fn main() {
     let yaml_file = load_yaml!("cli.yml");
     let matches = App::from_yaml(yaml_file)

@@ -40,15 +40,6 @@ pub enum CsvPivotError {
     /// Errors caused from reading a CSV file, either because of problems in the
     /// formatting of the file or because of problems accessing a given field
     CsvError(csv::Error),
-    /// This error type is thrown if you enter an aggregation method that does not exist.
-    /// For instance, if you type
-    /// ```bash
-    /// csvpivot badcount -c 0 -i 1 -v 2
-    /// ```
-    /// you could theoretically receive this error. However, because of how this binary
-    /// interacts with `Clap`, you should never see this. If you do, please contact me
-    /// at maxbmhlee@gmail.com or send a pull request.
-    InvalidAggregator,
     /// This error is thrown if your initial configuration is not valid.
     ///
     /// For instance, you will receive this error if you set a delimiter as a multi-character string.
@@ -78,16 +69,6 @@ impl fmt::Display for CsvPivotError {
                 "Invalid field error: You tried to access a \
                  field that does not exist."
             ),
-            // This error only appears if you enter an aggregation function that isn't supported
-            // But Clap should prevent those messages from ever getting passed through
-            // to CliConfig, so it shouldn't be a problem
-            // tldr: the error exists bc I needed a comprehensive match statement in aggregation.rs
-            CsvPivotError::InvalidAggregator => write!(
-                f,
-                "Invalid aggregation error: \
-                 You should never get this error. If you see it,\
-                 please send a bug report to maxbmhlee@gmail.com"
-            ),
             CsvPivotError::InvalidConfiguration(ref err) => {
                 write!(f, "Could not properly configure the aggregator: {}", err)
             }
@@ -107,7 +88,6 @@ impl Error for CsvPivotError {
         match *self {
             CsvPivotError::CsvError(ref err) => err.description(),
             CsvPivotError::Io(ref err) => err.description(),
-            CsvPivotError::InvalidAggregator => "aggregation failed",
             CsvPivotError::InvalidConfiguration(ref _err) => "could not configure the aggregator",
             CsvPivotError::InvalidField => "field not found",
             CsvPivotError::ParseInt(ref err) => err.description(),

@@ -20,7 +20,7 @@ use crate::errors::CsvPivotError;
 use crate::parsing::{ParsingHelper, ParsingType};
 use clap::ArgMatches;
 
-const FIELD_SEPARATOR: &'static str = "_<sep>_";
+const FIELD_SEPARATOR: &str = "_<sep>_";
 
 /// The main struct for aggregating CSV files
 #[derive(Debug, PartialEq)]
@@ -65,12 +65,6 @@ impl<T: AggregationMethod> Aggregator<T> {
         agg
     }
 
-    // the following approach to method chaining comes from
-    // http://www.ameyalokare.com/rust/2017/11/02/rust-builder-pattern.html
-    /// Adds the list of index columns to the default aggregator.
-    /// (This approach to method chaining comes from
-    /// [http://www.ameyalokare.com/rust/2017/11/02/rust-builder-pattern.html](http://www.ameyalokare.com/rust/2017/11/02/rust-builder-pattern.html).)
-    /// and later from https://github.com/BurntSushi/rust-csv/blob/master/csv-core/src/reader.rs
     pub fn set_indexes(&mut self, new_indexes: Vec<usize>) -> &mut Aggregator<T> {
         self.index_cols = new_indexes;
         self
@@ -79,12 +73,6 @@ impl<T: AggregationMethod> Aggregator<T> {
     /// Adds the list of columns to the aggregator
     pub fn set_columns(&mut self, new_cols: Vec<usize>) -> &mut Aggregator<T> {
         self.column_cols = new_cols;
-        self
-    }
-
-    /// Adds a `ParsingHelper` (if you're not using the default of Text(Option<String>))
-    pub fn set_parser(&mut self, new_parser: ParsingHelper) -> &mut Aggregator<T> {
-        self.parser = new_parser;
         self
     }
 
@@ -169,7 +157,7 @@ impl<T: AggregationMethod> Aggregator<T> {
 
     /// This method parses a given cell, outputting it as a string so the CSV
     /// writer can write the data to standard output
-    fn parse_writing(&self, row: &String, col: &String) -> String {
+    fn parse_writing(&self, row: &str, col: &str) -> String {
         let aggval = self.aggregations.get(&(row.to_string(), col.to_string()));
         match aggval {
             Some(agg) => agg.to_output(),
@@ -199,7 +187,7 @@ impl<T: AggregationMethod> Aggregator<T> {
 
     fn get_colname(
         &self,
-        columns: &Vec<usize>,
+        columns: &[usize],
         record: &csv::StringRecord,
     ) -> Result<String, CsvPivotError> {
         let mut colnames: Vec<&str> = Vec::new();
@@ -224,7 +212,7 @@ impl<T: AggregationMethod> Aggregator<T> {
         self.aggregations
             .entry((indexname, columnname))
             .and_modify(|val| val.update(parsed_val))
-            .or_insert(T::new(parsed_val));
+            .or_insert_with(|| T::new(parsed_val));
     }
 }
 
@@ -243,7 +231,7 @@ fn parse_delimiter(filename: &Option<&str>, arg_matches: &ArgMatches) -> Result<
         Some(fname) if fname.ends_with(".tsv") || fname.ends_with(".tab") => vec![b'\t'],
         _ => vec![b','],
     };
-    if !(default_delim.len() == 1) {
+    if default_delim.len() != 1 {
         let msg = format!(
             "Could not convert `{}` delimiter to a single ASCII character",
             String::from_utf8(default_delim).unwrap()
@@ -365,7 +353,7 @@ impl<U: AggregationMethod> CliConfig<U> {
             .from_reader(io::stdin())
     }
 
-    fn get_header_idx(&self, colname: &str, headers: &Vec<&str>) -> Result<usize, CsvPivotError> {
+    fn get_header_idx(&self, colname: &str, headers: &[&str]) -> Result<usize, CsvPivotError> {
         let mut in_quotes = false;
         let mut order_specification = false; // True if we've passed a '['
                                              // fieldname occurrence is the order in which a field occurs. Defaults to 0.
@@ -416,21 +404,21 @@ impl<U: AggregationMethod> CliConfig<U> {
         }
         if all_numeric {
             let parsed_val: usize = colname.parse()?;
-            if !((parsed_val < header_length)) {
+            if parsed_val >= header_length {
                 println!("{}", self.delimiter == b'\t');
                 let msg = format!(
                     "Column selection must be between
                 0 <= selection < {}",
                     header_length
                 );
-                return Err(CsvPivotError::InvalidConfiguration(msg));
+                Err(CsvPivotError::InvalidConfiguration(msg))
             } else {
-                return Ok(parsed_val);
+                Ok(parsed_val)
             }
         } else if order_specification {
             let orig_end = match occurrence_start {
                 i if i >= 1 => Ok(i - 1),
-                i => Err(CsvPivotError::InvalidConfiguration(
+                _i => Err(CsvPivotError::InvalidConfiguration(
                     "Couldn't parse field.".to_string(),
                 )),
             }?;
@@ -451,15 +439,15 @@ impl<U: AggregationMethod> CliConfig<U> {
                 "There are only {} occurrences of the fieldname {}",
                 count, orig_name
             );
-            return Err(CsvPivotError::InvalidConfiguration(msg));
+            Err(CsvPivotError::InvalidConfiguration(msg))
         } else {
             match headers.iter().position(|&i| i == colname) {
                 Some(position) => {
-                    return Ok(position);
+                    Ok(position)
                 }
                 None => {
                     let msg = format!("Could not find the fieldname `{}` in the header", colname);
-                    return Err(CsvPivotError::InvalidConfiguration(msg));
+                    Err(CsvPivotError::InvalidConfiguration(msg))
                 }
             }
         }
@@ -487,19 +475,17 @@ impl<U: AggregationMethod> CliConfig<U> {
                 } else {
                     cur_string.push(c);
                 }
-            } else {
-                if c == '\'' || c == '\"' {
-                    if prev_quote != Some(c) {
-                        return Err(CsvPivotError::InvalidConfiguration(
-                            "Quotes inside fieldname were not properly closed".to_string(),
-                        ));
-                    }
-                    in_quotes = false;
-                    cur_string.push(c);
-                    continue;
-                } else {
-                    cur_string.push(c);
+            } else if c == '\'' || c == '\"' {
+                if prev_quote != Some(c) {
+                    return Err(CsvPivotError::InvalidConfiguration(
+                        "Quotes inside fieldname were not properly closed".to_string()
+                    ));
                 }
+                in_quotes = false;
+                cur_string.push(c);
+                continue;
+            } else {
+                cur_string.push(c);
             }
         }
         if !cur_string.is_empty() {
@@ -520,7 +506,7 @@ impl<U: AggregationMethod> CliConfig<U> {
 
     fn get_multiple_header_columns(
         &self,
-        colnames: &Vec<String>,
+        colnames: &[String],
     ) -> Result<Vec<String>, CsvPivotError> {
         let mut expected_columns = Vec::new();
         for col in colnames {
@@ -532,8 +518,8 @@ impl<U: AggregationMethod> CliConfig<U> {
 
     fn get_idx_vec(
         &self,
-        expected_cols: &Vec<String>,
-        headers: &Vec<&str>,
+        expected_cols: &[String],
+        headers: &[&str],
     ) -> Result<Vec<usize>, CsvPivotError> {
         let mut all_cols = Vec::new();
         for col in expected_cols {
@@ -552,6 +538,8 @@ impl<U: AggregationMethod> CliConfig<U> {
         Ok(output_cols)
     }
 
+    // Note: the below function won't compile without taking only &Vec<&str> because of Iter::collect
+    #[allow(clippy::ptr_arg)]
     fn validate_columns(&mut self, headers: &Vec<&str>) -> Result<(), CsvPivotError> {
         // validates the aggregation columns and then updates the aggregator
         let expected_indexes = self.get_multiple_header_columns(&self.indexes)?;
