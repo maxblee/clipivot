@@ -190,7 +190,9 @@ impl AggregationMethod for Maximum {
         let max_val = match parsed_val {
             ParsingType::Numeric(Some(val)) => ParsingType::Numeric(Some(*val)),
             ParsingType::DateTypes(Some(dt)) => ParsingType::DateTypes(Some(*dt)),
-            ParsingType::Text(Some(string_date)) => ParsingType::Text(Some(string_date.to_string())),
+            ParsingType::Text(Some(string_date)) => {
+                ParsingType::Text(Some(string_date.to_string()))
+            }
             _ => ParsingType::Numeric(None),
         };
 
@@ -203,17 +205,17 @@ impl AggregationMethod for Maximum {
                 if cur > max {
                     self.max_val = ParsingType::Numeric(Some(*cur));
                 }
-            },
+            }
             (ParsingType::DateTypes(Some(max)), ParsingType::DateTypes(Some(cur))) => {
                 if cur > max {
                     self.max_val = ParsingType::DateTypes(Some(*cur));
                 }
-            },
+            }
             (ParsingType::Text(Some(max)), ParsingType::Text(Some(cur))) => {
                 if cur > max {
                     self.max_val = ParsingType::Text(Some(cur.to_string()));
                 }
-            },
+            }
             _ => {}
         }
     }
@@ -613,7 +615,7 @@ impl Median {
         // It can only be at the lower of the two values if
         // a) we have an even number of records AND b) we didn't pass through
         // the median (where the median would *technically* be the mean of cur_val and cur_val
-        if (self.num % 2) == 0 && (cur_count as f64) == (self.num as f64 / 2.) {
+        if (self.num % 2) == 0 && ((cur_count as f64) - (self.num as f64 / 2.)).abs() < std::f64::EPSILON {
             // iter.next() will always be Some(_) because this is always initialized with
             // a single value
             // checked_add I should maybe find a robust alternative to unwrap for

@@ -49,8 +49,8 @@ pub enum CsvPivotError {
     /// interacts with `Clap`, you should never see this. If you do, please contact me
     /// at maxbmhlee@gmail.com or send a pull request.
     InvalidAggregator,
-    /// This error is thrown if your initial configuration is not valid. 
-    /// 
+    /// This error is thrown if your initial configuration is not valid.
+    ///
     /// For instance, you will receive this error if you set a delimiter as a multi-character string.
     InvalidConfiguration(String),
     /// Errors caused by trying to access a field that doesn't exist. Either appears
@@ -88,9 +88,9 @@ impl fmt::Display for CsvPivotError {
                  You should never get this error. If you see it,\
                  please send a bug report to maxbmhlee@gmail.com"
             ),
-            CsvPivotError::InvalidConfiguration(ref err) => write!(
-                f, "Could not properly configure the aggregator: {}", err
-            ),
+            CsvPivotError::InvalidConfiguration(ref err) => {
+                write!(f, "Could not properly configure the aggregator: {}", err)
+            }
             CsvPivotError::Io(ref err) => err.fmt(f),
             CsvPivotError::ParseInt(ref err) => err.fmt(f),
             CsvPivotError::ParsingError => write!(
@@ -117,7 +117,7 @@ impl Error for CsvPivotError {
 }
 
 impl From<io::Error> for CsvPivotError {
-    fn from(err: io::Error) -> CsvPivotError {         
+    fn from(err: io::Error) -> CsvPivotError {
         CsvPivotError::Io(err)
     }
 }

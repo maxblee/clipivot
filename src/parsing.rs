@@ -155,7 +155,7 @@ impl ParsingHelper {
 
     fn parse_numeric(new_val: &str) -> Result<ParsingType, CsvPivotError> {
         let dec = Decimal::from_str(new_val)
-            .or(Decimal::from_scientific(&new_val.to_ascii_lowercase()))  // infer scientific notation on error
+            .or(Decimal::from_scientific(&new_val.to_ascii_lowercase())) // infer scientific notation on error
             .or(Err(CsvPivotError::ParsingError))?;
         Ok(ParsingType::Numeric(Some(dec)))
     }
@@ -179,7 +179,7 @@ mod tests {
         let scinot1_extract = match scinot1 {
             Ok(ParsingType::Numeric(Some(val))) => Ok(val.to_string()),
             Ok(_) => Ok("".to_string()),
-            Err(e) => Err(e)
+            Err(e) => Err(e),
         }?;
         assert_eq!(scinot1_extract, "0.0001".to_string());
         let scinot2 = ParsingHelper::parse_numeric("1.3E4");
@@ -187,7 +187,7 @@ mod tests {
         let scinot2_extract = match scinot2 {
             Ok(ParsingType::Numeric(Some(val))) => Ok(val.to_string()),
             Ok(_) => Ok("".to_string()),
-            Err(e) => Err(e)
+            Err(e) => Err(e),
         }?;
         assert_eq!(scinot2_extract, "13000".to_string());
         Ok(())
