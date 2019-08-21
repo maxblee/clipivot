@@ -1,12 +1,41 @@
-//! This is the module for creating new aggregation functions.
+//! The `aggfunc` module is the part of the code base for `csvpivot` that
+//! applies a function to the values column of the data.
+//! 
+//! All of the functions rely on the `AggregationMethod` trait in order to operate.
+//! The basic concept of that trait is simple: Each aggregation function must have
+//! a way of defining what type of function it is, using the `AggTypes` enum and declaring
+//! its type using the `get_aggtypes` method. They must also have a way of creating a new object
+//! and a way of adding new data points. And they must have
+//! a way of converting from a `struct` into a final string output, using `to_output`.
 //!
-//! This functionality centers around the `Aggregation` trait,
-//! which implements a number of methods aimed at making it easy
-//! to create new aggregation methods without rewriting much code
-//! in the main `aggregation` module.
+//! You can find more details in both the `AggTypes` enum and the `AggregationMethod` API. But as you might
+//! imagine from that description, the impetus behind this design is to allow you to form an
+//! aggregation using as little memory as possible. The design is also intended to allow you to create 
+//! aggregations from streaming records in a single pass, when possible, while also allowing for some amount
+//! of flexibility in cases where a single-pass algorithm doesn't make sense because of memory constraints
+//! or because it's impossible to implement. And of all these functions, the only one that does not
+//! operate in a single pass (or in linear time) is the median, which forms a BTreeMap and then loops over
+//! the sorted values until it finds the midpoint.
 //!
-//! The API for the main `AggregationMethod` should provide more information
-//! on how to create your own new method.
+//! With that in mind, if you want to build a new function, you need to do the following things:
+//! 1. Add an enum to AggTypes.
+//! 2. Create a new struct that implements the `AggregationMethod` trait.
+//! 3. Update `cli.yml` so people can enter the name of your new function from
+//! the command-line without getting an error message.
+//! 4. Update the `run` method in `aggregation.rs` so your program will actually do something when you
+//! write the function name in the command line. This should be as simple as adding
+//! ```rust
+//! else if aggfunc == "mynewfunction" {
+//!     let mut config : CliConfig<MyNewFunction> = CliConfig::from_arg_matches(arg_matches)?;
+//!     config.run_config()?;   
+//! }
+//! ```
+//! to the bottom of `run`.
+//! 5. Update the `get_parsing_approach` method within `CliConfig` so that the parsing
+//! struct attached to `csvpivot` knows how to interpret new records. (In order to make sense
+//! of this struct, you'll probably need to look at the `AggregationMethod` API and possibly
+//! the documentation for the `parsing` module.)
+
 use crate::parsing::ParsingType;
 use rust_decimal::Decimal;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -20,21 +49,17 @@ const DATEFORMAT: &str = "%Y-%m-%d %H:%M:%S";
 /// `Count` value in `AggTypes`.
 #[derive(Debug, PartialEq)]
 pub enum AggTypes {
-    /// for counting records
+    /// Counts the number of records it encounters.
     Count,
     /// Counts the number of unique records.
     CountUnique,
-    /// Computes the maximum value of the records, or the most recent date
+    /// Computes the maximum value of the records, or the most recent date.
     Maximum,
     /// Computes a mean of the records
     Mean,
     /// Computes the median of the records
     Median,
     /// Computes the minimum value of the records
-    ///
-    /// Requires data to be configurable as datetimes or as numbers
-    /// For datetimes, it defaults to reading values in ISO 8601 format.
-    /// Reads all numbers as decimals
     Minimum,
     /// Computes the mode, in insertion order
     Mode,
@@ -46,22 +71,20 @@ pub enum AggTypes {
     ///
     /// If there are fewer than two matching records (i.e. 0 or 1 matching records),
     /// returns an empty string.
-    ///
     StdDev,
 }
 
-/// All aggregation methods implement the `AggregationMethod` trait.
+/// All aggregation methods must implement the `AggregationMethod` trait. (See the
+/// description at the top of the `aggfunc` module page for instructions on how to
+/// implement a new aggregation method.)
 ///
-/// If your method does not, the method will not compile without rewriting
-/// `main.rs`, the `run` method in `aggregation.rs`, and the `Aggregation`
-/// struct that forms the backbone of a lot of this program. In other words, it is
-/// imperative that you implement `AggregationMethod` if you want to implement your
-/// own new method.
-///
-/// This trait has four required functions, in addition to a required type parameter.
+/// The trait has four required functions, in addition to a required type parameter.
 /// You must implement a `new` method. The main `Aggregation` structure implements
 /// this method when it is trying to access a cell in the aggregated pivot table
-/// that does not yet exist. For example, say you are implementing the `Count` structure
+/// that does not yet exist.  **Note that the new method creates the first
+/// record, in addition to initializing the object.**
+///
+/// For example, say you are implementing the `Count` structure
 /// with a csv file that looks like this:
 /// ```csv
 /// field1,field2,field3
@@ -83,29 +106,38 @@ pub enum AggTypes {
 ///
 /// Finally, the trait has a `to_output` method. This converts your instance into
 /// a String that `Aggregator` can write to standard output.
-///
-/// Then, there are two last things you need to do in order to create a new method.
-/// You need to add a line into the [`run`](../aggregation/fn.run.html) function
-/// specifying when the method should be implemented, and you need to add a line into the
-/// `cli.yml` file in the `src` directory under `aggfunc` telling the command-line parser
-/// that your new function is permissible. The source code under both should make doing that clear,
-/// but let me know if you have questions.
+
 pub trait AggregationMethod {
     /// The name of the function (e.g. Count for `Count`).
     type Aggfunc;
 
     /// Returns the Aggregation method (e.g. AggTypes::Count)
     fn get_aggtype() -> AggTypes;
-    /// Instantiates a new AggregationMethod record
+    /// Instantiates a new AggregationMethod object. In addition, this method
+    /// adds the first record into this object
     fn new(parsed_val: &ParsingType) -> Self;
-    /// Updates an existing record
+    /// Updates an existing record with a new record.
     fn update(&mut self, parsed_val: &ParsingType);
-    /// Converts to a `String` output so the value can be written to standard output
+    /// Converts to a `String` output so the value can be written to standard output.
+    ///
+    /// In some cases, this just means implementing `self.data.to_string()`, but in others,
+    /// it can be more complicated. For instance, standard deviation has to compute a final standard
+    /// devation, returning an empty string if there aren't enough records. And median
+    /// has to iterate through the sorted records it accumulated.
     fn to_output(&self) -> String;
 }
 
+/// The AggregationMethod for computing range. 
+///
+/// This method returns the difference between the minimum and maximum values
+/// accumulated. In the case of numeric data, the meaning of this should be obvious.
+/// In the case of datetimes, the method returns the total number of days between the minimum
+/// and maximum values, as a floating point number (allowing you to estimate the total number of
+/// seconds/minutes/hours).
 pub struct Range {
+    /// The minimum value, or the earliest appearing date
     min_val: ParsingType,
+    /// The maximum value, or the most recently occurring date.
     max_val: ParsingType,
 }
 
@@ -175,7 +207,9 @@ impl AggregationMethod for Range {
     }
 }
 
+/// This AggregationMethod computes the maximum number it sees, or the most recently occurring date.
 pub struct Maximum {
+    /// The maximum value, among values it has seen so far.
     max_val: ParsingType,
 }
 
@@ -230,7 +264,9 @@ impl AggregationMethod for Maximum {
     }
 }
 
+/// This computes the minimum value, or the oldest date.
 pub struct Minimum {
+    /// The current minimum
     min_val: ParsingType,
 }
 
@@ -285,7 +321,7 @@ impl AggregationMethod for Minimum {
     }
 }
 
-/// The aggregation method for counting records.
+/// This counts the total number of records
 #[derive(Debug, PartialEq)]
 pub struct Count {
     /// Represents the number of matching records
@@ -309,7 +345,9 @@ impl AggregationMethod for Count {
     }
 }
 
+/// This counts the total number of unique records aggregated
 pub struct CountUnique {
+    /// A HashSet containing all of the unique values encountered so far
     vals: HashSet<String>,
 }
 
@@ -347,7 +385,9 @@ impl AggregationMethod for CountUnique {
     }
 }
 
+/// Sums up all of the values among the aggregated records
 pub struct Sum {
+    /// The current total. Uses a Decimal type to avoid floating point truncation errors.
     cur_total: Decimal,
 }
 
@@ -371,7 +411,7 @@ impl AggregationMethod for Sum {
             ParsingType::Numeric(Some(num)) => *num,
             _ => Decimal::new(0, 0),
         });
-        // Again, need to make this more robust
+        // Again, need to make this more robust. (Maybe-- really just make better panic)
         self.cur_total = total.unwrap();
     }
     fn to_output(&self) -> String {
@@ -379,12 +419,17 @@ impl AggregationMethod for Sum {
     }
 }
 
+/// Computes the standard deviation in a single pass, using
+/// [Welford's algorithm](https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm)
+
+/// The attributes in this method refer to the same ones described in
+/// *Accuracy and Stability of Numerical Algorithms* by Higham (2nd Edition, page 11)
 pub struct StdDev {
     // solution from Nicholas Higham: Accuracy and Stability of Numerical Algorithms
     // Second Edition, 2002, p. 11
     q: f64,
     m: f64,
-    // the number of records parsed
+    /// The number of records parsed so far
     num_records: f64,
 }
 
@@ -424,6 +469,7 @@ impl AggregationMethod for StdDev {
 }
 
 impl StdDev {
+    /// Computes the final standard deviation after finishing updating. A private function for `to_output`.
     fn compute(&self) -> Option<f64> {
         // we do the if statement and return Option to avoid divide by 0 error
         if self.num_records <= 1. {
@@ -440,6 +486,8 @@ impl StdDev {
     }
 }
 
+/// Computes the mean from a stream. Effectively, this algorithm is the same as `Sum` except it
+/// keeps count of the total number of records parsed for use in the final computation.
 pub struct Mean {
     num: usize,
     cur_total: Decimal,
@@ -481,6 +529,7 @@ impl AggregationMethod for Mean {
 }
 
 impl Mean {
+    /// A helper function for computing the mean at the end of the program.
     fn compute(&self) -> Decimal {
         self.cur_total
             .checked_div(Decimal::new(self.num as i64, 0))
@@ -488,11 +537,13 @@ impl Mean {
     }
 }
 
+/// Computes the mode.
 pub struct Mode {
-    // I'm using an IndexMap for this implementation to preserve insertion order
-    // It's basically the equivalent of an OrderedDict in Python
+    /// All of the values parsed so far. Uses a HashMap (effectively a histogram) to conserve on memory
     values: HashMap<String, usize>,
+    /// The maximum number of repeated records
     max_count: usize,
+    /// The current mode
     max_val: String,
 }
 
@@ -539,6 +590,13 @@ impl AggregationMethod for Mode {
     }
 }
 
+/// Computes the median by building a sorted B-Tree map and iterating over the records.
+///
+/// In best case and average case, this should be lighter on memory than holding all of the records
+/// in two separate heaps, although it is worse than the heap methods in worst case. Additionally, this is
+/// the only algorithm that currently is not computed in a single pass, and it's the only algorithm that is
+/// not computed in linear time. That said, it theoretically allows for creating aggregations from data that
+/// exceeds RAM.
 pub struct Median {
     // Note: the median implementation I'm using relies on a B-Tree
     // instead of the heap structure described here
@@ -549,7 +607,10 @@ pub struct Median {
     // than the number of records. For instance, in a ~1 GB file of yellow taxi cab records
     // from NYC (https://s3.amazonaws.com/nyc-tlc/trip+data/yellow_tripdata_2018-03.csv)
     // the trips have 4,528 separate distance values, out of the 9.5 million records
+    /// A map of all of the values parsed so far to the number of times they've appeared.
+    /// The B-Tree creates a sorted map that speeds up on iteration time in the second pass
     values: BTreeMap<Decimal, usize>,
+    /// The total number of records parsed. Equivalent to a sum of all of the counts in `self.values`.
     num: usize,
 }
 

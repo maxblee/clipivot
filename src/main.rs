@@ -28,7 +28,7 @@
 //! - Error handling: I've tried to make error handling as clear and helpful as possible, so if an error
 //!  message you get from `csvpivot` confuses you, let me know and I'll do what I can to fix it.
 //!
-//! In particular, nothing you run should ever result in what Rust calls a "panic" -- basically an unanticipated,
+//! In particular, pretty much nothing you run should ever result in what Rust calls a "panic" -- basically an unanticipated,
 //! fast exit from a program. Panics look something like:
 //!
 //! ```sh
@@ -36,7 +36,10 @@
 //! note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 //! ```
 //! 
-//! If you ever run into this, please send me a bit of information about the query you ran so I can fix this.
+//! The only exceptions I can think of are that summation and other mathematical operations can techinically
+//! result in overflows, and that some of the algorithms can potentially cause you to run out of memory.
+//! But both of those examples should be exceptionally rare (even when dealing with datasets larger than your RAM),
+//! so if you ever run into a panic, please send me a bit of information about the query you ran so I can fix this.
 //!
 //! - Documentation: You shouldn't be confused about how to get `csvpivot` to work. If you've read the guide
 //! on GitHub and the help message and are confused by part of it, please let me know.
