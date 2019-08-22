@@ -197,7 +197,7 @@ impl<T: AggregationMethod> Aggregator<T> {
     ) -> String {
         let mut colnames: Vec<&str> = Vec::new();
         if columns.is_empty() {
-            "total".to_string();
+            return "total".to_string();
         }
         for idx in columns {
             // unwrap should be safe bc CliConfig + csv crate error handling should prevent
@@ -470,7 +470,8 @@ impl<U: AggregationMethod> CliConfig<U> {
             );
             Err(CsvPivotError::InvalidConfiguration(msg))
         } else {
-            match headers.iter().position(|&i| i == colname) {
+            // csv crate automatically trims quotes, so headers will be trimmed
+            match headers.iter().position(|&i| i == colname.replace("\"", "")) {
                 Some(position) => {
                     Ok(position)
                 }
