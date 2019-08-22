@@ -5,6 +5,10 @@
 //! and usage instructions. If, on the other hand, you want to contribute to `csvpivot`'s
 //! development, read on.
 //!
+//! In particular, I strongly advise you to read the brief bit at the top of the page for the
+//! `aggfunc` module. That bit should provide you with enough of a sense of the overall structure of
+//! `csvpivot` to help you knowledgeably explore the tool.
+//!
 //! # How to help
 //! Regardless of your programming experience, you can help make `csvpivot` a better tool.
 //! 
@@ -44,7 +48,7 @@
 //! - Documentation: You shouldn't be confused about how to get `csvpivot` to work. If you've read the guide
 //! on GitHub and the help message and are confused by part of it, please let me know.
 //!
-//! - Features: I'm not particularly envisioning any new features for `csvpivot`, but if you have an idea for a feature,
+//! - Features: I don't have any new features in mind for `csvpivot`, but if you do,
 //! let me know and I'll consider whether or not I think it makes sense to add the feature.
 //!
 //! # Development Environment
@@ -63,20 +67,26 @@
 //! to run tests.
 //! ## Formatting
 //! In addition, I use `clippy` to lint code and `rustfmt` to automatically format code.
+//! And finally, I run coverage tests using `cargo-tarpaulin`.
 //!
 //! To install them, type
 //! ```sh
 //! $ rustup update
 //! $ rustup component add rustfmt --toolchain stable
 //! $ rustup component add clippy --toolchain stable
+//! $ cargo install cargo-tarpaulin
 //! ``` 
 //! And from there, you can run `rustfmt` with
 //! ```sh
 //! $ cargo fmt --all
 //! ```
-//! Or `clippy` with
+//! `clippy` with
 //! ```sh
 //! $ cargo clippy
+//! ```
+//! and `cargo-tarpaulin` with
+//! ```sh
+//! $ cargo-tarpaulin tarpaulin --line -o Html
 //! ```
 //! # Contact me
 //! To get in touch with me about `csvpivot`, send me an email at <maxbmhlee@gmail.com> or submit an issue on

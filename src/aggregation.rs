@@ -1,16 +1,12 @@
-//! The module that interacts most directly with `main`.
+//! The `aggregation` module is part of `csvpivot` that works directly with command-line arguments.
 //!
-//! This module is centered around two structs. `Aggregator` serves
-//! as a generic struct for each `AggregationMethod` type and each
-//! `ParsingHelper` type for reading, aggregating, and writing pivot tables.
-//!
-//! `CliConfig`, meanwhile, is designed as a simple interface between `Clap`'s
-//! `ArgMatches` and the `Aggregator` struct.
-//!
-//! There are a few major changes I eventually want to see with these structs.
-//! I eventually want to support delimiters other than commas, and I eventually
-//! want to support non-UTF-8 text. Any additional flags or options I add
-//! (or you add) to `csvpivot` also will have to result in changes to `CliConfig`.
+//! Once you pass command-line arguments to the program, the `run` method in this module creates a
+//! `CliConfig` object. The `CliConfig` object then creates an `Aggregator` object. That `Aggregator` object
+//! then holds the data you're aggregating, passing off parsing and computational tasks
+//! to the `aggfunc` and `parsing` modules. Then, the `run` method calls `CliConfig`'s `run_config` method,
+//! which runs a final validation of your command-line arguments before telling the aggregator to aggregate the
+//! CSV file, line by line. Upon completion, the `Aggregator` object also writes your results to standard output.
+
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io;
@@ -59,12 +55,15 @@ impl<T: AggregationMethod> Aggregator<T> {
         }
     }
 
+    /// Creates a new `Aggregator` object from a `ParsingHelper` object.
+    /// This is used to initialize the `Aggregator` within `CliConfig`
     pub fn from_parser(parser: ParsingHelper) -> Aggregator<T> {
         let mut agg = Aggregator::new();
         agg.parser = parser;
         agg
     }
 
+    /// Sets the indexes of the `Aggregator`
     pub fn set_indexes(&mut self, new_indexes: Vec<usize>) -> &mut Aggregator<T> {
         self.index_cols = new_indexes;
         self
@@ -127,6 +126,7 @@ impl<T: AggregationMethod> Aggregator<T> {
         mut rdr: csv::Reader<io::Stdin>,
     ) -> Result<(), CsvPivotError> {
         let mut iter = rdr.into_records();
+        // we pass line_num here as a way of making for better error handling
         for (line_num, result) in iter.enumerate() {
             let record = result?;
             self.add_record(record, line_num)?;
@@ -158,7 +158,7 @@ impl<T: AggregationMethod> Aggregator<T> {
     }
 
     /// This method parses a given cell, outputting it as a string so the CSV
-    /// writer can write the data to standard output
+    /// writer can write the data to standard output.
     fn parse_writing(&self, row: &str, col: &str) -> String {
         let aggval = self.aggregations.get(&(row.to_string(), col.to_string()));
         match aggval {
@@ -167,6 +167,7 @@ impl<T: AggregationMethod> Aggregator<T> {
         }
     }
 
+    /// Adds a new record (row) to the aggregator.
     fn add_record(&mut self, record: csv::StringRecord, line_num: usize) -> Result<(), CsvPivotError> {
         // merges all of the index columns into a single column, separated by FIELD_SEPARATOR
         let indexnames = self.get_colname(&self.index_cols, &record);
@@ -187,6 +188,8 @@ impl<T: AggregationMethod> Aggregator<T> {
         Ok(())
     }
 
+    /// Converts a vector of column indexes into a String. Used as a way to eliminate code duplication
+    /// for the conversion of cells into values for the rows and columns of the final pivot table.
     fn get_colname(
         &self,
         columns: &[usize],
@@ -205,6 +208,8 @@ impl<T: AggregationMethod> Aggregator<T> {
         colnames.join(FIELD_SEPARATOR)
     }
 
+    /// This function only runs when `ParsingHelper` has returned a value that is neither
+    /// an error nor a `None` (empty) value. In this case, this actually adds records into the aggregator.
     fn update_aggregations(
         &mut self,
         indexname: String,
@@ -220,6 +225,18 @@ impl<T: AggregationMethod> Aggregator<T> {
     }
 }
 
+/// `parse_delimiter` converts `ArgMatches` from the command-line into a delimiter that
+/// it intends to use to parse CSV values with. For instance, tsv files have a delimiter of `'\t'`.
+///
+/// Taking from the excellent `xsv` command-line CSV toolkit, this function automatically
+/// assumes that `.tsv` and `.tab` files are tab-delimited, saving you the trouble of
+/// adding a `-t` or `-d` flag. It will return an error if you try to pass a multi-character
+/// string. 
+/// 
+/// **Note** , though, that a character in Rust is a bit different than a character in other programming
+/// languages, like Python. Rust interprets each Unicode Scalar Value as a character, so the
+/// string "नमस्ते" is interpreted interpreted to have a length of 15. That is far different from
+/// Python and can mean that single characters in Python, like "त", will return errors in this Rust program.
 fn parse_delimiter(filename: &Option<&str>, arg_matches: &ArgMatches) -> Result<u8, CsvPivotError> {
     let default_delim = match filename {
         _ if arg_matches.is_present("tab") => vec![b'\t'],
@@ -251,13 +268,20 @@ pub struct CliConfig<U>
 where
     U: AggregationMethod,
 {
+    /// The relative (or actual) path to a CSV file. Is None when reading from standard input.
     // set as an option so I can handle standard input
     filename: Option<String>,
+    /// `CliConfig` creates an `Aggregator` object to run the aggregations and hold onto the aggregated data.
     aggregator: Aggregator<U>,
+    /// Whether or not you want to read the file with headers. Defaults to true.
     has_header: bool,
+    /// The delimiter separating fields in your CSV file. Defaults to '\t' for `.tsv` or `.tab` files, ',' otherwise.
     delimiter: u8,
+    /// The name of the column you're running the aggregation function on.
     values_col: String,
+    /// The name of the column(s) (or indexes) forming the columns of the final pivot table. vec![] if no columns.
     column_cols: Vec<String>,
+    /// The name of the column(s) (or indexes) forming the indexes of the final pivot table. 
     indexes: Vec<String>,
 }
 
@@ -302,6 +326,7 @@ impl<U: AggregationMethod> CliConfig<U> {
         };
         Ok(cfg)
     }
+    /// Determines how to parse data, depending on the type of function you're running and command-line flags.
     fn get_parsing_approach(&self, parse_numeric: bool, parse_date: bool) -> ParsingType {
         match U::get_aggtype() {
             AggTypes::Count => ParsingType::Text(None),
@@ -322,6 +347,7 @@ impl<U: AggregationMethod> CliConfig<U> {
         }
     }
 
+    /// Gets the `ParsingHelper` object for `Aggregator` based on command-line arguments.
     fn get_parser(&self, arg_matches: &ArgMatches) -> ParsingHelper {
         let parse_numeric = arg_matches.is_present("numeric");
         let infer_date = arg_matches.is_present("infer");
@@ -330,15 +356,6 @@ impl<U: AggregationMethod> CliConfig<U> {
             .parse_empty_vals(!arg_matches.is_present("empty"))
     }
     /// Converts from a file path to either a CSV reader or a CSV error.
-    ///
-    /// In the spirit of DRY, it would be nice to avoid replicating code from this and
-    /// `get_reader_from_stdin`.
-    ///
-    /// This should be able to be done simply by creating a function
-    /// that returns a `csv::ReaderBuilder` and then applying that to both functions.
-    /// That will become especially important when I eventually get around to adding
-    /// additional features, like allowing users to select a delimeter other than ','.
-    // TODO: Refactor this code
     pub fn get_reader_from_path(&self) -> Result<csv::Reader<fs::File>, csv::Error> {
         csv::ReaderBuilder::new()
             .delimiter(self.delimiter)
@@ -357,6 +374,9 @@ impl<U: AggregationMethod> CliConfig<U> {
             .from_reader(io::stdin())
     }
 
+    /// Given a string (passed through the command line), this function returns an index for that field
+    /// within the header of the CSV file. If the CSV file doesn't have a header, every String argument
+    /// must be a string number.
     fn get_header_idx(&self, colname: &str, headers: &[&str]) -> Result<usize, CsvPivotError> {
         let mut in_quotes = false;
         let mut order_specification = false; // True if we've passed a '['
@@ -462,6 +482,8 @@ impl<U: AggregationMethod> CliConfig<U> {
         }
     }
 
+    /// Takes a string from the command line and combines it into a vector of strings
+    /// for `validate_columns` to convert into `usize` indexes.
     fn parse_combined_col(&self, combined_name: &str) -> Result<Vec<String>, CsvPivotError> {
         let mut output_vec = Vec::new();
         let mut in_quotes = false;
@@ -513,6 +535,10 @@ impl<U: AggregationMethod> CliConfig<U> {
         Ok(output_vec)
     }
 
+    /// Takes a vector of column names and converts them into a vector of Strings.
+    /// This is effectively designed to allow us to split Strings like `a,b` into
+    /// an Vector `vec!["a","b"]` while maintaining the String `'a,b' with quotes in it
+    /// as a single-item vector `vec!["\'a,b\'"].
     fn get_multiple_header_columns(
         &self,
         colnames: &[String],
@@ -525,6 +551,9 @@ impl<U: AggregationMethod> CliConfig<U> {
         Ok(expected_columns)
     }
 
+    /// Takes a vector of columns and expected header rows from get_multiple_header_columns
+    /// and converts them into a vector of indexes (helping `Aggregator` determine
+    /// which columns you should parse values from).
     fn get_idx_vec(
         &self,
         expected_cols: &[String],
@@ -547,6 +576,8 @@ impl<U: AggregationMethod> CliConfig<U> {
         Ok(output_cols)
     }
 
+    /// Validates the columns you enter with the `-c`/`cols`, `-v`/`--val`, and `-r`/`--rows`,
+    /// and updates the `Aggregator` object so we can run aggregations.
     // Note: the below function won't compile without taking only &Vec<&str> because of Iter::collect
     #[allow(clippy::ptr_arg)]
     fn validate_columns(&mut self, headers: &Vec<&str>) -> Result<(), CsvPivotError> {

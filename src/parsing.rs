@@ -1,13 +1,42 @@
 //! The module for parsing through text records.
 //!
-//! This is designed to allow for a way for `csvpivot` to convert
-//! string records from a CSV file into meaningful records of some
-//! other variety (like numbers and dates).
+//! This module interacts with the `Aggregator` class
+//! from the `aggregation` module. Every time we add a new record into the aggregator,
+//! we parse it first, serializing the record into a given value.
+//! 
+//! Right now, there are four different types we can parse records into,
+//! represented by the `ParsingType` enum. The floating point and numeric types
+//! both represent numeric data. As you might assume, the difference is in the types of data they hold.
+//! `FloatingPoint` `ParsingType` records hold floating point values, as you probably guessed, while
+//! `Numeric` `ParsingType` records hold decimal values. (Mean and sum both use the Decimal type
+//! to avoid truncation errors.)
 //!
-//! Currently, the program only does this by converting from a
-//! `&str` record to a record of the `ParsingType` enum. However,
-//! I eventually want to extend the functionality of this so the program
-//! can automatically determine the type of record appearing in the values column.
+//! In addition, we have a `ParsingType` enum for text, which basically just converts `&str` splices
+//! into `String` objects, and a `DateType` `ParsingType` enum which converts string dates into
+//! datetimes using `dtparse`, Rust's equivalent of the Python `dateutil` parser.
+//!
+//! Finally, there are the two structs that do the heavy lifting, `ParsingHelper` and `DateFormatter`.
+//! The `Aggregator` struct passes each value in the values column field as a string to the `ParsingHelper`.
+//! The `ParsingHelper` will then serialize the string based on its settings, before handing the final, serialized
+//! object back to the `Aggregator`. (Then, the `Aggregator` passes those values to one of the structs
+//! implementing the `AggregationMethod` trait.) And finally, the `DateFormatter` serves as a helper struct
+//! for `ParsingHelper`, providing settings for parsing dates to the `ParsingHelper`.
+//!
+//! Because `csvpivot` comes with support for parsing text, numeric data, and datetimes, you probably don't
+//! need to change anything in the `parsing` module in order to add a feature (assuming you want to add a feature).
+//! Instead, all you'll need to do is set how you want data to be parse in your new feature in the `get_parsing_approach`
+//! function from within the `aggregation` module (and specifically, from within the `CliConfig` struct). The
+//! implementation for `Count` should give you a sense of how this is done:
+//!
+//! ```rust
+//! match U::get_aggtype {
+//!     AggTypes::Count => ParsingType::Text(None)
+//! ...
+//! }   
+//! ```
+//! But in case you want to add new parsing types or alter the implementation of parsing
+//! in `csvpivot`, taking a closer look at `ParsingHelper`, `ParsingType`, and `DateFormatter` might be helpful.
+
 use crate::errors::CsvPivotError;
 use chrono::{Datelike, NaiveDateTime};
 use rust_decimal::Decimal;
@@ -15,21 +44,24 @@ use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 
-/// The types of data `csvpivot` converts `&str` records into.
-/// `csvpivot` only does these conversions on the values column.
-/// (Note: I may eventually change this.)
+/// The types of data `csvpivot` parses. **Note** that `csvpivot` only parses the value column
+/// of your data set. (That is, the indexes and columns of your pivot table are purely parsed as strings.)
 #[derive(Debug, PartialEq)]
 pub enum ParsingType {
-    /// Representing String data
+    /// Represents String data
     Text(Option<String>),
-    /// This is used for all of the numeric operations with the exception of standard deviation
+    /// This is used for most numeric calculations. The Decimal type prevents truncation errors from
+    /// unnecessarily reducing the accuracy of your calculations.
     Numeric(Option<Decimal>),
     /// This is used for numeric operations involving minimum and maximum, as well as standard deviation
     FloatingPoint(Option<f64>),
-    /// This is used for parsing date types
+    /// This is used for parsing date types. Its implementation is fairly slow. For this reason,
+    /// calculating minimum or maximum on ISO-formatted dates (e.g. 2019-08-12) can use either
+    /// dates or Strings. (And I recommend you use strings if you are dealing with ISO-formatted dates.)
     DateTypes(Option<NaiveDateTime>),
 }
 
+/// Forms the settings for parsing dates. The settings come directly from the command-line arguments.
 pub struct DateFormatter {
     parser: dtparse::Parser,
     pub parsing_info: dtparse::ParserInfo,
@@ -63,6 +95,7 @@ impl Default for DateFormatter {
 }
 
 impl DateFormatter {
+    /// Converts string dates into datetimes or errors.
     pub fn parse(&self, new_val: &str, line_num: usize) -> Result<NaiveDateTime, CsvPivotError> {
         // ignore tokens (not using in impl)
         // TODO handle offsets/timezones
@@ -93,10 +126,12 @@ pub struct ParsingHelper {
     /// Represents the type of data `ParsingHelper` will convert `&str` records
     /// into while aggregating
     values_type: ParsingType,
-    /// Not being used right now, but designed for use when I automatically determine
-    /// the data type of a given values field.
-    possible_values: Vec<ParsingType>,
+    /// Determines whether or not to parse empty values. If you use the `-e` flag
+    /// with any query, `parse_empty` will be true and the `ParsingHelper` will pass over the record any time
+    /// it's empty
     parse_empty: bool,
+    /// The date formatter. This object is `None` when you are dealing with data other than
+    /// datetimes and is some `DateFormatter` otherwise.
     date_helper: Option<DateFormatter>,
 }
 
@@ -104,7 +139,6 @@ impl Default for ParsingHelper {
     fn default() -> ParsingHelper {
         ParsingHelper {
             values_type: ParsingType::Text(None),
-            possible_values: vec![],
             parse_empty: true,
             date_helper: None,
         }
@@ -112,6 +146,7 @@ impl Default for ParsingHelper {
 }
 
 impl ParsingHelper {
+    /// This method is used by `CliConfig` to initialize the `ParsingHelper` the `Aggregator` uses.
     pub fn from_parsing_type(parsing: ParsingType) -> ParsingHelper {
         let date_helper = match parsing {
             // TODO handle other date formats
@@ -120,7 +155,6 @@ impl ParsingHelper {
         };
         ParsingHelper {
             values_type: parsing,
-            possible_values: vec![],
             parse_empty: true,
             date_helper,
         }
@@ -136,9 +170,26 @@ impl ParsingHelper {
         self
     }
 
+    /// Parses a string from the `Aggregator`. Returns `Ok(Some(ParsingType))` if it a)
+    /// doesn't run into an error and b) doesn't parse as empty; `Ok(None)` if it a)
+    /// doesn't run into an error but b) parses the string as empty; and 
+    /// `Err(CsvPivotError)` if it can't parse the string.
+    ///
+    /// **Note** that it only determines that a cell is empty if you have set the program
+    /// to skip past empty values (using the `-e` flag) and the cell has one of the following values:
+    /// - ""
+    /// - "na"
+    /// - "n/a"
+    /// - "none"
+    /// - "null"
+    /// - "nan"
+    ///
+    /// (Thanks to Python's [`agate` library](https://agate.readthedocs.io/en/1.6.1/api/data_types.html)
+    /// for coming up with these null values so I didn't have to.)
     pub fn parse_val(&self, new_val: &str, line_num: usize) -> Result<Option<ParsingType>, CsvPivotError> {
         // list of empty values heavily borrowed from `agate` in Python
         // https://agate.readthedocs.io/en/1.6.1/api/data_types.html
+        // Note: this should probably use a HashSet, but doesn't matter enough for me to figure out how to do that.
         let empty_vals = vec!["", "na", "n/a", "none", "null", "nan"];
         if empty_vals.contains(&new_val.to_ascii_lowercase().as_str()) && !self.parse_empty {
             return Ok(None);
@@ -152,6 +203,7 @@ impl ParsingHelper {
         Ok(Some(parsed_val))
     }
 
+    /// This parses strings as datetimes given the setting of `self.date_helper`.
     fn parse_datetime(&self, new_val: &str, line_num: usize) -> Result<ParsingType, CsvPivotError> {
         let parsed_dt = match &self.date_helper {
             Some(helper) => helper.parse(new_val, line_num),
@@ -162,6 +214,7 @@ impl ParsingHelper {
         Ok(ParsingType::DateTypes(Some(parsed_dt)))
     }
 
+    /// Parses cells as numeric (Decimal) types
     fn parse_numeric(new_val: &str, line_num: usize) -> Result<ParsingType, CsvPivotError> {
         let dec = Decimal::from_str(new_val)
             .or_else(|_| Decimal::from_scientific(&new_val.to_ascii_lowercase())) // infer scientific notation on error
@@ -171,6 +224,7 @@ impl ParsingHelper {
         Ok(ParsingType::Numeric(Some(dec)))
     }
 
+    /// Parses cells as floating point types.
     fn parse_floating(new_val: &str, line_num: usize) -> Result<ParsingType, CsvPivotError> {
         let num: f64 = new_val.parse().or(Err(CsvPivotError::ParsingError {
             line_num, err: "Failed to parse floating point number".to_string()
