@@ -96,6 +96,12 @@ impl Default for DateFormatter {
 
 impl DateFormatter {
     /// Converts string dates into datetimes or errors.
+    pub fn new(dayfirst: bool, yearfirst: bool) -> DateFormatter {
+        let mut base_formatter = DateFormatter::default();
+        base_formatter.parsing_info.dayfirst = dayfirst;
+        base_formatter.parsing_info.yearfirst = yearfirst;
+        base_formatter
+    }
     pub fn parse(&self, new_val: &str, line_num: usize) -> Result<NaiveDateTime, CsvPivotError> {
         // ignore tokens (not using in impl)
         // TODO handle offsets/timezones
@@ -148,10 +154,9 @@ impl Default for ParsingHelper {
 
 impl ParsingHelper {
     /// This method is used by `CliConfig` to initialize the `ParsingHelper` the `Aggregator` uses.
-    pub fn from_parsing_type(parsing: ParsingType) -> ParsingHelper {
+    pub fn from_parsing_type(parsing: ParsingType, dayfirst: bool, yearfirst: bool) -> ParsingHelper {
         let date_helper = match parsing {
-            // TODO handle other date formats
-            ParsingType::DateTypes(_) => Some(DateFormatter::default()),
+            ParsingType::DateTypes(_) => Some(DateFormatter::new(dayfirst, yearfirst)),
             _ => None,
         };
         ParsingHelper {
@@ -284,7 +289,7 @@ mod tests {
             "2003.01.03",
             "Jan. 3, 2003",
         ];
-        let helper = ParsingHelper::from_parsing_type(ParsingType::DateTypes(None));
+        let helper = ParsingHelper::from_parsing_type(ParsingType::DateTypes(None), false, false);
         for date in parsable_dates {
             let parsed_opt_date = helper.parse_val(date, 0)?;
             let parsed_date = match parsed_opt_date {

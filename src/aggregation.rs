@@ -357,8 +357,10 @@ impl<U: AggregationMethod> CliConfig<U> {
     fn get_parser(&self, arg_matches: &ArgMatches) -> ParsingHelper {
         let parse_numeric = arg_matches.is_present("numeric");
         let infer_date = arg_matches.is_present("infer");
+        let dayfirst = arg_matches.is_present("dayfirst");
+        let yearfirst = arg_matches.is_present("yearfirst");
         let parse_type = self.get_parsing_approach(parse_numeric, infer_date);
-        ParsingHelper::from_parsing_type(parse_type)
+        ParsingHelper::from_parsing_type(parse_type, dayfirst, yearfirst)
             .parse_empty_vals(!arg_matches.is_present("empty"))
     }
     /// Converts from a file path to either a CSV reader or a CSV error.

@@ -42,21 +42,21 @@ args:
       index: 2
 
   - rows:
-      help: The name of the index(es) to aggregate on. Currently must be 0-indexed integers
+      help: The name of the index(es) to aggregate on. Accepts String fieldnames or 0-indexed fields.
       long: rows
       short: r
       takes_value: true
       multiple: true
 
   - columns:
-      help: The name of the column(s) to aggregate on. Currently must be 0-indexed integers
+      help: The name of the column(s) to aggregate on. Accepts String fieldnames or 0-indexed fields.
       long: cols
       short: c
       takes_value: true
       multiple: true
 
   - value:
-      help: The name of the field used to determine the value (e.g. id for most count operations). Currently must be 0-indexed integers
+      help: The name of the field used to determine the value (e.g. id for most count operations).\nAccepts String fieldnames or 0-indexed fields
       long: val
       short: v
       takes_value: true
@@ -81,3 +81,9 @@ args:
   - tab:
       help: Fields are tab-separated (equivalent of setting delimiter to '\t')
       short: t
+  - dayfirst:
+      help: In ambiguous datetimes, parses the day first. See https://dateutil.readthedocs.io/en/stable/parser.html for details.
+      long: day-first
+  - yearfirst:
+      help: In ambiguous datetimes, parses the year first. See https://dateutil.readthedocs.io/en/stable/parser.html for details.
+      long: year-first
