@@ -178,8 +178,14 @@ impl<T: AggregationMethod> Aggregator<T> {
         // This isn't memory efficient, but it should be OK for now
         // (i.e. I should eventually get self.indexes and self.columns
         // be tied to self.aggregations, rather than cloned)
-        self.indexes.insert(indexnames.clone());
-        self.columns.insert(columnnames.clone());
+        // My thought here is that the contains check is probably faster than the close but not sure***
+        if !(self.columns.contains(&columnnames)) {
+            self.columns.insert(columnnames.clone());
+        }
+        if !(self.indexes.contains(&indexnames)) {
+            self.indexes.insert(indexnames.clone());
+        }
+
         let parsed_val = self.parser.parse_val(str_val, line_num)?;
         // this determines how to add the data as it's being read
         if parsed_val.is_some() {

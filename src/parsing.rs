@@ -114,7 +114,8 @@ impl DateFormatter {
                 &HashMap::new(),
             )
             .or(Err(CsvPivotError::ParsingError {
-                line_num, err: "Failed to parse datetime".to_string()
+                line_num, str_to_parse: new_val.to_string(),
+                err: "Failed to parse datetime".to_string()
     }))?;
         Ok(dt)
     }
@@ -208,7 +209,8 @@ impl ParsingHelper {
         let parsed_dt = match &self.date_helper {
             Some(helper) => helper.parse(new_val, line_num),
             None => Err(CsvPivotError::ParsingError {
-                line_num, err: "Failed to parse datetime".to_string()
+                line_num, str_to_parse: new_val.to_string(),
+                err: "Failed to parse datetime".to_string()
             }),
         }?;
         Ok(ParsingType::DateTypes(Some(parsed_dt)))
@@ -219,7 +221,8 @@ impl ParsingHelper {
         let dec = Decimal::from_str(new_val)
             .or_else(|_| Decimal::from_scientific(&new_val.to_ascii_lowercase())) // infer scientific notation on error
             .or(Err(CsvPivotError::ParsingError {
-                line_num, err: "Failed to parse as numeric type".to_string()
+                line_num, str_to_parse: new_val.to_string(),
+                err: "Failed to parse as numeric type".to_string()
             }))?;
         Ok(ParsingType::Numeric(Some(dec)))
     }
@@ -227,7 +230,8 @@ impl ParsingHelper {
     /// Parses cells as floating point types.
     fn parse_floating(new_val: &str, line_num: usize) -> Result<ParsingType, CsvPivotError> {
         let num: f64 = new_val.parse().or(Err(CsvPivotError::ParsingError {
-            line_num, err: "Failed to parse floating point number".to_string()
+            line_num, str_to_parse: new_val.to_string(),
+            err: "Failed to parse floating point number".to_string()
         }))?;
         Ok(ParsingType::FloatingPoint(Some(num)))
     }

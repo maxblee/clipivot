@@ -46,7 +46,14 @@ pub enum CsvPivotError {
     /// and command-line flags, but all errors in converting the string records in the values
     /// column into a particular data type result in a `ParsingError`.
     ParsingError {
+        /// The current line number. This conforms with the way that `xsv slice` operates
+        /// so you can easily find the row that failed by running `xsv slice`.
         line_num: usize,
+        /// The string that failed to parse. This allows you to avoid having to run operations
+        /// like `xsv slice` in most cases
+        str_to_parse: String,
+        /// The general error message. This is specific to the type of error, so failures to parse
+        /// data as datetimes will tell you they failed to parse datetimes, etc.
         err: String,
     }
 }
@@ -60,11 +67,12 @@ impl fmt::Display for CsvPivotError {
             }
             CsvPivotError::Io(ref err) => err.fmt(f),
             // adapted from https://github.com/BurntSushi/rust-csv/blob/master/src/error.rs
-            CsvPivotError::ParsingError { line_num: ref line_num, err: ref err } => {
+            CsvPivotError::ParsingError { line_num: ref line_num, str_to_parse: ref str_to_parse, err: ref err } => {
                 write!(
                     f,
-                    "Could not parse record {}: {}",
-                    line_num + 1,
+                    "Could not parse record `{}` with index {}: {}",
+                    str_to_parse,
+                    line_num,
                     err
                 )
             },
@@ -78,7 +86,8 @@ impl Error for CsvPivotError {
             CsvPivotError::CsvError(ref err) => err.description(),
             CsvPivotError::Io(ref err) => err.description(),
             CsvPivotError::InvalidConfiguration(ref _err) => "could not configure the aggregator",
-            CsvPivotError::ParsingError {line_num: ref _num, err: ref _err } => "failed to parse values column",
+            CsvPivotError::ParsingError {line_num: ref _num, str_to_parse: ref _str,
+                err: ref _err } => "failed to parse values column",
         }
     }
 }
