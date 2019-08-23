@@ -37,7 +37,7 @@
 //! But in case you want to add new parsing types or alter the implementation of parsing
 //! in `csvpivot`, taking a closer look at `ParsingHelper`, `ParsingType`, and `DateFormatter` might be helpful.
 
-use crate::errors::CsvPivotError;
+use crate::errors::{CsvCliResult, CsvCliError};
 use chrono::{Datelike, NaiveDateTime};
 use rust_decimal::Decimal;
 use std::collections::HashMap;
@@ -102,7 +102,7 @@ impl DateFormatter {
         base_formatter.parsing_info.yearfirst = yearfirst;
         base_formatter
     }
-    pub fn parse(&self, new_val: &str, line_num: usize) -> Result<NaiveDateTime, CsvPivotError> {
+    pub fn parse(&self, new_val: &str, line_num: usize) -> CsvCliResult<NaiveDateTime> {
         // ignore tokens (not using in impl)
         // TODO handle offsets/timezones
         // TODO Currently fails on "01042007" formatted dates because of underlying dtparser/Python dateutil issue
@@ -119,7 +119,7 @@ impl DateFormatter {
                 false,
                 &HashMap::new(),
             )
-            .or(Err(CsvPivotError::ParsingError {
+            .or(Err(CsvCliError::ParsingError {
                 line_num, str_to_parse: new_val.to_string(),
                 err: "Failed to parse datetime".to_string()
     }))?;
@@ -179,7 +179,7 @@ impl ParsingHelper {
     /// Parses a string from the `Aggregator`. Returns `Ok(Some(ParsingType))` if it a)
     /// doesn't run into an error and b) doesn't parse as empty; `Ok(None)` if it a)
     /// doesn't run into an error but b) parses the string as empty; and 
-    /// `Err(CsvPivotError)` if it can't parse the string.
+    /// `Err(CsvCliError)` if it can't parse the string.
     ///
     /// **Note** that it only determines that a cell is empty if you have set the program
     /// to skip past empty values (using the `-e` flag) and the cell has one of the following values:
@@ -192,7 +192,7 @@ impl ParsingHelper {
     ///
     /// (Thanks to Python's [`agate` library](https://agate.readthedocs.io/en/1.6.1/api/data_types.html)
     /// for coming up with these null values so I didn't have to.)
-    pub fn parse_val(&self, new_val: &str, line_num: usize) -> Result<Option<ParsingType>, CsvPivotError> {
+    pub fn parse_val(&self, new_val: &str, line_num: usize) -> CsvCliResult<Option<ParsingType>> {
         // list of empty values heavily borrowed from `agate` in Python
         // https://agate.readthedocs.io/en/1.6.1/api/data_types.html
         // Note: this should probably use a HashSet, but doesn't matter enough for me to figure out how to do that.
@@ -210,10 +210,10 @@ impl ParsingHelper {
     }
 
     /// This parses strings as datetimes given the setting of `self.date_helper`.
-    fn parse_datetime(&self, new_val: &str, line_num: usize) -> Result<ParsingType, CsvPivotError> {
+    fn parse_datetime(&self, new_val: &str, line_num: usize) -> CsvCliResult<ParsingType> {
         let parsed_dt = match &self.date_helper {
             Some(helper) => helper.parse(new_val, line_num),
-            None => Err(CsvPivotError::ParsingError {
+            None => Err(CsvCliError::ParsingError {
                 line_num, str_to_parse: new_val.to_string(),
                 err: "Failed to parse datetime".to_string()
             }),
@@ -222,10 +222,10 @@ impl ParsingHelper {
     }
 
     /// Parses cells as numeric (Decimal) types
-    fn parse_numeric(new_val: &str, line_num: usize) -> Result<ParsingType, CsvPivotError> {
+    fn parse_numeric(new_val: &str, line_num: usize) -> CsvCliResult<ParsingType> {
         let dec = Decimal::from_str(new_val)
             .or_else(|_| Decimal::from_scientific(&new_val.to_ascii_lowercase())) // infer scientific notation on error
-            .or(Err(CsvPivotError::ParsingError {
+            .or(Err(CsvCliError::ParsingError {
                 line_num, str_to_parse: new_val.to_string(),
                 err: "Failed to parse as numeric type".to_string()
             }))?;
@@ -233,8 +233,8 @@ impl ParsingHelper {
     }
 
     /// Parses cells as floating point types.
-    fn parse_floating(new_val: &str, line_num: usize) -> Result<ParsingType, CsvPivotError> {
-        let num: f64 = new_val.parse().or(Err(CsvPivotError::ParsingError {
+    fn parse_floating(new_val: &str, line_num: usize) -> CsvCliResult<ParsingType> {
+        let num: f64 = new_val.parse().or(Err(CsvCliError::ParsingError {
             line_num, str_to_parse: new_val.to_string(),
             err: "Failed to parse floating point number".to_string()
         }))?;
@@ -248,7 +248,7 @@ mod tests {
     use chrono::{NaiveDate, NaiveTime};
 
     #[test]
-    fn test_scientific_notation_parsed() -> Result<(), CsvPivotError> {
+    fn test_scientific_notation_parsed() -> CsvCliResult<()> {
         // Makes sure Decimal conversion parses numbers as scientific notation
         let scinot1 = ParsingHelper::parse_numeric("1e-4", 0);
         assert!(scinot1.is_ok());
@@ -270,7 +270,7 @@ mod tests {
     }
 
     #[test]
-    fn test_automatic_date_conversion() -> Result<(), CsvPivotError> {
+    fn test_automatic_date_conversion() -> CsvCliResult<()> {
         // determines whether valid month, day, year formats get properly handled
         // Note that this should also handle ISO8601 formats
         let parsable_dates = vec![

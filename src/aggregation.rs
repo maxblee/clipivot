@@ -12,7 +12,7 @@ use std::fs;
 use std::io;
 
 use crate::aggfunc::*;
-use crate::errors::CsvPivotError;
+use crate::errors::{CsvCliResult, CsvCliError};
 use crate::parsing::{ParsingHelper, ParsingType};
 use clap::ArgMatches;
 
@@ -106,7 +106,7 @@ impl<T: AggregationMethod> Aggregator<T> {
     pub fn aggregate_from_file(
         &mut self,
         mut rdr: csv::Reader<fs::File>,
-    ) -> Result<(), CsvPivotError> {
+    ) -> CsvCliResult<()> {
         let mut iter = rdr.into_records();
         for (line_num, result) in iter.enumerate() {
             let record = result?;
@@ -124,7 +124,7 @@ impl<T: AggregationMethod> Aggregator<T> {
     pub fn aggregate_from_stdin(
         &mut self,
         mut rdr: csv::Reader<io::Stdin>,
-    ) -> Result<(), CsvPivotError> {
+    ) -> CsvCliResult<()> {
         let mut iter = rdr.into_records();
         // we pass line_num here as a way of making for better error handling
         for (line_num, result) in iter.enumerate() {
@@ -138,7 +138,7 @@ impl<T: AggregationMethod> Aggregator<T> {
     /// write them to standard output. The function adds a header based on all of the unique
     /// strings appearing in the columns column. Then, it parses the data, cell by cell
     /// and writes the data, row by row, to standard output.
-    pub fn write_results(&self) -> Result<(), CsvPivotError> {
+    pub fn write_results(&self) -> CsvCliResult<()> {
         let mut wtr = csv::Writer::from_writer(io::stdout());
         let mut header = vec![""];
         for col in &self.columns {
@@ -168,7 +168,7 @@ impl<T: AggregationMethod> Aggregator<T> {
     }
 
     /// Adds a new record (row) to the aggregator.
-    fn add_record(&mut self, record: csv::StringRecord, line_num: usize) -> Result<(), CsvPivotError> {
+    fn add_record(&mut self, record: csv::StringRecord, line_num: usize) -> CsvCliResult<()> {
         // merges all of the index columns into a single column, separated by FIELD_SEPARATOR
         let indexnames = self.get_colname(&self.index_cols, &record);
         let columnnames = self.get_colname(&self.column_cols, &record);
@@ -241,7 +241,7 @@ impl<T: AggregationMethod> Aggregator<T> {
 /// 
 /// **Note**, though, that what counts as a "character" for this function is really a single
 /// byte, so single characters like 'त' will return errors here.
-fn parse_delimiter(filename: &Option<&str>, arg_matches: &ArgMatches) -> Result<u8, CsvPivotError> {
+fn parse_delimiter(filename: &Option<&str>, arg_matches: &ArgMatches) -> CsvCliResult<u8> {
     let default_delim = match filename {
         _ if arg_matches.is_present("tab") => vec![b'\t'],
         _ if arg_matches.is_present("delim") => {
@@ -261,7 +261,7 @@ fn parse_delimiter(filename: &Option<&str>, arg_matches: &ArgMatches) -> Result<
             "Could not convert `{}` delimiter to a single ASCII character",
             String::from_utf8(default_delim).unwrap()
         );
-        return Err(CsvPivotError::InvalidConfiguration(msg));
+        return Err(CsvCliError::InvalidConfiguration(msg));
     }
     Ok(default_delim[0])
 }
@@ -303,7 +303,7 @@ impl<U: AggregationMethod> CliConfig<U> {
         }
     }
     /// Takes argument matches from main and tries to convert them into CliConfig
-    pub fn from_arg_matches(arg_matches: ArgMatches) -> Result<CliConfig<U>, CsvPivotError> {
+    pub fn from_arg_matches(arg_matches: ArgMatches) -> CsvCliResult<CliConfig<U>> {
         let base_config: CliConfig<U> = CliConfig::new();
         let values_col = arg_matches.value_of("value").unwrap().to_string(); // unwrap safe because required arg
         let column_cols = arg_matches
@@ -383,10 +383,10 @@ impl<U: AggregationMethod> CliConfig<U> {
     /// Given a string (passed through the command line), this function returns an index for that field
     /// within the header of the CSV file. If the CSV file doesn't have a header, every String argument
     /// must be a string number.
-    fn get_header_idx(&self, colname: &str, headers: &[&str]) -> Result<usize, CsvPivotError> {
+    fn get_header_idx(&self, colname: &str, headers: &[&str]) -> CsvCliResult<usize> {
         // Without making an explicit comparison to empty, `csvpivot` will panic on an empty string
         if colname == "" {
-            return headers.iter().position(|&x| x == "" ).ok_or(CsvPivotError::InvalidConfiguration("Could not parse the fieldname \"\"".to_string()));
+            return headers.iter().position(|&x| x == "" ).ok_or(CsvCliError::InvalidConfiguration("Could not parse the fieldname \"\"".to_string()));
         }
         let mut in_quotes = false;
         let mut order_specification = false; // True if we've passed a '['
@@ -431,7 +431,7 @@ impl<U: AggregationMethod> CliConfig<U> {
                             "Could not parse the fieldname {}. You may need to encapsulate the field in quotes",
                             colname
                         );
-                        return Err(CsvPivotError::InvalidConfiguration(msg));
+                        return Err(CsvCliError::InvalidConfiguration(msg));
                     }
                     fieldname_occurrence.push_str(&c.to_string());
                 }
@@ -448,20 +448,20 @@ impl<U: AggregationMethod> CliConfig<U> {
                 0 <= selection < {}",
                     header_length
                 );
-                Err(CsvPivotError::InvalidConfiguration(msg))
+                Err(CsvCliError::InvalidConfiguration(msg))
             } else {
                 Ok(parsed_val)
             }
         } else if order_specification {
             let orig_end = match occurrence_start {
                 i if i >= 1 => Ok(i - 1),
-                _i => Err(CsvPivotError::InvalidConfiguration(
+                _i => Err(CsvCliError::InvalidConfiguration(
                     "Couldn't parse field.".to_string(),
                 )),
             }?;
             let orig_name = &colname[..orig_end];
             let parsed_val = colname[occurrence_start..occurrence_end].parse::<usize>()
-                .or(Err(CsvPivotError::InvalidConfiguration(
+                .or(Err(CsvCliError::InvalidConfiguration(
                     "Fieldnames with brackets must be in quotes or have at least one ASCII digit within the brackets (e.g. FIELDNAME[0]".to_string()
                     )))?;
             let mut count = 0;
@@ -479,7 +479,7 @@ impl<U: AggregationMethod> CliConfig<U> {
                 "There are only {} occurrences of the fieldname {}",
                 count, orig_name
             );
-            Err(CsvPivotError::InvalidConfiguration(msg))
+            Err(CsvCliError::InvalidConfiguration(msg))
         } else {
             // csv crate automatically trims quotes, so headers will be trimmed
             match headers.iter().position(|&i| i == colname.replace("\"", "")) {
@@ -488,7 +488,7 @@ impl<U: AggregationMethod> CliConfig<U> {
                 }
                 None => {
                     let msg = format!("Could not find the fieldname `{}` in the header", colname);
-                    Err(CsvPivotError::InvalidConfiguration(msg))
+                    Err(CsvCliError::InvalidConfiguration(msg))
                 }
             }
         }
@@ -496,7 +496,7 @@ impl<U: AggregationMethod> CliConfig<U> {
 
     /// Takes a string from the command line and combines it into a vector of strings
     /// for `validate_columns` to convert into `usize` indexes.
-    fn parse_combined_col(&self, combined_name: &str) -> Result<Vec<String>, CsvPivotError> {
+    fn parse_combined_col(&self, combined_name: &str) -> CsvCliResult<Vec<String>> {
         let mut output_vec = Vec::new();
         let mut in_quotes = false;
         let mut cur_string = String::new();
@@ -520,7 +520,7 @@ impl<U: AggregationMethod> CliConfig<U> {
                 }
             } else if c == '\'' || c == '\"' {
                 if prev_quote != Some(c) {
-                    return Err(CsvPivotError::InvalidConfiguration(
+                    return Err(CsvCliError::InvalidConfiguration(
                         "Quotes inside fieldname were not properly closed".to_string()
                     ));
                 }
@@ -535,12 +535,12 @@ impl<U: AggregationMethod> CliConfig<U> {
             output_vec.push(cur_string);
         }
         if in_quotes {
-            return Err(CsvPivotError::InvalidConfiguration(
+            return Err(CsvCliError::InvalidConfiguration(
                 "Quotes inside fieldname were not properly closed".to_string(),
             ));
         }
         if last_parsed == Some(',') {
-            return Err(CsvPivotError::InvalidConfiguration(
+            return Err(CsvCliError::InvalidConfiguration(
                 "One of the fieldnames ends with an unquoted comma".to_string(),
             ));
         }
@@ -554,7 +554,7 @@ impl<U: AggregationMethod> CliConfig<U> {
     fn get_multiple_header_columns(
         &self,
         colnames: &[String],
-    ) -> Result<Vec<String>, CsvPivotError> {
+    ) -> CsvCliResult<Vec<String>> {
         let mut expected_columns = Vec::new();
         for col in colnames {
             let parsed_col = self.parse_combined_col(&col)?;
@@ -570,7 +570,7 @@ impl<U: AggregationMethod> CliConfig<U> {
         &self,
         expected_cols: &[String],
         headers: &[&str],
-    ) -> Result<Vec<usize>, CsvPivotError> {
+    ) -> CsvCliResult<Vec<usize>> {
         let mut all_cols = Vec::new();
         for col in expected_cols {
             let col_idx = self.get_header_idx(&col, headers)?;
@@ -592,7 +592,7 @@ impl<U: AggregationMethod> CliConfig<U> {
     /// and updates the `Aggregator` object so we can run aggregations.
     // Note: the below function won't compile without taking only &Vec<&str> because of Iter::collect
     #[allow(clippy::ptr_arg)]
-    fn validate_columns(&mut self, headers: &Vec<&str>) -> Result<(), CsvPivotError> {
+    fn validate_columns(&mut self, headers: &Vec<&str>) -> CsvCliResult<()> {
         // validates the aggregation columns and then updates the aggregator
         let expected_indexes = self.get_multiple_header_columns(&self.indexes)?;
         let index_vec = self.get_idx_vec(&expected_indexes, headers)?;
@@ -609,7 +609,7 @@ impl<U: AggregationMethod> CliConfig<U> {
     }
 
     /// Runs the `Aggregator` for the given type.
-    pub fn run_config(&mut self) -> Result<(), CsvPivotError> {
+    pub fn run_config(&mut self) -> CsvCliResult<()> {
         if self.filename.is_some() {
             let mut rdr = self.get_reader_from_path()?;
             let headers = rdr.headers()?;
@@ -627,7 +627,7 @@ impl<U: AggregationMethod> CliConfig<U> {
 }
 
 /// This function is the part of the program that directly interacts with `main`.
-pub fn run(arg_matches: ArgMatches) -> Result<(), CsvPivotError> {
+pub fn run(arg_matches: ArgMatches) -> CsvCliResult<()> {
     let aggfunc = arg_matches.value_of("aggfunc").unwrap();
     if aggfunc == "count" {
         let mut config: CliConfig<Count> = CliConfig::from_arg_matches(arg_matches)?;

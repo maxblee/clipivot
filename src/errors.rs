@@ -28,10 +28,10 @@ use std::result;
 
 // An alias for CsvCliError
 // from https://github.com/BurntSushi/rust-csv/blob/master/src/error.rs
-// pub type CsvCliResult<T> = result::Result<T, CsvPivotError>;
+pub type CsvCliResult<T> = result::Result<T, CsvCliError>;
 
 #[derive(Debug)]
-pub enum CsvPivotError {
+pub enum CsvCliError {
     /// Errors from reading a CSV file. 
     ///
     /// This should be limited to inconsistencies in the number of lines appearing in a given row.
@@ -62,16 +62,16 @@ pub enum CsvPivotError {
     }
 }
 
-impl fmt::Display for CsvPivotError {
+impl fmt::Display for CsvCliError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            CsvPivotError::CsvError(ref err) => err.fmt(f),
-            CsvPivotError::InvalidConfiguration(ref err) => {
+            CsvCliError::CsvError(ref err) => err.fmt(f),
+            CsvCliError::InvalidConfiguration(ref err) => {
                 write!(f, "Could not properly configure the aggregator: {}", err)
             }
-            CsvPivotError::Io(ref err) => err.fmt(f),
+            CsvCliError::Io(ref err) => err.fmt(f),
             // adapted from https://github.com/BurntSushi/rust-csv/blob/master/src/error.rs
-            CsvPivotError::ParsingError { line_num: ref line_num, str_to_parse: ref str_to_parse, err: ref err } => {
+            CsvCliError::ParsingError { line_num: ref line_num, str_to_parse: ref str_to_parse, err: ref err } => {
                 write!(
                     f,
                     "Could not parse record `{}` with index {}: {}",
@@ -84,26 +84,26 @@ impl fmt::Display for CsvPivotError {
     }
 }
 
-impl Error for CsvPivotError {
+impl Error for CsvCliError {
     fn description(&self) -> &str {
         match *self {
-            CsvPivotError::CsvError(ref err) => err.description(),
-            CsvPivotError::Io(ref err) => err.description(),
-            CsvPivotError::InvalidConfiguration(ref _err) => "could not configure the aggregator",
-            CsvPivotError::ParsingError {line_num: ref _num, str_to_parse: ref _str,
+            CsvCliError::CsvError(ref err) => err.description(),
+            CsvCliError::Io(ref err) => err.description(),
+            CsvCliError::InvalidConfiguration(ref _err) => "could not configure the aggregator",
+            CsvCliError::ParsingError {line_num: ref _num, str_to_parse: ref _str,
                 err: ref _err } => "failed to parse values column",
         }
     }
 }
 
-impl From<io::Error> for CsvPivotError {
-    fn from(err: io::Error) -> CsvPivotError {
-        CsvPivotError::Io(err)
+impl From<io::Error> for CsvCliError {
+    fn from(err: io::Error) -> CsvCliError {
+        CsvCliError::Io(err)
     }
 }
 
-impl From<csv::Error> for CsvPivotError {
-    fn from(err: csv::Error) -> CsvPivotError {
-        CsvPivotError::CsvError(err)
+impl From<csv::Error> for CsvCliError {
+    fn from(err: csv::Error) -> CsvCliError {
+        CsvCliError::CsvError(err)
     }
 }

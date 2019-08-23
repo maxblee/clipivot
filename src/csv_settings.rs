@@ -6,7 +6,7 @@
 //! from the main `aggregation` module and from CliConfig is that I expect
 //! I'll wind up reusing this particular file in any future CSV CLIs I might build.
 
-use errors::CsvPivotError;
+use errors::{CsvCliResult, CsvCliError};
 
 /// A structure defining the basic settings of a CSV file. 
 pub struct CsvSettings {
@@ -50,7 +50,7 @@ impl CsvSettings {
             "Could not convert `{}` delimiter to a single ASCII character",
             String::from_utf8(expected_delim).unwrap()
         );
-        return Err(CsvPivotError::InvalidConfiguration(msg));
+        return Err(CsvCliError::InvalidConfiguration(msg));
         }
         Ok(expected_delim[0])
     }
