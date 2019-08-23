@@ -1,7 +1,10 @@
 use std::process::Command;
+use std::panic;
+use proptest::prelude::*;
 /// This module holds most of the integration tests (basically everything but numerical accuracy tests)
 use std::str;
 
+const program_name: &str = "./target/debug/csvpivot";
 type SimpleCount = (String, usize);
 
 #[test]

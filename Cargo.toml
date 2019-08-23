@@ -15,4 +15,5 @@ rust_decimal = "1.0.1"
 
 [dev-dependencies]
 approx = "0.3.2"
+proptest = "0.9.4"
 rand = "0.6"

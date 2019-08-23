@@ -386,6 +386,10 @@ impl<U: AggregationMethod> CliConfig<U> {
     /// within the header of the CSV file. If the CSV file doesn't have a header, every String argument
     /// must be a string number.
     fn get_header_idx(&self, colname: &str, headers: &[&str]) -> Result<usize, CsvPivotError> {
+        // Without making an explicit comparison to empty, `csvpivot` will panic on an empty string
+        if colname == "" {
+            return headers.iter().position(|&x| x == "" ).ok_or(CsvPivotError::InvalidConfiguration("Could not parse the fieldname \"\"".to_string()));
+        }
         let mut in_quotes = false;
         let mut order_specification = false; // True if we've passed a '['
                                              // fieldname occurrence is the order in which a field occurs. Defaults to 0.
@@ -663,6 +667,8 @@ pub fn run(arg_matches: ArgMatches) -> Result<(), CsvPivotError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::panic;
+    use proptest::prelude::*;
 
     fn setup_simple_record() -> csv::StringRecord {
         let record_vec = vec!["Columbus", "OH", "Blue Jackets", "Hockey", "Playoffs"];
@@ -736,6 +742,19 @@ mod tests {
             values_col: "0".to_string(),
             column_cols: vec!["1".to_string()],
             indexes: vec!["3".to_string()],
+        }
+    }
+
+    // adapted from https://altsysrq.github.io/proptest-book/proptest/getting-started.html
+    proptest! {
+        #[test]
+        fn invalid_headers_never_panic(s in "\\PC*") {
+            let mut config : CliConfig<Count> = CliConfig::new();
+            let headers = vec!["col1", "col2", "col3"];
+            let result = panic::catch_unwind(|| {
+                let validation = config.get_header_idx(&s, &headers);
+            });
+            assert!(result.is_ok());
         }
     }
 
