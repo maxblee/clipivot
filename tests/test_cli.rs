@@ -7,6 +7,19 @@ use std::str;
 const program_name: &str = "./target/debug/csvpivot";
 type SimpleCount = (String, usize);
 
+proptest! {
+    #[test]
+    fn test_delim_doesnt_panic(s in "\\PC*") {
+        let result = panic::catch_unwind(|| {
+        let delim = format!("{}{}", "--delim=".to_string(), s);
+        let output = Command::new("./target/debug/csvpivot")
+            .args(&["count", "test_csvs/layoffs.csv", "-v", "0", "d", &delim])
+            .output();
+    });
+    assert!(result.is_ok());
+    }
+}
+
 #[test]
 fn test_flag_ignores_empty_vals() {
     let output = Command::new("./target/debug/csvpivot")

@@ -239,10 +239,8 @@ impl<T: AggregationMethod> Aggregator<T> {
 /// adding a `-t` or `-d` flag. It will return an error if you try to pass a multi-character
 /// string. 
 /// 
-/// **Note** , though, that a character in Rust is a bit different than a character in other programming
-/// languages, like Python. Rust interprets each Unicode Scalar Value as a character, so the
-/// string "नमस्ते" is interpreted interpreted to have a length of 15. That is far different from
-/// Python and can mean that single characters in Python, like "त", will return errors in this Rust program.
+/// **Note**, though, that what counts as a "character" for this function is really a single
+/// byte, so single characters like 'त' will return errors here.
 fn parse_delimiter(filename: &Option<&str>, arg_matches: &ArgMatches) -> Result<u8, CsvPivotError> {
     let default_delim = match filename {
         _ if arg_matches.is_present("tab") => vec![b'\t'],
@@ -400,6 +398,7 @@ impl<U: AggregationMethod> CliConfig<U> {
         let mut all_numeric = true; // default to reading the field as a 0-indexed number
         let chars = colname.chars();
         if self.has_header {
+            let mut count = 0;
             for (i, c) in chars.enumerate() {
                 if !(c.is_ascii_digit()) {
                     all_numeric = false;
@@ -747,12 +746,30 @@ mod tests {
 
     // adapted from https://altsysrq.github.io/proptest-book/proptest/getting-started.html
     proptest! {
+        // #[test]
+        // fn invalid_headers_never_panic(s in "\\PC*") {
+        //     let mut config : CliConfig<Count> = CliConfig::new();
+        //     let headers = vec!["col1", "col2", "col3"];
+        //     let result = panic::catch_unwind(|| {
+        //         let validation = config.get_header_idx(&s, &headers);
+        //     });
+        //     assert!(result.is_ok());
+        // }
         #[test]
-        fn invalid_headers_never_panic(s in "\\PC*") {
-            let mut config : CliConfig<Count> = CliConfig::new();
-            let headers = vec!["col1", "col2", "col3"];
+        fn delimiter_never_panics(s in "\\PC*") {
+            let yaml = load_yaml!("cli.yml");
             let result = panic::catch_unwind(|| {
-                let validation = config.get_header_idx(&s, &headers);
+                let delim = format!("{}{}", "--delim=".to_string(), s);
+                let matches = clap::App::from_yaml(yaml)
+                    .version(crate_version!())
+                    .author(crate_authors!())
+                    .get_matches_from(vec![
+                        "csvpivot",
+                        "count",
+                        &delim,
+                        "--val=0"
+                    ]);
+                parse_delimiter(&None, &matches);
             });
             assert!(result.is_ok());
         }
