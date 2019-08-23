@@ -28,10 +28,10 @@ use std::result;
 
 // An alias for CsvCliError
 // from https://github.com/BurntSushi/rust-csv/blob/master/src/error.rs
-pub type CsvCliResult<T> = result::Result<T, CsvCliError>;
+// pub type CsvCliResult<T> = result::Result<T, CsvPivotError>;
 
 #[derive(Debug)]
-pub enum CsvCliError {
+pub enum CsvPivotError {
     /// Errors from reading a CSV file. 
     ///
     /// This should be limited to inconsistencies in the number of lines appearing in a given row.
@@ -62,7 +62,7 @@ pub enum CsvCliError {
     }
 }
 
-impl fmt::Display for CsvCliError {
+impl fmt::Display for CsvPivotError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             CsvPivotError::CsvError(ref err) => err.fmt(f),
@@ -84,7 +84,7 @@ impl fmt::Display for CsvCliError {
     }
 }
 
-impl Error for CsvCliError {
+impl Error for CsvPivotError {
     fn description(&self) -> &str {
         match *self {
             CsvPivotError::CsvError(ref err) => err.description(),
@@ -96,13 +96,13 @@ impl Error for CsvCliError {
     }
 }
 
-impl From<io::Error> for CsvCliError {
+impl From<io::Error> for CsvPivotError {
     fn from(err: io::Error) -> CsvPivotError {
         CsvPivotError::Io(err)
     }
 }
 
-impl From<csv::Error> for CsvCliError {
+impl From<csv::Error> for CsvPivotError {
     fn from(err: csv::Error) -> CsvPivotError {
         CsvPivotError::CsvError(err)
     }
