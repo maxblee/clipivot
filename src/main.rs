@@ -102,7 +102,7 @@ pub mod aggfunc;
 pub mod aggregation;
 pub mod errors;
 pub mod parsing;
-// pub mod csv_settings;
+pub mod csv_settings;
 
 
 fn main() {

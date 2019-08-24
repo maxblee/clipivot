@@ -14,6 +14,7 @@ use std::io;
 use crate::aggfunc::*;
 use crate::errors::{CsvCliResult, CsvCliError};
 use crate::parsing::{ParsingHelper, ParsingType};
+use crate::csv_settings::CsvSettings;
 use clap::ArgMatches;
 
 const FIELD_SEPARATOR: &str = "_<sep>_";
@@ -231,41 +232,6 @@ impl<T: AggregationMethod> Aggregator<T> {
     }
 }
 
-/// `parse_delimiter` converts `ArgMatches` from the command-line into a delimiter that
-/// it intends to use to parse CSV values with. For instance, tsv files have a delimiter of `'\t'`.
-///
-/// Taking from the excellent `xsv` command-line CSV toolkit, this function automatically
-/// assumes that `.tsv` and `.tab` files are tab-delimited, saving you the trouble of
-/// adding a `-t` or `-d` flag. It will return an error if you try to pass a multi-character
-/// string. 
-/// 
-/// **Note**, though, that what counts as a "character" for this function is really a single
-/// byte, so single characters like 'त' will return errors here.
-fn parse_delimiter(filename: &Option<&str>, arg_matches: &ArgMatches) -> CsvCliResult<u8> {
-    let default_delim = match filename {
-        _ if arg_matches.is_present("tab") => vec![b'\t'],
-        _ if arg_matches.is_present("delim") => {
-            let delim = arg_matches.value_of("delim").unwrap();
-            if let r"\t" = delim {
-                vec![b'\t']
-            } else {
-                delim.as_bytes().to_vec()
-            }
-        }
-        // altered from https://github.com/BurntSushi/xsv/blob/master/src/config.rs
-        Some(fname) if fname.ends_with(".tsv") || fname.ends_with(".tab") => vec![b'\t'],
-        _ => vec![b','],
-    };
-    if default_delim.len() != 1 {
-        let msg = format!(
-            "Could not convert `{}` delimiter to a single ASCII character",
-            String::from_utf8(default_delim).unwrap()
-        );
-        return Err(CsvCliError::InvalidConfiguration(msg));
-    }
-    Ok(default_delim[0])
-}
-
 /// This struct is intended for converting from Clap's `ArgMatches` to the `Aggregator` struct
 #[derive(Debug, PartialEq)]
 pub struct CliConfig<U>
@@ -279,14 +245,13 @@ where
     aggregator: Aggregator<U>,
     /// Whether or not you want to read the file with headers. Defaults to true.
     has_header: bool,
-    /// The delimiter separating fields in your CSV file. Defaults to '\t' for `.tsv` or `.tab` files, ',' otherwise.
-    delimiter: u8,
     /// The name of the column you're running the aggregation function on.
     values_col: String,
     /// The name of the column(s) (or indexes) forming the columns of the final pivot table. vec![] if no columns.
     column_cols: Vec<String>,
     /// The name of the column(s) (or indexes) forming the indexes of the final pivot table. 
     indexes: Vec<String>,
+    settings: CsvSettings,
 }
 
 impl<U: AggregationMethod> CliConfig<U> {
@@ -296,10 +261,10 @@ impl<U: AggregationMethod> CliConfig<U> {
             filename: None,
             aggregator: Aggregator::new(),
             has_header: true,
-            delimiter: b',',
             values_col: "".to_string(),
             column_cols: vec![],
             indexes: vec![],
+            settings: CsvSettings::default(),
         }
     }
     /// Takes argument matches from main and tries to convert them into CliConfig
@@ -317,16 +282,19 @@ impl<U: AggregationMethod> CliConfig<U> {
         let parser = base_config.get_parser(&arg_matches);
         let aggregator: Aggregator<U> = Aggregator::from_parser(parser);
 
-        let delimiter = parse_delimiter(&filename, &arg_matches)?;
+        let delim_vals = if let true = arg_matches.is_present("tab") {
+            Some(r"\t")
+        } else { arg_matches.value_of("delim") };
+        let settings = CsvSettings::parse_new(&filename, delim_vals, !arg_matches.is_present("noheader"))?;
 
         let cfg = CliConfig {
             filename: filename.map(String::from),
             aggregator,
             has_header: !arg_matches.is_present("noheader"),
-            delimiter,
             values_col,
             indexes,
             column_cols,
+            settings
         };
         Ok(cfg)
     }
@@ -361,25 +329,6 @@ impl<U: AggregationMethod> CliConfig<U> {
         ParsingHelper::from_parsing_type(parse_type, dayfirst, yearfirst)
             .parse_empty_vals(!arg_matches.is_present("empty"))
     }
-    /// Converts from a file path to either a CSV reader or a CSV error.
-    pub fn get_reader_from_path(&self) -> Result<csv::Reader<fs::File>, csv::Error> {
-        csv::ReaderBuilder::new()
-            .delimiter(self.delimiter)
-            .trim(csv::Trim::All)
-            .has_headers(self.has_header)
-            // this function is only run if self.filename.is_some() so unwrap() is fine
-            .from_path(self.filename.as_ref().unwrap())
-    }
-
-    /// Converts from standard input to a CSV reader.
-    pub fn get_reader_from_stdin(&self) -> csv::Reader<io::Stdin> {
-        csv::ReaderBuilder::new()
-            .delimiter(self.delimiter)
-            .trim(csv::Trim::All)
-            .has_headers(self.has_header)
-            .from_reader(io::stdin())
-    }
-
     /// Given a string (passed through the command line), this function returns an index for that field
     /// within the header of the CSV file. If the CSV file doesn't have a header, every String argument
     /// must be a string number.
@@ -611,12 +560,13 @@ impl<U: AggregationMethod> CliConfig<U> {
     /// Runs the `Aggregator` for the given type.
     pub fn run_config(&mut self) -> CsvCliResult<()> {
         if self.filename.is_some() {
-            let mut rdr = self.get_reader_from_path()?;
+            // unwrap safe because of `is_some` call
+            let mut rdr = self.settings.get_reader_from_path(&self.filename.clone().unwrap())?;
             let headers = rdr.headers()?;
             self.validate_columns(&headers.iter().collect())?;
             self.aggregator.aggregate_from_file(rdr)?;
         } else {
-            let mut rdr = self.get_reader_from_stdin();
+            let mut rdr = self.settings.get_reader_from_stdin();
             let headers = rdr.headers()?;
             self.validate_columns(&headers.iter().collect())?;
             self.aggregator.aggregate_from_stdin(rdr)?;
@@ -666,8 +616,6 @@ pub fn run(arg_matches: ArgMatches) -> CsvCliResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::panic;
-    use proptest::prelude::*;
 
     fn setup_simple_record() -> csv::StringRecord {
         let record_vec = vec!["Columbus", "OH", "Blue Jackets", "Hockey", "Playoffs"];
@@ -716,10 +664,11 @@ mod tests {
             filename: Some("test_csvs/one_liner.csv".to_string()),
             aggregator: agg,
             has_header: true,
-            delimiter: b',',
             values_col: "0".to_string(),
             column_cols: vec!["1".to_string()],
             indexes: vec!["2".to_string()],
+            settings: CsvSettings::parse_new(&Some("test_csvs/one_liner"), 
+                Some(","), true).unwrap(),
         }
     }
 
@@ -737,41 +686,10 @@ mod tests {
             filename: Some("test_csvs/layoffs.csv".to_string()),
             aggregator: agg,
             has_header: true,
-            delimiter: b',',
             values_col: "0".to_string(),
             column_cols: vec!["1".to_string()],
             indexes: vec!["3".to_string()],
-        }
-    }
-
-    // adapted from https://altsysrq.github.io/proptest-book/proptest/getting-started.html
-    proptest! {
-        // #[test]
-        // fn invalid_headers_never_panic(s in "\\PC*") {
-        //     let mut config : CliConfig<Count> = CliConfig::new();
-        //     let headers = vec!["col1", "col2", "col3"];
-        //     let result = panic::catch_unwind(|| {
-        //         let validation = config.get_header_idx(&s, &headers);
-        //     });
-        //     assert!(result.is_ok());
-        // }
-        #[test]
-        fn delimiter_never_panics(s in "\\PC*") {
-            let yaml = load_yaml!("cli.yml");
-            let result = panic::catch_unwind(|| {
-                let delim = format!("{}{}", "--delim=".to_string(), s);
-                let matches = clap::App::from_yaml(yaml)
-                    .version(crate_version!())
-                    .author(crate_authors!())
-                    .get_matches_from(vec![
-                        "csvpivot",
-                        "count",
-                        &delim,
-                        "--val=0"
-                    ]);
-                parse_delimiter(&None, &matches);
-            });
-            assert!(result.is_ok());
+            settings: CsvSettings::parse_new(&Some("test_csvs/layoffs.csv"), Some(","), true).unwrap()
         }
     }
 
@@ -875,7 +793,7 @@ mod tests {
         // Makes sure the Config struct properly returns a CSV Reader
         // given a filepath
         let config = setup_one_liners();
-        let mut rdr = config.get_reader_from_path().unwrap();
+        let mut rdr = config.settings.get_reader_from_path(&config.filename.unwrap()).unwrap();
         let mut iter = rdr.records();
         if let Some(result) = iter.next() {
             let record = result.unwrap();
