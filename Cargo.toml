@@ -5,6 +5,9 @@ authors = ["Max Lee <maxbmhlee@gmail.com>"]
 edition = "2018"
 license = "Apache-2.0"
 
+[profile.dev]
+lto = "thin"
+
 
 [dependencies]
 clap = {version = "~2.27.0", features = ["yaml"]}

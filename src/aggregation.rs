@@ -108,10 +108,11 @@ impl<T: AggregationMethod> Aggregator<T> {
         &mut self,
         mut rdr: csv::Reader<fs::File>,
     ) -> CsvCliResult<()> {
-        let mut iter = rdr.into_records();
-        for (line_num, result) in iter.enumerate() {
-            let record = result?;
-            self.add_record(record, line_num)?;
+        let mut line_num = 0;
+        let mut record = csv::StringRecord::new();
+        while rdr.read_record(&mut record)? {
+            self.add_record(&record, &line_num)?;
+            line_num += 1;
         }
         Ok(())
     }
@@ -126,11 +127,11 @@ impl<T: AggregationMethod> Aggregator<T> {
         &mut self,
         mut rdr: csv::Reader<io::Stdin>,
     ) -> CsvCliResult<()> {
-        let mut iter = rdr.into_records();
-        // we pass line_num here as a way of making for better error handling
-        for (line_num, result) in iter.enumerate() {
-            let record = result?;
-            self.add_record(record, line_num)?;
+        let mut line_num = 0;
+        let mut record = csv::StringRecord::new();
+        while rdr.read_record(&mut record)? {
+            self.add_record(&record, &line_num)?;
+            line_num += 1;
         }
         Ok(())
     }
@@ -169,7 +170,7 @@ impl<T: AggregationMethod> Aggregator<T> {
     }
 
     /// Adds a new record (row) to the aggregator.
-    fn add_record(&mut self, record: csv::StringRecord, line_num: usize) -> CsvCliResult<()> {
+    fn add_record(&mut self, record: &csv::StringRecord, line_num: &usize) -> CsvCliResult<()> {
         // merges all of the index columns into a single column, separated by FIELD_SEPARATOR
         let indexnames = self.get_colname(&self.index_cols, &record);
         let columnnames = self.get_colname(&self.column_cols, &record);
@@ -187,7 +188,7 @@ impl<T: AggregationMethod> Aggregator<T> {
             self.indexes.insert(indexnames.clone());
         }
 
-        let parsed_val = self.parser.parse_val(str_val, line_num)?;
+        let parsed_val = self.parser.parse_val(str_val, *line_num)?;
         // this determines how to add the data as it's being read
         if parsed_val.is_some() {
             self.update_aggregations(indexnames, columnnames, &parsed_val.unwrap());
@@ -243,8 +244,6 @@ where
     filename: Option<String>,
     /// `CliConfig` creates an `Aggregator` object to run the aggregations and hold onto the aggregated data.
     aggregator: Aggregator<U>,
-    /// Whether or not you want to read the file with headers. Defaults to true.
-    has_header: bool,
     /// The name of the column you're running the aggregation function on.
     values_col: String,
     /// The name of the column(s) (or indexes) forming the columns of the final pivot table. vec![] if no columns.
@@ -260,7 +259,6 @@ impl<U: AggregationMethod> CliConfig<U> {
         CliConfig {
             filename: None,
             aggregator: Aggregator::new(),
-            has_header: true,
             values_col: "".to_string(),
             column_cols: vec![],
             indexes: vec![],
@@ -290,7 +288,6 @@ impl<U: AggregationMethod> CliConfig<U> {
         let cfg = CliConfig {
             filename: filename.map(String::from),
             aggregator,
-            has_header: !arg_matches.is_present("noheader"),
             values_col,
             indexes,
             column_cols,
@@ -428,7 +425,7 @@ mod tests {
             column_cols: vec![2, 3],
             values_col: 4,
         };
-        agg.add_record(setup_simple_record(), 0).unwrap();
+        agg.add_record(&setup_simple_record(), &0).unwrap();
         agg
     }
 
@@ -436,13 +433,13 @@ mod tests {
         let mut agg = setup_simple_count();
         let second_vec = vec!["Nashville", "TN", "Predators", "Hockey", "Playoffs"];
         let second_record = csv::StringRecord::from(second_vec);
-        agg.add_record(second_record, 0).unwrap();
+        agg.add_record(&second_record, &0).unwrap();
         let third_vec = vec!["Nashville", "TN", "Titans", "Football", "Bad"];
         let third_record = csv::StringRecord::from(third_vec);
-        agg.add_record(third_record, 0).unwrap();
+        agg.add_record(&third_record, &0).unwrap();
         let fourth_vec = vec!["Columbus", "OH", "Blue Jackets", "Hockey", "Bad"];
         let fourth_record = csv::StringRecord::from(fourth_vec);
-        agg.add_record(fourth_record, 0).unwrap();
+        agg.add_record(&fourth_record, &0).unwrap();
         agg
     }
 
@@ -459,7 +456,6 @@ mod tests {
         CliConfig {
             filename: Some("test_csvs/one_liner.csv".to_string()),
             aggregator: agg,
-            has_header: true,
             values_col: "0".to_string(),
             column_cols: vec!["1".to_string()],
             indexes: vec!["2".to_string()],
@@ -481,7 +477,6 @@ mod tests {
         CliConfig {
             filename: Some("test_csvs/layoffs.csv".to_string()),
             aggregator: agg,
-            has_header: true,
             values_col: "0".to_string(),
             column_cols: vec!["1".to_string()],
             indexes: vec!["3".to_string()],
