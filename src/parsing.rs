@@ -123,6 +123,8 @@ impl DateFormatter {
                 line_num, str_to_parse: new_val.to_string(),
                 err: "Failed to parse datetime".to_string()
     }))?;
+    // TODO: NaiveDateTime formatting for optional performance benefit
+    // possible : NaiveDateTime::parse_from_str
         Ok(dt)
     }
 }
