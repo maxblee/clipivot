@@ -38,7 +38,7 @@
 //! in `csvpivot`, taking a closer look at `ParsingHelper`, `ParsingType`, and `DateFormatter` might be helpful.
 
 use crate::errors::{CsvCliResult, CsvCliError};
-use chrono::{Datelike, NaiveDateTime};
+use chrono::{Datelike, NaiveDateTime, NaiveDate};
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 use std::fmt;
@@ -66,6 +66,7 @@ pub struct DateFormatter {
     parser: dtparse::Parser,
     pub parsing_info: dtparse::ParserInfo,
     default_date: NaiveDateTime,
+    date_format: Option<String>,
 }
 
 impl fmt::Debug for DateFormatter {
@@ -90,42 +91,64 @@ impl Default for DateFormatter {
             parsing_info,
             parser,
             default_date,
+            date_format: None
         }
     }
 }
 
 impl DateFormatter {
     /// Converts string dates into datetimes or errors.
-    pub fn new(dayfirst: bool, yearfirst: bool) -> DateFormatter {
+    pub fn new(dayfirst: bool, yearfirst: bool, format: Option<&str>) -> DateFormatter {
         let mut base_formatter = DateFormatter::default();
+        if format.is_some() {
+            // https://users.rust-lang.org/t/convert-option-str-to-option-string/20533
+            base_formatter.date_format = format.map(String::from);
+        }
         base_formatter.parsing_info.dayfirst = dayfirst;
         base_formatter.parsing_info.yearfirst = yearfirst;
         base_formatter
     }
+
     pub fn parse(&self, new_val: &str, line_num: usize) -> CsvCliResult<NaiveDateTime> {
         // ignore tokens (not using in impl)
         // TODO handle offsets/timezones
         // TODO Currently fails on "01042007" formatted dates because of underlying dtparser/Python dateutil issue
         // (See https://github.com/dateutil/dateutil/issues/796 )
-        let (dt, _offset, _tokens) = self
-            .parser
-            .parse(
-                new_val,
-                Some(self.parsing_info.dayfirst),
-                Some(self.parsing_info.yearfirst),
-                false,
-                false,
-                Some(&self.default_date),
-                false,
-                &HashMap::new(),
-            )
-            .or(Err(CsvCliError::ParsingError {
-                line_num, str_to_parse: new_val.to_string(),
-                err: "Failed to parse datetime".to_string()
-    }))?;
-    // TODO: NaiveDateTime formatting for optional performance benefit
-    // possible : NaiveDateTime::parse_from_str
-        Ok(dt)
+        match &self.date_format {
+            Some(str_format) => {
+                let format_w_time = NaiveDateTime::parse_from_str(new_val, &str_format);
+                match format_w_time {
+                    Ok(datetime_format) => Ok(datetime_format),
+                    Err(_) => {
+                        NaiveDate::parse_from_str(new_val, &str_format)
+                            .and_then(|v| Ok(v.and_hms(0, 0, 0)))
+                            .or(Err(CsvCliError::ParsingError {
+                                line_num, str_to_parse: new_val.to_string(),
+                                err: "Failed to parse datetime".to_string()
+                            }))
+                    }
+                }
+            },
+            None => {
+                let (dt, _offset, _tokens) = self
+                    .parser
+                    .parse(
+                        new_val,
+                        Some(self.parsing_info.dayfirst),
+                        Some(self.parsing_info.yearfirst),
+                        false,
+                        false,
+                        Some(&self.default_date),
+                        false,
+                        &HashMap::new(),
+                    )
+                    .or(Err(CsvCliError::ParsingError {
+                        line_num, str_to_parse: new_val.to_string(),
+                        err: "Failed to parse datetime".to_string()
+                    }))?;
+                Ok(dt)
+            }
+        }
     }
 }
 /// Stores information about the type of data appearing in the values column
@@ -156,9 +179,9 @@ impl Default for ParsingHelper {
 
 impl ParsingHelper {
     /// This method is used by `CliConfig` to initialize the `ParsingHelper` the `Aggregator` uses.
-    pub fn from_parsing_type(parsing: ParsingType, dayfirst: bool, yearfirst: bool) -> ParsingHelper {
+    pub fn from_parsing_type(parsing: ParsingType, dayfirst: bool, yearfirst: bool, date_format: Option<&str>) -> ParsingHelper {
         let date_helper = match parsing {
-            ParsingType::DateTypes(_) => Some(DateFormatter::new(dayfirst, yearfirst)),
+            ParsingType::DateTypes(_) => Some(DateFormatter::new(dayfirst, yearfirst, date_format)),
             _ => None,
         };
         ParsingHelper {

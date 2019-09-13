@@ -54,7 +54,10 @@ args:
       short: c
       takes_value: true
       multiple: true
-
+  - format:
+      help: The format of a date field (e.g. %Y-%m-%d for dates like 2010-09-21)
+      short: F
+      takes_value: true
   - value:
       help: The name of the field used to determine the value (e.g. id for most count operations).\nAccepts String fieldnames or 0-indexed fields
       long: val

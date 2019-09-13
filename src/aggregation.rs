@@ -319,11 +319,12 @@ impl<U: AggregationMethod> CliConfig<U> {
     /// Gets the `ParsingHelper` object for `Aggregator` based on command-line arguments.
     fn get_parser(&self, arg_matches: &ArgMatches) -> ParsingHelper {
         let parse_numeric = arg_matches.is_present("numeric");
-        let infer_date = arg_matches.is_present("infer");
+        let infer_date = arg_matches.is_present("infer") || arg_matches.is_present("format");
         let dayfirst = arg_matches.is_present("dayfirst");
         let yearfirst = arg_matches.is_present("yearfirst");
         let parse_type = self.get_parsing_approach(parse_numeric, infer_date);
-        ParsingHelper::from_parsing_type(parse_type, dayfirst, yearfirst)
+        let date_format = arg_matches.value_of("format");
+        ParsingHelper::from_parsing_type(parse_type, dayfirst, yearfirst, date_format)
             .parse_empty_vals(!arg_matches.is_present("empty"))
     }
 

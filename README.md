@@ -348,18 +348,27 @@ value. This has the advantage of being considerably faster than converting all o
 (i.e. some variant of YYYY-MM-DD or YY-MM-DD). All of which is to say you probably shouldn't run `min` or `max` under their string conditions unless you are only doing so to get a general sense of the date range of your data; you *really* trust the people who cleaned the data; or you tested all of the data against a regular expression
 using a tool like `grep`.
 
-Alternatively, `csvpivot` can convert dates into datetimes using Rust's [`dtparse`](https://docs.rs/dtparse/1.0.3/dtparse/) library,
-which is a port of Python's [`dateutil`](https://dateutil.readthedocs.io/en/stable/parser.html) parser. This will take
-any date and try to convert it into a datetime object. It will parse a lot more kinds of dates, but at a considerable performance cost.
+Alternatively, `csvpivot` can convert dates into datetimes using one of two options.
 
-You can also pass the `--year-first` or `--day-first` flags to `csvpivot` to alter how `csvpivot` interprets ambiguous dates like
+First of all, you can pass the `-F` flag, along with a specification for how your datetimes are formatted.
+This uses the string formatting options from Rust's `chrono` crate, which can be found 
+[here](https://docs.rs/chrono/0.4.9/chrono/format/strftime/index.html).
+
+This requires you to know how your dates are formatted and know or be willing to look up string formatting specifiers.
+But it allows you to deal with a complicated set of date formatting options, and it runs faster than the second option.
+
+You can also use the `-i` flag, which tries to automatically parse dates into datetimes. This uses Rust's
+[`dtparse`](https://docs.rs/dtparse/1.0.3/dtparse/) library,
+which is a port of Python's [`dateutil`](https://dateutil.readthedocs.io/en/stable/parser.html) parser. This will take
+any date and try to convert it into a datetime object. 
+
+If you are using the `-i` flag, you can also pass the `--year-first` or `--day-first` flags to `csvpivot` to alter how `csvpivot` interprets ambiguous dates like
 `01-05-09`. These function like the dateutil parser's `dayfirst`
-and `yearfirst` options, and I'd recommend visiting the dateutil
-documentation to learn more about how they function.
+and `yearfirst` options, and I'd recommend visiting the dateutil documentation to learn more about how they function.
 
 In order to get this date parsing behavior for `min` and `max`,
-you need to use the `-i` flag. The behavior comes by default for `range`, which *cannot* parse strings without serializing them
-into datetime objects.
+you need to use the `-i` flag or the `-F`. `range`, which *cannot* parse strings without serializing them
+into datetime objects, uses the `-i` flag by default. But you can alternatively use the `-F` flag.
 
 ### Delimiters
 
