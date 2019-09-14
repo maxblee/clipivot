@@ -1,11 +1,30 @@
-//! The `aggregation` module is part of `csvpivot` that works directly with command-line arguments.
+//! The `aggregation` module is the part of `csvpivot` that works directly with command-line arguments.
 //!
-//! Once you pass command-line arguments to the program, the `run` method in this module creates a
-//! `CliConfig` object. The `CliConfig` object then creates an `Aggregator` object. That `Aggregator` object
-//! then holds the data you're aggregating, passing off parsing and computational tasks
-//! to the `aggfunc` and `parsing` modules. Then, the `run` method calls `CliConfig`'s `run_config` method,
-//! which runs a final validation of your command-line arguments before telling the aggregator to aggregate the
-//! CSV file, line by line. Upon completion, the `Aggregator` object also writes your results to standard output.
+//! The structure is conceptually simple. First, we validate the command-line arguments, using
+//! the `CliConfig` struct. Then, for each row in the dataset, we parse (or deserialize) the row
+//! using the `ParsingHelper` struct before creating or updating
+//! records based on methods implemented by the `AggregationMethod` trait. Finally, we go through our
+//! aggregated records set, cell by cell, and use the `to_output` method from the `AggregationMethod` trait
+//! to convert the aggregation record into a string and write the strings into standard output.
+//!
+//! To figure out how it works, imagine we are running a pivot table using the `sum` function:
+//! 
+//! 1. First, the `run` method will tell us to create a `CliConfig<Sum>` object. 
+//!
+//! 2. Then, the `CliConfig` `run_config` method, which is called by the `run` method, will
+//! validate all of the arguments we entered in the command line, before passing the work to the `Aggregator`
+//! struct, which is responsible for creating the aggregations row by row.
+//!
+//! 3. For each new row that comes in, the `Aggregator` will convert the value in our values column
+//! into a `Decimal` type using the `ParsingHelper` struct.
+//!
+//! 4. Then, the `Aggregator` struct will update the value inside its `aggregations` attribute using
+//! the `Sum.new(&parsed_val)` and `Sum.update(&parsed_val)` functions.
+//!
+//! 5. When we are ready to output the values, the `Aggregator` struct will call the `Sum.to_output()`
+//! method, which will convert each cell into a String.
+//!
+//! 6. Finally, the `Aggregator` struct will write the results to standard output.
 
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -19,7 +38,12 @@ use clap::ArgMatches;
 
 const FIELD_SEPARATOR: &str = "_<sep>_";
 
-/// The main struct for aggregating CSV files
+/// The main tool for creating aggregations.
+///
+/// At a base level, this reads csv files, row by row, using the helper struct `ParsingHelper`
+/// and a struct implementing the`AggregationMethod` trait to build the aggregations.
+/// Once it has built these aggregations, it goes row by row using `AggregationMethod` to write the
+/// computed records to standard output.
 #[derive(Debug, PartialEq)]
 pub struct Aggregator<T>
 where
@@ -57,20 +81,20 @@ impl<T: AggregationMethod> Aggregator<T> {
     }
 
     /// Creates a new `Aggregator` object from a `ParsingHelper` object.
-    /// This is used to initialize the `Aggregator` within `CliConfig`
+    /// This is used to initialize the `Aggregator` within `CliConfig`.
     pub fn from_parser(parser: ParsingHelper) -> Aggregator<T> {
         let mut agg = Aggregator::new();
         agg.parser = parser;
         agg
     }
 
-    /// Sets the indexes of the `Aggregator`
+    /// Sets the indexes of the `Aggregator`.
     pub fn set_indexes(&mut self, new_indexes: Vec<usize>) -> &mut Aggregator<T> {
         self.index_cols = new_indexes;
         self
     }
 
-    /// Adds the list of columns to the aggregator
+    /// Adds the list of columns to the aggregator.
     pub fn set_columns(&mut self, new_cols: Vec<usize>) -> &mut Aggregator<T> {
         self.column_cols = new_cols;
         self
@@ -100,10 +124,6 @@ impl<T: AggregationMethod> Aggregator<T> {
     /// was formatted or because the values/columns/indexes
     /// handed to the aggregator from the command line refer to
     /// fields that do not exist.
-    ///
-    /// Additionally, the aggregator currently only supports valid UTF-8
-    /// data, so it won't work on all CSV files. I'd eventually like to support
-    /// all ASCII data.
     pub fn aggregate_from_file(
         &mut self,
         mut rdr: csv::Reader<fs::File>,
@@ -136,10 +156,8 @@ impl<T: AggregationMethod> Aggregator<T> {
         Ok(())
     }
 
-    /// Once I've added all of the records to the dataset, I use this method to
-    /// write them to standard output. The function adds a header based on all of the unique
-    /// strings appearing in the columns column. Then, it parses the data, cell by cell
-    /// and writes the data, row by row, to standard output.
+    /// This method goes cell by cell and serializes the data inside the `Aggregator.aggregations`
+    /// attribute and outputs them into standard output.
     pub fn write_results(&self) -> CsvCliResult<()> {
         let mut wtr = csv::Writer::from_writer(io::stdout());
         let mut header = vec![""];
@@ -233,7 +251,7 @@ impl<T: AggregationMethod> Aggregator<T> {
     }
 }
 
-/// This struct is intended for converting from Clap's `ArgMatches` to the `Aggregator` struct
+/// Validates command-line arguments, before moving control of the program to the `Aggregator` struct.
 #[derive(Debug, PartialEq)]
 pub struct CliConfig<U>
 where
@@ -265,7 +283,7 @@ impl<U: AggregationMethod> CliConfig<U> {
             settings: CsvSettings::default(),
         }
     }
-    /// Takes argument matches from main and tries to convert them into CliConfig
+    /// Takes command-line arguments and tries to convert them into a `CliConfig` object, returning an error on failure.
     pub fn from_arg_matches(arg_matches: ArgMatches) -> CsvCliResult<CliConfig<U>> {
         let base_config: CliConfig<U> = CliConfig::new();
         let values_col = arg_matches.value_of("value").unwrap().to_string(); // unwrap safe because required arg

@@ -4,16 +4,23 @@
 //! > [this error handling guide](https://blog.burntsushi.net/rust-error-handling)
 //! > and from the source code of the [csv crate](https://github.com/BurntSushi/rust-csv)
 //! > in Rust. If you're hoping to implement you're own library or binary in Rust,
-//! > I highly recommend both (and, especiialy, the guide).
+//! > I highly recommend looking at both (and, especiialy, the guide).
 //!
 //! You can characterize all four error types in two general categories: 
 //! errors configuring the CSV reader and errors parsing individual lines.
 //! For errors relating to configuration, my goal is simply to be as specific
 //! and clear as possible about the nature of a given error. For errors relating to
 //! parsing, however, I also think it's important to display record numbers to help
-//! users debug errors they run into. Currently, this refers to the 1-indexed number in
-//! which a record appears in a CSV document. So record 5 of a CSV would be the sixth line
-//! of a CSV with a header row (again, 1-indexed) and the fifth line of a CSV without a header row.
+//! users debug errors they run into. Currently, this refers to the 0-indexed number in
+//! which a record appears in a CSV document. So record 5 of a CSV would be the seventh line
+//! of a CSV with a header row and the sixth line of a CSV without a header row.
+//!
+//! This indexing plan is meant to interact nicely with the `xsv slice` subcommand in the
+//! `xsv`[https://github.com/BurntSushi/xsv] toolkit. So if you run into an error, you can type:
+//! ```shell
+//! $ xsv slice YOUR_FILENAME -i <RECORD_NUMBER>
+//! ```
+//! to see the full line that caused you to run into an error.
 //!
 //! If you plan on altering the error handling in `csvpivot`, whether because you think
 //! a particular error message is confusing or because the current program panics under some condition(s),
@@ -34,7 +41,8 @@ pub type CsvCliResult<T> = result::Result<T, CsvCliError>;
 pub enum CsvCliError {
     /// Errors from reading a CSV file. 
     ///
-    /// This should be limited to inconsistencies in the number of lines appearing in a given row.
+    /// This should be limited to inconsistencies in the number of lines appearing in a given row
+    /// or errors parsing data as UTF-8.
     CsvError(csv::Error),
     /// Errors in the initial configuration from command-line arguments.
     ///

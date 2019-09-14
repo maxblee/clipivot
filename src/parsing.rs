@@ -1,8 +1,8 @@
-//! The module for parsing through text records.
+//! The module for deserializing text records.
 //!
 //! This module interacts with the `Aggregator` class
 //! from the `aggregation` module. Every time we add a new record into the aggregator,
-//! we parse it first, serializing the record into a given value.
+//! we parse it first, deserializing the record into a given value.
 //! 
 //! Right now, there are four different types we can parse records into,
 //! represented by the `ParsingType` enum. The floating point and numeric types
@@ -13,11 +13,11 @@
 //!
 //! In addition, we have a `ParsingType` enum for text, which basically just converts `&str` splices
 //! into `String` objects, and a `DateType` `ParsingType` enum which converts string dates into
-//! datetimes using `dtparse`, Rust's equivalent of the Python `dateutil` parser.
+//! datetimes using `dtparse`, Rust's equivalent of the Python `dateutil` parser, or `chrono`.
 //!
 //! Finally, there are the two structs that do the heavy lifting, `ParsingHelper` and `DateFormatter`.
 //! The `Aggregator` struct passes each value in the values column field as a string to the `ParsingHelper`.
-//! The `ParsingHelper` will then serialize the string based on its settings, before handing the final, serialized
+//! The `ParsingHelper` will then deserialize the string based on its settings, before handing the final
 //! object back to the `Aggregator`. (Then, the `Aggregator` passes those values to one of the structs
 //! implementing the `AggregationMethod` trait.) And finally, the `DateFormatter` serves as a helper struct
 //! for `ParsingHelper`, providing settings for parsing dates to the `ParsingHelper`.
@@ -53,11 +53,13 @@ pub enum ParsingType {
     /// This is used for most numeric calculations. The Decimal type prevents truncation errors from
     /// unnecessarily reducing the accuracy of your calculations.
     Numeric(Option<Decimal>),
-    /// This is used for numeric operations involving minimum and maximum, as well as standard deviation
+    /// This is used for numeric operations involving standard deviation
     FloatingPoint(Option<f64>),
-    /// This is used for parsing date types. Its implementation is fairly slow. For this reason,
-    /// calculating minimum or maximum on ISO-formatted dates (e.g. 2019-08-12) can use either
-    /// dates or Strings. (And I recommend you use strings if you are dealing with ISO-formatted dates.)
+    /// This is used for parsing date types. Its implementation can be fairly slow.
+    ///
+    /// However, you can improve performance by either using `ISO`-formatted dates (e.g. YYYY-MM-DD),
+    /// which sort as strings, when calculating minimum or maximum or by using the `-F` flag
+    /// and specifying the formatting of your dates.
     DateTypes(Option<NaiveDateTime>),
 }
 
@@ -109,6 +111,7 @@ impl DateFormatter {
         base_formatter
     }
 
+    /// Tries to convert a string value into a datetime, given the `DateFormatter` settings, returning an error if it fails.
     pub fn parse(&self, new_val: &str, line_num: usize) -> CsvCliResult<NaiveDateTime> {
         // ignore tokens (not using in impl)
         // TODO handle offsets/timezones
@@ -151,8 +154,7 @@ impl DateFormatter {
         }
     }
 }
-/// Stores information about the type of data appearing in the values column
-/// of your pivot table.
+/// Parses new records into `ParsingType` values.
 #[derive(Debug, PartialEq)]
 pub struct ParsingHelper {
     /// Represents the type of data `ParsingHelper` will convert `&str` records
@@ -314,7 +316,7 @@ mod tests {
             "2003.01.03",
             "Jan. 3, 2003",
         ];
-        let helper = ParsingHelper::from_parsing_type(ParsingType::DateTypes(None), false, false);
+        let helper = ParsingHelper::from_parsing_type(ParsingType::DateTypes(None), false, false, None);
         for date in parsable_dates {
             let parsed_opt_date = helper.parse_val(date, 0)?;
             let parsed_date = match parsed_opt_date {

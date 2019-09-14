@@ -5,7 +5,7 @@
 //! The basic concept of that trait is simple: Each aggregation function must have
 //! a way of defining what type of function it is, using the `AggTypes` enum and declaring
 //! its type using the `get_aggtypes` method. They must also have a way of creating a new object
-//! and a way of adding new data points. And they must have
+//! and a way of updating when new data comes in. And they must have
 //! a way of converting from a `struct` into a final string output, using `to_output`.
 //!
 //! You can find more details in both the `AggTypes` enum and the `AggregationMethod` API. But as you might
@@ -31,6 +31,7 @@
 //! }
 //! ```
 //! to the bottom of `run`.
+//!
 //! 5. Update the `get_parsing_approach` method within `CliConfig` so that the parsing
 //! struct attached to `csvpivot` knows how to interpret new records. (In order to make sense
 //! of this struct, you'll probably need to look at the `AggregationMethod` API and possibly
@@ -55,17 +56,17 @@ pub enum AggTypes {
     CountUnique,
     /// Computes the maximum value of the records, or the most recent date.
     Maximum,
-    /// Computes a mean of the records
+    /// Computes a mean of the records.
     Mean,
-    /// Computes the median of the records
+    /// Computes the median of the records.
     Median,
-    /// Computes the minimum value of the records
+    /// Computes the minimum value of the records.
     Minimum,
-    /// Computes the mode, in insertion order
+    /// Computes the mode, in insertion order.
     Mode,
-    /// Finds the difference between the minimum and maximum value
+    /// Finds the difference between the minimum and maximum value.
     Range,
-    /// Sums the records
+    /// Sums the records.
     Sum,
     /// Computes the sample standard deviation of the matching records.
     ///
@@ -321,7 +322,7 @@ impl AggregationMethod for Minimum {
     }
 }
 
-/// This counts the total number of records
+/// This counts the total number of records.
 #[derive(Debug, PartialEq)]
 pub struct Count {
     /// Represents the number of matching records
@@ -345,7 +346,7 @@ impl AggregationMethod for Count {
     }
 }
 
-/// This counts the total number of unique records aggregated
+/// This counts the total number of unique records aggregated.
 pub struct CountUnique {
     /// A HashSet containing all of the unique values encountered so far
     vals: HashSet<String>,
@@ -385,7 +386,7 @@ impl AggregationMethod for CountUnique {
     }
 }
 
-/// Sums up all of the values among the aggregated records
+/// Sums up all of the values among the aggregated records.
 pub struct Sum {
     /// The current total. Uses a Decimal type to avoid floating point truncation errors.
     cur_total: Decimal,
@@ -419,11 +420,11 @@ impl AggregationMethod for Sum {
     }
 }
 
-/// Computes the standard deviation in a single pass, using
-/// [Welford's algorithm](https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm)
+/// Computes the *sample* standard deviation in a single pass, using
+/// [Welford's algorithm](https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm).
 
 /// The attributes in this method refer to the same ones described in
-/// *Accuracy and Stability of Numerical Algorithms* by Higham (2nd Edition, page 11)
+/// *Accuracy and Stability of Numerical Algorithms* by Higham (2nd Edition, page 11).
 pub struct StdDev {
     // solution from Nicholas Higham: Accuracy and Stability of Numerical Algorithms
     // Second Edition, 2002, p. 11

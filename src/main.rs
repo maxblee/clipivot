@@ -6,8 +6,8 @@
 //! development, read on.
 //!
 //! In particular, I strongly advise you to read the brief bit at the top of the page for the
-//! `aggfunc` module. That bit should provide you with enough of a sense of the overall structure of
-//! `csvpivot` to help you knowledgeably explore the tool.
+//! `aggregation` module. That bit should show you how `csvpivot` is structured, so you can
+//! more knowledgeably explore the tool.
 //!
 //! # How to help
 //! Regardless of your programming experience, you can help make `csvpivot` a better tool.
@@ -26,6 +26,11 @@
 //! - Testing: I've tried to have robust testing for this tool, but text data and (barely existent)
 //! CSV standards are both full of edge cases. So if there are any additional tests you think the program
 //! needs, let me know or make a pull request.
+//! - Coverage Testing: If you're familiar with coverage testing schemes in Rust, I'd love your help.
+//! Right now, I don't have any coverage testing on this crate because the one coverage testing tool
+//! I've gotten working in stable Rust panics when I include property-based tests from Rust's
+//! `proptest` crate. 
+//! (This is because of a bug in Rust's compiler; see more [here](https://github.com/xd009642/tarpaulin/issues/161).)
 //!
 //! ## Doesn't require programming experience
 //! - Bugs: If something in this program doesn't work like you think it's supposed to, please let me know.
@@ -40,8 +45,8 @@
 //! note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 //! ```
 //! 
-//! The only exceptions I can think of are that summation and other mathematical operations can techinically
-//! result in overflows, and that some of the algorithms can potentially cause you to run out of memory.
+//! The only exceptions I can think of are that some of the mathematical operations can techinically
+//! result in overflows, and that all of the algorithms can potentially cause you to run out of memory.
 //! But both of those examples should be exceptionally rare (even when dealing with datasets larger than your RAM),
 //! so if you ever run into a panic, please send me a bit of information about the query you ran so I can fix this.
 //!
@@ -52,7 +57,7 @@
 //! let me know and I'll consider whether or not I think it makes sense to add the feature.
 //!
 //! # Development Environment
-//! In order to contribute, first clone the repository to install the source code:
+//! In order to contribute code, first clone the repository to install the source code:
 //!
 //! ```sh
 //! $ git clone https://github.com/maxblee/csvpivot
@@ -67,26 +72,21 @@
 //! to run tests.
 //! ## Formatting
 //! In addition, I use `clippy` to lint code and `rustfmt` to automatically format code.
-//! And finally, I run coverage tests using `cargo-tarpaulin`.
+//! 
 //!
 //! To install them, type
 //! ```sh
 //! $ rustup update
 //! $ rustup component add rustfmt --toolchain stable
 //! $ rustup component add clippy --toolchain stable
-//! $ cargo install cargo-tarpaulin
 //! ``` 
 //! And from there, you can run `rustfmt` with
 //! ```sh
 //! $ cargo fmt --all
 //! ```
-//! `clippy` with
+//! and `clippy` with
 //! ```sh
 //! $ cargo clippy
-//! ```
-//! and `cargo-tarpaulin` with
-//! ```sh
-//! $ cargo-tarpaulin tarpaulin --line -o Html
 //! ```
 //! # Contact me
 //! To get in touch with me about `csvpivot`, send me an email at <maxbmhlee@gmail.com> or submit an issue on

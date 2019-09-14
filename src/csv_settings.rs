@@ -26,14 +26,15 @@ impl Default for CsvSettings {
 }
 
 impl CsvSettings {
-    /// Tries to create a new CSVSettings struct. Returns an error otherwise
+    /// Tries to create a new CSVSettings struct. Returns an error if it fails to parse the delimiter.
+    /// (If this happens, it is likely because the delimiter **must be a single UTF-8 byte.**)
     pub fn parse_new(fname: &Option<&str>, delim: Option<&str>, has_header: bool) -> CsvCliResult<CsvSettings> {
         let delimiter = CsvSettings::parse_delimiter(&fname, delim)?;
         let settings = CsvSettings { delimiter, has_header };
         Ok(settings)
     }
 
-    /// Returns a `csv::Reader` 
+    /// Returns a `csv::Reader` object from a filepath, returning an error if the file doesn't exist.
     pub fn get_reader_from_path(&self, filename: &str) -> csv::Result<csv::Reader<fs::File>> {
         csv::ReaderBuilder::new()
             .delimiter(self.delimiter)
@@ -42,6 +43,7 @@ impl CsvSettings {
             .from_path(filename)
     }
 
+    /// Returns a `csv::Reader` object from standard input.
     pub fn get_reader_from_stdin(&self) -> csv::Reader<io::Stdin> {
         csv::ReaderBuilder::new()
             .delimiter(self.delimiter)
@@ -82,7 +84,7 @@ impl CsvSettings {
     }
 
     /// Returns a single index where a single string appears. Allows you to validate a single column, rather
-    /// than multiple columns
+    /// than multiple columns.
     pub fn get_column_from_header_descriptions(&self, colname: &str, headers: &Vec<&str>) -> CsvCliResult<usize> {
         let infered_num = match self.get_numeric_index(&colname) {
             Some(num) if num < headers.len() => Ok(Some(num)),
