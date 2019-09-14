@@ -495,7 +495,7 @@ of the mean and standard deviation functions (in `tests/test_numerical_accuracy.
 
 ## Developer Guide
 Now that you've used `csvpivot`, do you want to help make it better?
-I've concocted a [developer guide](https://docs.rs/csvpivot/0.0.1/index.html) with some suggestions of things I'd like to see
+I've concocted a [developer guide](https://docs.rs/csvpivot/0.1.0/index.html) with some suggestions of things I'd like to see
 improved. The guide is designed to allow people with no coding experience,
 people who have written code but haven't written any Rust, and people who
 have written code in Rust to help. So don't by any means feel like you're not
