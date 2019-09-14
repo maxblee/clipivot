@@ -8,20 +8,20 @@ settings:
 args:
   - aggfunc:
       help: "The function you use to run across the pivot table.
-      \nThe functions fit into three main categories: numeric, textual, and type independent.
+      \nThe functions fit into three main categories: numeric, textual, and type-independent.
       \n- Numeric functions parse records as numbers, raising an error if it can't identify a number.
-      \n\t- `mean` computes a mean across the matching records
-      \n\t- `median` computes the median of the matching records
-      \n\t- `stddev` computes the sample standard deviation of the matching records
-      \n\t- `sum` sums the values
+      \n\t- mean computes a mean across the matching records
+      \n\t- median computes the median of the matching records
+      \n\t- stddev computes the sample standard deviation of the matching records
+      \n\t- sum sums the values
       \n- Textual functions parse everything as text
-      \n\t-`count` counts all of the individual records; it operates independently from the values
-      \n\t-`countunique` counts all of the unique records.
-      \n\t-`mode` determines the mode (the most commonly appearing value), in insertion order in the case of a tie
-      \n- Type independent functions have a default parsing method that can be overridden with the `-i` or `-N` flags
-      \n\t-`max` computes the maximum value. Defaults to strings (mainly for YYYYMMDD HHMMSS date formats)
-      \n\t-`min` works identically to `max` but for computing the minimum value (or oldest date)
-      \n\t-`range` computes the difference between `min` and `max`. Only works for valid numeric and date formats.
+      \n\t- count counts all of the individual records; it operates independently from the values
+      \n\t- countunique counts all of the unique records.
+      \n\t- mode determines the mode (the most commonly appearing value), in insertion order in the case of a tie
+      \n- Type-independent functions have a default parsing method that can be overridden with the `-i` or `-N` flags
+      \n\t- max computes the maximum value. Defaults to strings (mainly for YYYYMMDD HHMMSS date formats)
+      \n\t- min works identically to max but for computing the minimum value (or oldest date)
+      \n\t- range computes the difference between `min` and `max`. Only works for valid numeric and date formats.
       \n"
       required: true
       index: 1
@@ -42,14 +42,14 @@ args:
       index: 2
 
   - rows:
-      help: The name of the index(es) to aggregate on. Accepts String fieldnames or 0-indexed fields.
+      help: The name of the index(es) to aggregate on. Accepts string fieldnames or 0-indexed fields.
       long: rows
       short: r
       takes_value: true
       multiple: true
 
   - columns:
-      help: The name of the column(s) to aggregate on. Accepts String fieldnames or 0-indexed fields.
+      help: The name of the column(s) to aggregate on. Accepts string fieldnames or 0-indexed fields.
       long: cols
       short: c
       takes_value: true
@@ -59,16 +59,16 @@ args:
       short: F
       takes_value: true
   - value:
-      help: The name of the field used to determine the value (e.g. id for most count operations).\nAccepts String fieldnames or 0-indexed fields
+      help: The name of the field you want to apply the aggregation function to.
       long: val
       short: v
       takes_value: true
       required: true
   - numeric:
-      help: Parses the type independent functions as numbers
+      help: Parses the type-independent functions as numbers
       short: N
   - infer:
-      help: Infers the type/date format of type independent functions
+      help: Infers the type/date format of type-independent functions
       short: i
   - empty:
       help: Ignores empty/null values (e.g. "", NULL, NaN, etc.)

@@ -144,11 +144,10 @@ from stanard input and filepaths and prints to standard output,
 allowing you to pipe it into and out of other command-line programs.
 
 `csvpivot` also makes it extremely easy to perform analyses on large datasets, including datasets that exceed the RAM on your computer.
-I used the tool to analyze [the 80 GB ARCCOS dataset](https://www.washingtonpost.com/graphics/2019/investigations/dea-pain-pill-database/) the Washington Post acquired on my computer, which has 16 GB of RAM. In all, it took me about 10 minutes to create a CSV of the total number of oxycodone and
+I used the tool to analyze [the 80 GB ARCCOS dataset](https://www.washingtonpost.com/graphics/2019/investigations/dea-pain-pill-database/) the Washington Post acquired on my laptop, which has 16 GB of RAM. In all, it took me about 10 minutes (with the data stored in an HDD external drive) to create a CSV of the total number of oxycodone and
 hydrocodone pills flowing into each ZIP code in
-the United States between 2006 and 2012. That's far less time than
-it would take me to figure out how to split the data into chunks
-using `pandas`.
+the United States between 2006 and 2012. And I didn't have to change any settings to get it to work,
+like I would've had to in `pandas`.
 
 Beyond that, if you're already working at the command line, it can
 simply be convenient to stay there.
@@ -188,39 +187,39 @@ FLAGS:
                         https://dateutil.readthedocs.io/en/stable/parser.html for details.
     -e                  Ignores empty/null values (e.g. "", NULL, NaN, etc.)
     -h, --help          Prints help information
-    -i                  Infers the type/date format of type independent functions
+    -i                  Infers the type/date format of type-independent functions
         --no-header     Used when the CSV file does not have a header row
-    -N                  Parses the type independent functions as numbers
+    -N                  Parses the type-independent functions as numbers
     -t                  Fields are tab-separated (equivalent of setting delimiter to '\t')
     -V, --version       Prints version information
         --year-first    In ambiguous datetimes, parses the year first. See
                         https://dateutil.readthedocs.io/en/stable/parser.html for details.
 
 OPTIONS:
-    -c, --cols <columns>...    The name of the column(s) to aggregate on. Accepts String fieldnames or 0-indexed fields.
+    -c, --cols <columns>...    The name of the column(s) to aggregate on. Accepts string fieldnames or 0-indexed fields.
     -d, --delim <delim>        The delimiter used to separate fields (defaults to ',')
-    -r, --rows <rows>...       The name of the index(es) to aggregate on. Accepts String fieldnames or 0-indexed fields.
-    -v, --val <value>          The name of the field used to determine the value (e.g. id for most count
-                               operations).\nAccepts String fieldnames or 0-indexed fields
+    -F <format>                The format of a date field (e.g. %Y-%m-%d for dates like 2010-09-21)
+    -r, --rows <rows>...       The name of the index(es) to aggregate on. Accepts string fieldnames or 0-indexed fields.
+    -v, --val <value>          The name of the field you want to apply the aggregation function to.
 
 ARGS:
     <aggfunc>     The function you use to run across the pivot table. 
-                  The functions fit into three main categories: numeric, textual, and type independent. 
+                  The functions fit into three main categories: numeric, textual, and type-independent. 
                   - Numeric functions parse records as numbers, raising an error if it can't identify a number. 
-                        - `mean` computes a mean across the matching records 
-                        - `median` computes the median of the matching records 
-                        - `stddev` computes the sample standard deviation of the matching records 
-                        - `sum` sums the values 
+                  	- mean computes a mean across the matching records 
+                  	- median computes the median of the matching records 
+                  	- stddev computes the sample standard deviation of the matching records 
+                  	- sum sums the values 
                   - Textual functions parse everything as text 
-                        -`count` counts all of the individual records; it operates independently from the values 
-                        -`countunique` counts all of the unique records. 
-                        -`mode` determines the mode (the most commonly appearing value), in insertion order in the case of
+                  	- count counts all of the individual records; it operates independently from the values 
+                  	- countunique counts all of the unique records. 
+                  	- mode determines the mode (the most commonly appearing value), in insertion order in the case of
                   a tie 
-                  - Type independent functions have a default parsing method that can be overridden with the `-i` or
+                  - Type-independent functions have a default parsing method that can be overridden with the `-i` or
                   `-N` flags 
-                        -`max` computes the maximum value. Defaults to strings (mainly for YYYYMMDD HHMMSS date formats) 
-                        -`min` works identically to `max` but for computing the minimum value (or oldest date) 
-                        -`range` computes the difference between `min` and `max`. Only works for valid numeric and date
+                  	- max computes the maximum value. Defaults to strings (mainly for YYYYMMDD HHMMSS date formats) 
+                  	- min works identically to max but for computing the minimum value (or oldest date) 
+                  	- range computes the difference between `min` and `max`. Only works for valid numeric and date
                   formats. 
                    [values: count, countunique, max, mean, median, min, mode, range, stddev, sum]
     <filename>    The path to the delimited file you want to create a pivot table from
@@ -375,7 +374,8 @@ into datetime objects, uses the `-i` flag by default. But you can alternatively 
 You can also tell `csvpivot` to use something other than commas
 as a field delimiter. By default, `csvpivot` will assume that files
 ending with the `.tsv` or `.tab` extensions are tab-delimited,
-while other files are assumed to be comma-separated. However, both of those can be overriden. You can select any other single ASCII character as a delimiter using the `-d` option, or you can use the
+while other files are assumed to be comma-separated. However, both of those can be overriden. You can select any other 
+single-byte UTF-8 character as a delimiter using the `-d` option, or you can use the
 `-t` flag to choose to read tabs as the file dilimiter.
 
 **Note: The file extension tool only works when `csvpivot` is
@@ -453,7 +453,8 @@ to use the `-t` flag when piping in a TSV file from standard input).
 ```sh
 Could not parse record `NA` with index 167: Failed to parse as numeric type
 ```
-This can be a sign that your file has some null or empty values in it,or that it is not as well-formatted as you might have hoped.
+This can be a sign that your file has some null or empty values in it,
+or that it is not as well-formatted as you might have hoped.
 
 It can also be a sign that `csvpivot` is trying to parse your data in a different format than you expected (for instance, that it is trying to parse a bunch of strings as dates for the range function, when
 you want it to parse everything as a number.)
@@ -494,15 +495,15 @@ of the mean and standard deviation functions (in `tests/test_numerical_accuracy.
 
 ## Developer Guide
 Now that you've used `csvpivot`, do you want to help make it better?
-I've concocted a guide (TODO) with some suggestions of things I'd like to see
+I've concocted a [developer guide](https://docs.rs/csvpivot/0.0.1/index.html) with some suggestions of things I'd like to see
 improved. The guide is designed to allow people with no coding experience,
-people who have written code in languages other than Rust, and people who
+people who have written code but haven't written any Rust, and people who
 have written code in Rust to help. So don't by any means feel like you're not
 qualified to improve this project. 
 
-And I really mean that: If you can't even figure out what this program does
-after reading the `--help` message and this guide, you can make `csvpivot`'s
-documentation better. Just contact me and let me know what's confusing you.
+And I really mean that. People who don't have much (or any) coding experience
+are likely going to be better able at showing me where `csvpivot`'s documentation
+needs to be improved than developers with years of experience.
 
 ## Contact Me
 If you have any questions about `csvpivot` or if you have identified any bugs in the program or you want
