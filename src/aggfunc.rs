@@ -200,8 +200,11 @@ impl AggregationMethod for Range {
             }
             (ParsingType::DateTypes(Some(min)), ParsingType::DateTypes(Some(max))) => {
                 let duration = max.signed_duration_since(*min);
-                let days = duration.num_seconds() as f64 / 86400.;
-                format!("{}", days)
+                let days = Decimal::new(duration.num_seconds(), 1)
+                    .checked_div(Decimal::new(86400, 1)).unwrap();
+                // let days = duration.num_seconds() as f64 / 86400.;
+                // format!("{}", days)
+                days.to_string()
             }
             _ => "".to_string(),
         }
@@ -697,6 +700,7 @@ mod tests {
     use approx::assert_abs_diff_eq;
     use rand::prelude::*;
     use std::str::FromStr;
+    use chrono::NaiveDate;
 
     #[test]
     fn adding_count_creates_single_count() {
@@ -714,6 +718,7 @@ mod tests {
     fn adding_unique_count_creates_single_count() {
         let uncount = CountUnique::new(&ParsingType::Text(Some("record".to_string())));
         assert_eq!(uncount.vals.len(), 1);
+        assert_eq!(uncount.to_output(), "1".to_string());
     }
 
     #[test]
@@ -722,6 +727,7 @@ mod tests {
         let mut uncount = CountUnique::new(myrecord);
         uncount.update(myrecord);
         assert_eq!(uncount.vals.len(), 1);
+        assert_eq!(uncount.to_output(), "1".to_string());
     }
 
     #[test]
@@ -731,6 +737,7 @@ mod tests {
         let mut uncount = CountUnique::new(record1);
         uncount.update(record2);
         assert_eq!(uncount.vals.len(), 2);
+        assert_eq!(uncount.to_output(), "2".to_string());
     }
 
     // testing standard deviation performance
@@ -767,6 +774,12 @@ mod tests {
             error_prone_stddev.compute().unwrap(),
             epsilon = 1e-7
         );
+    }
+
+    #[test]
+    fn test_one_value_stddev_is_empty() {
+        let mut dev = StdDev::new(&ParsingType::FloatingPoint(Some(1.0)));
+        assert_eq!(dev.to_output(), "".to_string());
     }
 
     // test median
@@ -901,6 +914,70 @@ mod tests {
             minimum.update(&parsing_val);
         }
         assert_eq!(minimum.to_output(), "2".to_string());
+    }
+
+    #[test]
+    fn test_minimum_string() {
+        let str_dates = vec!["2010-01-20".to_string(), "2010-02-10".to_string(), "2009-12-31".to_string()];
+        let mut min_str = Minimum::new(&ParsingType::Text(Some("2010-01-18".to_string())));
+        for date in str_dates {
+            min_str.update(&ParsingType::Text(Some(date)));
+        }
+        assert_eq!(min_str.to_output(), "2009-12-31".to_string());
+    }
+
+    #[test]
+    fn test_maximum_string() {
+        let str_dates = vec!["2010-01-20".to_string(), "2010-02-10".to_string(), "2009-12-31".to_string()];
+        let mut max_str = Maximum::new(&ParsingType::Text(Some("2010-01-18".to_string())));
+        for date in str_dates {
+            max_str.update(&ParsingType::Text(Some(date)));
+        }
+        assert_eq!(max_str.to_output(), "2010-02-10".to_string());
+    }
+
+    fn get_dates_for_date_aggfuncs() -> Vec<ParsingType> {
+        // Returns a vector of ParsingType::DateType objects for Range and Min and Max funcs
+        let first_parse = ParsingType::DateTypes(Some(NaiveDate::from_ymd(2017, 1, 30).and_hms(0, 0, 0)));
+        let second_parse = ParsingType::DateTypes(Some(NaiveDate::from_ymd(2016, 12, 15).and_hms(0, 0, 0)));
+        let third_parse = ParsingType::DateTypes(Some(NaiveDate::from_ymd(2016, 12, 15).and_hms(0, 1, 12)));
+        vec![first_parse, second_parse, third_parse]
+    }
+
+    #[test]
+    fn test_minimum_date_finds_earliest_date() {
+        let parsed_dates = get_dates_for_date_aggfuncs();
+        let mut min_date = Minimum::new(&parsed_dates[0]);
+        min_date.update(&parsed_dates[1]);
+        min_date.update(&parsed_dates[2]);
+        assert_eq!(min_date.to_output(), "2016-12-15 00:00:00".to_string());
+    }
+
+    #[test]
+    fn test_maximum_date_finds_latest_date() {
+        let parsed_dates = get_dates_for_date_aggfuncs();
+        let mut max_date = Maximum::new(&parsed_dates[0]);
+        max_date.update(&parsed_dates[1]);
+        max_date.update(&parsed_dates[2]);
+        assert_eq!(max_date.to_output(), "2017-01-30 00:00:00".to_string());
+    }
+
+    #[test]
+    fn test_range_finds_diff_in_days() {
+        // makes sure the range with dates finds the number of days between min and max
+        let parsed_dates = get_dates_for_date_aggfuncs();
+        let mut range_date = Range::new(&parsed_dates[0]);
+        range_date.update(&parsed_dates[1]);
+        range_date.update(&parsed_dates[2]);
+        assert_eq!(range_date.to_output(), "46".to_string())
+    }
+
+    #[test]
+    fn test_range_finds_partial_diff() {
+        // makes sure the range works properly with HMS (ie DateTime instead of Date)
+        let mut range_date = Range::new(&ParsingType::DateTypes(Some(NaiveDate::from_ymd(2016,1,1).and_hms(1,12,13))));
+        range_date.update(&ParsingType::DateTypes(Some(NaiveDate::from_ymd(2016,1,1).and_hms(7,12,13))));
+        assert_eq!(range_date.to_output(), "0.25".to_string());
     }
 
     #[test]

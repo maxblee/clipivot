@@ -1,4 +1,4 @@
-//! This module tests the accuracy of all the numerical algorithms in `csvpivot`,
+//! This module tests the standard deviation and mean algorithms in `csvpivot`,
 //!
 //! In order to test the accuracy of the standard deviation and mean algorithms, I've used the
 //! Statistical Reference Datasets for univariate summary statistics
