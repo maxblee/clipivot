@@ -4,13 +4,21 @@ version = "0.1.0"
 authors = ["Max Lee <maxbmhlee@gmail.com>"]
 edition = "2018"
 license = "Apache-2.0"
+categories = ["command-line-utilities"]
+keywords = ["csv", "tsv", "cli"]
+readme = "README.md"
 
-[profile.dev]
+[profile.release]
 lto = "thin"
+
+[badges]
+
+maintenance = { status = "passively-maintained" }
+travis-ci = { repository = "maxblee/csvpivot" }
 
 
 [dependencies]
-clap = {version = "~2.27.0", features = ["yaml"]}
+clap = { version = "~2.27.0", features = ["yaml"] }
 chrono = "0.4"
 csv = "1"
 dtparse = "1.0.3"
