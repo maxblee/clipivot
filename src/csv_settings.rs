@@ -6,11 +6,11 @@
 //! from the main `aggregation` module and from CliConfig is that I expect
 //! I'll wind up reusing this particular file in any future CSV CLIs I might build.
 
-use crate::errors::{CsvCliResult, CsvCliError};
+use crate::errors::{CsvCliError, CsvCliResult};
 use std::fs;
 use std::io;
 
-/// A structure defining the basic settings of a CSV file. 
+/// A structure defining the basic settings of a CSV file.
 #[derive(Debug, PartialEq)]
 pub struct CsvSettings {
     /// The column separator (e.g. '\t' for TSV files, ',' for CSV, etc.)
@@ -21,16 +21,26 @@ pub struct CsvSettings {
 
 impl Default for CsvSettings {
     fn default() -> CsvSettings {
-        CsvSettings { delimiter: b',', has_header: true }
+        CsvSettings {
+            delimiter: b',',
+            has_header: true,
+        }
     }
 }
 
 impl CsvSettings {
     /// Tries to create a new CSVSettings struct. Returns an error if it fails to parse the delimiter.
     /// (If this happens, it is likely because the delimiter **must be a single UTF-8 byte.**)
-    pub fn parse_new(fname: &Option<&str>, delim: Option<&str>, has_header: bool) -> CsvCliResult<CsvSettings> {
+    pub fn parse_new(
+        fname: &Option<&str>,
+        delim: Option<&str>,
+        has_header: bool,
+    ) -> CsvCliResult<CsvSettings> {
         let delimiter = CsvSettings::parse_delimiter(&fname, delim)?;
-        let settings = CsvSettings { delimiter, has_header };
+        let settings = CsvSettings {
+            delimiter,
+            has_header,
+        };
         Ok(settings)
     }
 
@@ -52,26 +62,26 @@ impl CsvSettings {
             .from_reader(io::stdin())
     }
 
-/// Parses the 1-byte value of a delimiter, for parsing as a CSV
-/// Taking from the excellent `xsv` command-line CSV toolkit, this function automatically
-/// assumes that `.tsv` and `.tab` files are tab-delimited, saving you the trouble of
-/// adding a `-t` or `-d` flag. It will return an error if you try to pass a multi-character
-/// string. 
-/// 
-/// **Note**, though, that what counts as a "character" for this function is really a single
-/// byte, so single characters like 'त' will return errors here.
+    /// Parses the 1-byte value of a delimiter, for parsing as a CSV
+    /// Taking from the excellent `xsv` command-line CSV toolkit, this function automatically
+    /// assumes that `.tsv` and `.tab` files are tab-delimited, saving you the trouble of
+    /// adding a `-t` or `-d` flag. It will return an error if you try to pass a multi-character
+    /// string.
+    ///
+    /// **Note**, though, that what counts as a "character" for this function is really a single
+    /// byte, so single characters like 'त' will return errors here.
     fn parse_delimiter(fname: &Option<&str>, delim: Option<&str>) -> CsvCliResult<u8> {
         // Some(vec![u8]) if the user explicitly states a delimiter, None otherwise
         let explicit_delim = match delim {
             Some(r"\t") => Some(vec![b'\t']),
             Some(val) => Some(val.as_bytes().to_vec()),
-            None => None
+            None => None,
         };
         let expected_delim = match *fname {
             _ if explicit_delim.is_some() => explicit_delim.unwrap(),
-             // altered from https://github.com/BurntSushi/xsv/blob/master/src/config.rs
+            // altered from https://github.com/BurntSushi/xsv/blob/master/src/config.rs
             Some(fname) if fname.ends_with(".tsv") || fname.ends_with(".tab") => vec![b'\t'],
-            _ => vec![b',']
+            _ => vec![b','],
         };
         if expected_delim.len() != 1 {
             let msg = format!(
@@ -85,18 +95,21 @@ impl CsvSettings {
 
     /// Returns a single index where a single string appears. Allows you to validate a single column, rather
     /// than multiple columns.
-    pub fn get_column_from_header_descriptions(&self, colname: &str, headers: &Vec<&str>) -> CsvCliResult<usize> {
+    pub fn get_column_from_header_descriptions(
+        &self,
+        colname: &str,
+        headers: &Vec<&str>,
+    ) -> CsvCliResult<usize> {
         let infered_num = match self.get_numeric_index(&colname) {
             Some(num) if num < headers.len() => Ok(Some(num)),
-            Some(num) => {
-                Err(CsvCliError::InvalidConfiguration(
-                    format!("Could not properly configure. Column selection needs to be between 0 and `{}`", headers.len())
-                    ))
-            },
-            None if !self.has_header => {
-                Err(CsvCliError::InvalidConfiguration("Columns must be numeric if you don't have a header".to_string()))
-            },
-            None => Ok(None)
+            Some(_num) => Err(CsvCliError::InvalidConfiguration(format!(
+                "Could not properly configure. Column selection needs to be between 0 and `{}`",
+                headers.len()
+            ))),
+            None if !self.has_header => Err(CsvCliError::InvalidConfiguration(
+                "Columns must be numeric if you don't have a header".to_string(),
+            )),
+            None => Ok(None),
         }?;
         // TODO There's probably a way to handle this with combinators
         if infered_num.is_some() {
@@ -107,10 +120,14 @@ impl CsvSettings {
     }
 
     /// Given a vector of column descriptions, returns indexes where they appear
-    /// You can see a more complete description on [GitHub](https://www.github.com/maxblee/csvpivot), 
+    /// You can see a more complete description on [GitHub](https://www.github.com/maxblee/csvpivot),
     /// but at a basic level, the idea of this function is to allow users to
     /// describe columns either by their names or by their indexes.
-    pub fn get_indexes_from_header_descriptions(&self, user_defs: &Vec<&str>, headers: &Vec<&str>) -> CsvCliResult<Vec<usize>> {
+    pub fn get_indexes_from_header_descriptions(
+        &self,
+        user_defs: &Vec<&str>,
+        headers: &Vec<&str>,
+    ) -> CsvCliResult<Vec<usize>> {
         let mut output_vec = Vec::new();
         for user_input in user_defs {
             let all_cols = self.split_arg_string(user_input);
@@ -138,12 +155,8 @@ impl CsvSettings {
                     current_splice = String::new();
                     continue;
                 }
-            } else {
-                if c == '\'' || c == '\"' {
-                    if Some(c) == quote_char {
-                        quote_char = None;
-                    }
-                }
+            } else if (c == '\'' || c == '\"') && (Some(c) == quote_char) {
+                quote_char = None;
             }
             current_splice.push(c);
         }
@@ -168,6 +181,7 @@ impl CsvSettings {
         Some(parsed_str.parse().unwrap())
     }
 
+
     fn get_string_index(&self, colname: &str, headers: &Vec<&str>) -> CsvCliResult<usize> {
         // same implementation here as in `split_arg_string`
         let mut quote_char = None;
@@ -184,15 +198,13 @@ impl CsvSettings {
                     if c != ']' {
                         // append every character, even if we've passed the closing bracket
                         expected_order.push(c);
-                    } else { continue; }
-                } else {
-                    if c == '\'' || c == '\"' {
-                        quote_char = Some(c);
-                    } else if c != '[' {
-                        expected_header.push(c);
-                    } else {
-                        in_brackets = true;
                     }
+                } else if c == '\'' || c == '\"' {
+                    quote_char = Some(c);
+                } else if c != '[' {
+                    expected_header.push(c);
+                } else {
+                    in_brackets = true;
                 }
             } else {
                 if (c == '\'' || c == '\"') && Some(c) == quote_char {
@@ -203,41 +215,52 @@ impl CsvSettings {
             }
         }
         // TODO Figure out the best way to handle this; deserializing and reserializing isn't great
-        if expected_order.is_empty() { expected_order = "0".to_string(); }
-        let order = expected_order.parse::<usize>()
-            .or(Err(CsvCliError::InvalidConfiguration(
-                format!("Could not convert column name `{}`. Hint: consider enclosing the column in quotes", colname)
-                )))?;
+        if expected_order.is_empty() {
+            expected_order = "0".to_string();
+        }
+        let order = expected_order
+            .parse::<usize>()
+            .or_else(|_| Err(CsvCliError::InvalidConfiguration(format!(
+                "Could not convert column name `{}`. Hint: consider enclosing the column in quotes",
+                colname
+            ))))?;
         self.find_index_from_expected(&expected_header, order, headers)
     }
 
-    fn find_index_from_expected(&self, expected_header: &str, expected_order: usize, headers: &Vec<&str>) -> CsvCliResult<usize> {
+    fn find_index_from_expected(
+        &self,
+        expected_header: &str,
+        expected_order: usize,
+        headers: &Vec<&str>,
+    ) -> CsvCliResult<usize> {
         let mut count = 0;
         for (i, field) in headers.iter().enumerate() {
             if &expected_header == field {
-                if count == expected_order { 
+                if count == expected_order {
                     return Ok(i);
                 }
                 count += 1;
             }
         }
-        Err(CsvCliError::InvalidConfiguration(format!("Could not find `{}` in header row", expected_header)))
+        Err(CsvCliError::InvalidConfiguration(format!(
+            "Could not find `{}` in header row",
+            expected_header
+        )))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::panic;
     use proptest::prelude::*;
-    use clap::ArgMatches;
+    use std::panic;
 
     // adapted from https://altsysrq.github.io/proptest-book/proptest/getting-started.html
     proptest! {
         #[test]
         fn delimiter_never_panics(s in "\\PC*") {
             let result = panic::catch_unwind(|| {
-                let settings = CsvSettings::parse_new(&None, Some(&s), true);
+                let _settings = CsvSettings::parse_new(&None, Some(&s), true);
             });
             assert!(result.is_ok());
         }
@@ -296,18 +319,30 @@ mod tests {
     #[test]
     fn test_split_single_str() {
         let settings = CsvSettings::default();
-        assert_eq!(settings.split_arg_string("FIELDNAME"),
-            vec!["FIELDNAME".to_string()]);
-        assert_eq!(settings.split_arg_string("\'FIELDNAME\'"),
-            vec!["\'FIELDNAME\'".to_string()]);
-        assert_eq!(settings.split_arg_string("\'FIELDNAME,a\'"),
-            vec!["\'FIELDNAME,a\'".to_string()]);
-        assert_eq!(settings.split_arg_string("\'FIELDNAME,a\',a"),
-            vec!["\'FIELDNAME,a\'".to_string(), "a".to_string()]);
-        assert_eq!(settings.split_arg_string("a,b"),
-            vec!["a".to_string(), "b".to_string()]);
-        assert_eq!(settings.split_arg_string("\"FIELDNAME\',a"),
-            vec!["\"FIELDNAME\',a".to_string()]);
+        assert_eq!(
+            settings.split_arg_string("FIELDNAME"),
+            vec!["FIELDNAME".to_string()]
+        );
+        assert_eq!(
+            settings.split_arg_string("\'FIELDNAME\'"),
+            vec!["\'FIELDNAME\'".to_string()]
+        );
+        assert_eq!(
+            settings.split_arg_string("\'FIELDNAME,a\'"),
+            vec!["\'FIELDNAME,a\'".to_string()]
+        );
+        assert_eq!(
+            settings.split_arg_string("\'FIELDNAME,a\',a"),
+            vec!["\'FIELDNAME,a\'".to_string(), "a".to_string()]
+        );
+        assert_eq!(
+            settings.split_arg_string("a,b"),
+            vec!["a".to_string(), "b".to_string()]
+        );
+        assert_eq!(
+            settings.split_arg_string("\"FIELDNAME\',a"),
+            vec!["\"FIELDNAME\',a".to_string()]
+        );
     }
 
     #[test]
@@ -318,25 +353,40 @@ mod tests {
             "FIELDNAME1",
             "FIELDNAME2[0]",
             "FIELDNAME2[0]",
-            ""
+            "",
         ];
         let settings = CsvSettings::default();
         assert_eq!(settings.get_string_index("FIELDNAME1", &header).unwrap(), 0);
         assert!(settings.get_string_index("BLABLABLA", &header).is_err());
-        assert_eq!(settings.get_string_index("FIELDNAME1[1]", &header).unwrap(), 2);
-        assert_eq!(settings.get_string_index("'FIELDNAME2[0]'", &header).unwrap(), 3);
-        assert_eq!(settings.get_string_index("'FIELDNAME2[0]'[1]", &header).unwrap(), 4);
-        assert!(settings.get_string_index("'FIELDNAME2[0]'[2]", &header).is_err());
-        assert!(settings.get_string_index("FIELDNAME2[0][0]", &header).is_err());
+        assert_eq!(
+            settings.get_string_index("FIELDNAME1[1]", &header).unwrap(),
+            2
+        );
+        assert_eq!(
+            settings
+                .get_string_index("'FIELDNAME2[0]'", &header)
+                .unwrap(),
+            3
+        );
+        assert_eq!(
+            settings
+                .get_string_index("'FIELDNAME2[0]'[1]", &header)
+                .unwrap(),
+            4
+        );
+        assert!(settings
+            .get_string_index("'FIELDNAME2[0]'[2]", &header)
+            .is_err());
+        assert!(settings
+            .get_string_index("FIELDNAME2[0][0]", &header)
+            .is_err());
     }
 
     #[test]
     // makes sure that 'Nd' and other numerical unicode characters that are not [0-9] fail to parse
     fn test_non_ascii_unicode_digits_fail_numeric_parsing() {
         // sampled from http://www.fileformat.info/info/unicode/category
-        let invalid_n_chars = vec![
-            "۳", "᠐", "ᛯ", "Ⅿ", "¼", "౸"
-        ];
+        let invalid_n_chars = vec!["۳", "᠐", "ᛯ", "Ⅿ", "¼", "౸"];
         let settings = CsvSettings::default();
         for inv_char in invalid_n_chars {
             assert!(settings.get_numeric_index(inv_char).is_none());
@@ -352,7 +402,9 @@ mod tests {
     #[test]
     fn test_no_header_doesnt_parse() {
         let no_header_set = CsvSettings::parse_new(&None, None, false).unwrap();
-        let header_row = vec!["a","b"];
-        assert!(no_header_set.get_indexes_from_header_descriptions(&vec!["a"], &header_row).is_err());
+        let header_row = vec!["a", "b"];
+        assert!(no_header_set
+            .get_indexes_from_header_descriptions(&vec!["a"], &header_row)
+            .is_err());
     }
 }

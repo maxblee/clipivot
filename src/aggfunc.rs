@@ -1,6 +1,6 @@
 //! The `aggfunc` module is the part of the code base for `csvpivot` that
 //! applies a function to the values column of the data.
-//! 
+//!
 //! All of the functions rely on the `AggregationMethod` trait in order to operate.
 //! The basic concept of that trait is simple: Each aggregation function must have
 //! a way of defining what type of function it is, using the `AggTypes` enum and declaring
@@ -10,7 +10,7 @@
 //!
 //! You can find more details in both the `AggTypes` enum and the `AggregationMethod` API. But as you might
 //! imagine from that description, the impetus behind this design is to allow you to form an
-//! aggregation using as little memory as possible. The design is also intended to allow you to create 
+//! aggregation using as little memory as possible. The design is also intended to allow you to create
 //! aggregations from streaming records in a single pass, when possible, while also allowing for some amount
 //! of flexibility in cases where a single-pass algorithm doesn't make sense because of memory constraints
 //! or because it's impossible to implement. And of all these functions, the only one that does not
@@ -27,7 +27,7 @@
 //! ```rust
 //! else if aggfunc == "mynewfunction" {
 //!     let mut config : CliConfig<MyNewFunction> = CliConfig::from_arg_matches(arg_matches)?;
-//!     config.run_config()?;   
+//!     config.run_config()?;
 //! }
 //! ```
 //! to the bottom of `run`.
@@ -128,7 +128,7 @@ pub trait AggregationMethod {
     fn to_output(&self) -> String;
 }
 
-/// The AggregationMethod for computing range. 
+/// The AggregationMethod for computing range.
 ///
 /// This method returns the difference between the minimum and maximum values
 /// accumulated. In the case of numeric data, the meaning of this should be obvious.
@@ -201,7 +201,8 @@ impl AggregationMethod for Range {
             (ParsingType::DateTypes(Some(min)), ParsingType::DateTypes(Some(max))) => {
                 let duration = max.signed_duration_since(*min);
                 let days = Decimal::new(duration.num_seconds(), 1)
-                    .checked_div(Decimal::new(86400, 1)).unwrap();
+                    .checked_div(Decimal::new(86400, 1))
+                    .unwrap();
                 // let days = duration.num_seconds() as f64 / 86400.;
                 // format!("{}", days)
                 days.to_string()
@@ -677,7 +678,9 @@ impl Median {
         // It can only be at the lower of the two values if
         // a) we have an even number of records AND b) we didn't pass through
         // the median (where the median would *technically* be the mean of cur_val and cur_val
-        if (self.num % 2) == 0 && ((cur_count as f64) - (self.num as f64 / 2.)).abs() < std::f64::EPSILON {
+        if (self.num % 2) == 0
+            && ((cur_count as f64) - (self.num as f64 / 2.)).abs() < std::f64::EPSILON
+        {
             // iter.next() will always be Some(_) because this is always initialized with
             // a single value
             // checked_add I should maybe find a robust alternative to unwrap for
@@ -698,9 +701,9 @@ impl Median {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
+    use chrono::NaiveDate;
     use rand::prelude::*;
     use std::str::FromStr;
-    use chrono::NaiveDate;
 
     #[test]
     fn adding_count_creates_single_count() {
@@ -778,7 +781,7 @@ mod tests {
 
     #[test]
     fn test_one_value_stddev_is_empty() {
-        let mut dev = StdDev::new(&ParsingType::FloatingPoint(Some(1.0)));
+        let dev = StdDev::new(&ParsingType::FloatingPoint(Some(1.0)));
         assert_eq!(dev.to_output(), "".to_string());
     }
 
@@ -918,7 +921,11 @@ mod tests {
 
     #[test]
     fn test_minimum_string() {
-        let str_dates = vec!["2010-01-20".to_string(), "2010-02-10".to_string(), "2009-12-31".to_string()];
+        let str_dates = vec![
+            "2010-01-20".to_string(),
+            "2010-02-10".to_string(),
+            "2009-12-31".to_string(),
+        ];
         let mut min_str = Minimum::new(&ParsingType::Text(Some("2010-01-18".to_string())));
         for date in str_dates {
             min_str.update(&ParsingType::Text(Some(date)));
@@ -928,7 +935,11 @@ mod tests {
 
     #[test]
     fn test_maximum_string() {
-        let str_dates = vec!["2010-01-20".to_string(), "2010-02-10".to_string(), "2009-12-31".to_string()];
+        let str_dates = vec![
+            "2010-01-20".to_string(),
+            "2010-02-10".to_string(),
+            "2009-12-31".to_string(),
+        ];
         let mut max_str = Maximum::new(&ParsingType::Text(Some("2010-01-18".to_string())));
         for date in str_dates {
             max_str.update(&ParsingType::Text(Some(date)));
@@ -938,9 +949,12 @@ mod tests {
 
     fn get_dates_for_date_aggfuncs() -> Vec<ParsingType> {
         // Returns a vector of ParsingType::DateType objects for Range and Min and Max funcs
-        let first_parse = ParsingType::DateTypes(Some(NaiveDate::from_ymd(2017, 1, 30).and_hms(0, 0, 0)));
-        let second_parse = ParsingType::DateTypes(Some(NaiveDate::from_ymd(2016, 12, 15).and_hms(0, 0, 0)));
-        let third_parse = ParsingType::DateTypes(Some(NaiveDate::from_ymd(2016, 12, 15).and_hms(0, 1, 12)));
+        let first_parse =
+            ParsingType::DateTypes(Some(NaiveDate::from_ymd(2017, 1, 30).and_hms(0, 0, 0)));
+        let second_parse =
+            ParsingType::DateTypes(Some(NaiveDate::from_ymd(2016, 12, 15).and_hms(0, 0, 0)));
+        let third_parse =
+            ParsingType::DateTypes(Some(NaiveDate::from_ymd(2016, 12, 15).and_hms(0, 1, 12)));
         vec![first_parse, second_parse, third_parse]
     }
 
@@ -975,8 +989,12 @@ mod tests {
     #[test]
     fn test_range_finds_partial_diff() {
         // makes sure the range works properly with HMS (ie DateTime instead of Date)
-        let mut range_date = Range::new(&ParsingType::DateTypes(Some(NaiveDate::from_ymd(2016,1,1).and_hms(1,12,13))));
-        range_date.update(&ParsingType::DateTypes(Some(NaiveDate::from_ymd(2016,1,1).and_hms(7,12,13))));
+        let mut range_date = Range::new(&ParsingType::DateTypes(Some(
+            NaiveDate::from_ymd(2016, 1, 1).and_hms(1, 12, 13),
+        )));
+        range_date.update(&ParsingType::DateTypes(Some(
+            NaiveDate::from_ymd(2016, 1, 1).and_hms(7, 12, 13),
+        )));
         assert_eq!(range_date.to_output(), "0.25".to_string());
     }
 

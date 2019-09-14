@@ -11,7 +11,7 @@
 //!
 //! # How to help
 //! Regardless of your programming experience, you can help make `csvpivot` a better tool.
-//! 
+//!
 //! ## Requires programming experience
 //! - Performance: I've tried to design `csvpivot` to be reasonably performant, but I'm sure there
 //! are places where performance could be optimized. If you have any suggestions, I'd love to hear them.
@@ -21,7 +21,7 @@
 //! adding items from a stream and it is more memory efficient than other algorithms I'm aware of.
 //! But let me know if you're aware of a way to improve the speed of the median computation
 //! while maintaining the best case memory efficiency of `BTreeMap`.)
-//! - Coding style: This is my first project in Rust, so I'm sure there are parts of the code 
+//! - Coding style: This is my first project in Rust, so I'm sure there are parts of the code
 //! that are not idiomatic in Rust or that are poorly structured.
 //! - Testing: I've tried to have robust testing for this tool, but text data and (barely existent)
 //! CSV standards are both full of edge cases. So if there are any additional tests you think the program
@@ -29,7 +29,7 @@
 //! - Coverage Testing: If you're familiar with coverage testing schemes in Rust, I'd love your help.
 //! Right now, I don't have any coverage testing on this crate because the one coverage testing tool
 //! I've gotten working in stable Rust panics when I include property-based tests from Rust's
-//! `proptest` crate. 
+//! `proptest` crate.
 //! (This is because of a bug in Rust's compiler; see more [here](https://github.com/xd009642/tarpaulin/issues/161).)
 //!
 //! ## Doesn't require programming experience
@@ -44,7 +44,7 @@
 //! thread 'main' panicked at 'explicit_panic', src/main.rs:5:1
 //! note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 //! ```
-//! 
+//!
 //! The only exceptions I can think of are that some of the mathematical operations can techinically
 //! result in overflows, and that all of the algorithms can potentially cause you to run out of memory.
 //! But both of those examples should be exceptionally rare (even when dealing with datasets larger than your RAM),
@@ -67,27 +67,30 @@
 //!
 //! ```sh
 //! $ cargo test
-//! ``` 
+//! ```
 //!
 //! to run tests.
 //! ## Formatting
 //! In addition, I use `clippy` to lint code and `rustfmt` to automatically format code.
-//! 
+//!
 //!
 //! To install them, type
 //! ```sh
 //! $ rustup update
 //! $ rustup component add rustfmt --toolchain stable
 //! $ rustup component add clippy --toolchain stable
-//! ``` 
+//! ```
 //! And from there, you can run `rustfmt` with
 //! ```sh
 //! $ cargo fmt --all
 //! ```
 //! and `clippy` with
 //! ```sh
-//! $ cargo clippy
+//! $ cargo clippy -- -A clippy::ptr_arg
 //! ```
+//! **Note that I am ignoring the `clippy::ptr_arg` warning, which raises a warning
+//! when you put a `&Vec<T>` into a function call.
+//!
 //! # Contact me
 //! To get in touch with me about `csvpivot`, send me an email at <maxbmhlee@gmail.com> or submit an issue on
 //! the GitHub page.
@@ -100,10 +103,9 @@ use std::process;
 
 pub mod aggfunc;
 pub mod aggregation;
+pub mod csv_settings;
 pub mod errors;
 pub mod parsing;
-pub mod csv_settings;
-
 
 fn main() {
     let yaml_file = load_yaml!("cli.yml");

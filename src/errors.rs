@@ -1,12 +1,12 @@
 //! The module for describing recoverable errors in `csvpivot`.
 //!
-//! > *Note:* All of the error handling for `csvpivot` is structured from 
+//! > *Note:* All of the error handling for `csvpivot` is structured from
 //! > [this error handling guide](https://blog.burntsushi.net/rust-error-handling)
 //! > and from the source code of the [csv crate](https://github.com/BurntSushi/rust-csv)
 //! > in Rust. If you're hoping to implement you're own library or binary in Rust,
 //! > I highly recommend looking at both (and, especiialy, the guide).
 //!
-//! You can characterize all four error types in two general categories: 
+//! You can characterize all four error types in two general categories:
 //! errors configuring the CSV reader and errors parsing individual lines.
 //! For errors relating to configuration, my goal is simply to be as specific
 //! and clear as possible about the nature of a given error. For errors relating to
@@ -24,7 +24,7 @@
 //!
 //! If you plan on altering the error handling in `csvpivot`, whether because you think
 //! a particular error message is confusing or because the current program panics under some condition(s),
-//! I want you to stick to this approach. 
+//! I want you to stick to this approach.
 
 extern crate csv;
 
@@ -39,7 +39,7 @@ pub type CsvCliResult<T> = result::Result<T, CsvCliError>;
 
 #[derive(Debug)]
 pub enum CsvCliError {
-    /// Errors from reading a CSV file. 
+    /// Errors from reading a CSV file.
     ///
     /// This should be limited to inconsistencies in the number of lines appearing in a given row
     /// or errors parsing data as UTF-8.
@@ -48,11 +48,10 @@ pub enum CsvCliError {
     ///
     /// This error likely occurs most frequently because of problems in how fields are named
     /// but can also occur because of errors parsing delimiters as single UTF-8 characters.
-
     InvalidConfiguration(String),
     /// A standard IO error. Typically from trying to read a file that does not exist
     Io(io::Error),
-    /// Errors trying to parse a new value. 
+    /// Errors trying to parse a new value.
 
     /// The way in which `csvpivot` parses values depends on the aggregation function
     /// and command-line flags, but all errors in converting the string records in the values
@@ -67,7 +66,7 @@ pub enum CsvCliError {
         /// The general error message. This is specific to the type of error, so failures to parse
         /// data as datetimes will tell you they failed to parse datetimes, etc.
         err: String,
-    }
+    },
 }
 
 impl fmt::Display for CsvCliError {
@@ -79,15 +78,15 @@ impl fmt::Display for CsvCliError {
             }
             CsvCliError::Io(ref err) => err.fmt(f),
             // adapted from https://github.com/BurntSushi/rust-csv/blob/master/src/error.rs
-            CsvCliError::ParsingError { line_num: ref line_num, str_to_parse: ref str_to_parse, err: ref err } => {
-                write!(
-                    f,
-                    "Could not parse record `{}` with index {}: {}",
-                    str_to_parse,
-                    line_num,
-                    err
-                )
-            },
+            CsvCliError::ParsingError {
+                ref line_num,
+                ref str_to_parse,
+                ref err,
+            } => write!(
+                f,
+                "Could not parse record `{}` with index {}: {}",
+                str_to_parse, line_num, err
+            ),
         }
     }
 }
@@ -98,8 +97,11 @@ impl Error for CsvCliError {
             CsvCliError::CsvError(ref err) => err.description(),
             CsvCliError::Io(ref err) => err.description(),
             CsvCliError::InvalidConfiguration(ref _err) => "could not configure the aggregator",
-            CsvCliError::ParsingError {line_num: ref _num, str_to_parse: ref _str,
-                err: ref _err } => "failed to parse values column",
+            CsvCliError::ParsingError {
+                line_num: ref _num,
+                str_to_parse: ref _str,
+                err: ref _err,
+            } => "failed to parse values column",
         }
     }
 }

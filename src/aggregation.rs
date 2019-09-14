@@ -8,8 +8,8 @@
 //! to convert the aggregation record into a string and write the strings into standard output.
 //!
 //! To figure out how it works, imagine we are running a pivot table using the `sum` function:
-//! 
-//! 1. First, the `run` method will tell us to create a `CliConfig<Sum>` object. 
+//!
+//! 1. First, the `run` method will tell us to create a `CliConfig<Sum>` object.
 //!
 //! 2. Then, the `CliConfig` `run_config` method, which is called by the `run` method, will
 //! validate all of the arguments we entered in the command line, before passing the work to the `Aggregator`
@@ -31,9 +31,9 @@ use std::fs;
 use std::io;
 
 use crate::aggfunc::*;
-use crate::errors::{CsvCliResult, CsvCliError};
-use crate::parsing::{ParsingHelper, ParsingType};
 use crate::csv_settings::CsvSettings;
+use crate::errors::CsvCliResult;
+use crate::parsing::{ParsingHelper, ParsingType};
 use clap::ArgMatches;
 
 const FIELD_SEPARATOR: &str = "_<sep>_";
@@ -44,7 +44,7 @@ const FIELD_SEPARATOR: &str = "_<sep>_";
 /// and a struct implementing the`AggregationMethod` trait to build the aggregations.
 /// Once it has built these aggregations, it goes row by row using `AggregationMethod` to write the
 /// computed records to standard output.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 pub struct Aggregator<T>
 where
     T: AggregationMethod,
@@ -124,14 +124,11 @@ impl<T: AggregationMethod> Aggregator<T> {
     /// was formatted or because the values/columns/indexes
     /// handed to the aggregator from the command line refer to
     /// fields that do not exist.
-    pub fn aggregate_from_file(
-        &mut self,
-        mut rdr: csv::Reader<fs::File>,
-    ) -> CsvCliResult<()> {
+    pub fn aggregate_from_file(&mut self, mut rdr: csv::Reader<fs::File>) -> CsvCliResult<()> {
         let mut line_num = 0;
         let mut record = csv::StringRecord::new();
         while rdr.read_record(&mut record)? {
-            self.add_record(&record, &line_num)?;
+            self.add_record(&record, line_num)?;
             line_num += 1;
         }
         Ok(())
@@ -143,14 +140,11 @@ impl<T: AggregationMethod> Aggregator<T> {
     ///
     /// In the spirit of DRY, I'm open to suggestions for refactoring this code. But
     /// it's not really pressing, since we're talking about 5-ish lines of code.
-    pub fn aggregate_from_stdin(
-        &mut self,
-        mut rdr: csv::Reader<io::Stdin>,
-    ) -> CsvCliResult<()> {
+    pub fn aggregate_from_stdin(&mut self, mut rdr: csv::Reader<io::Stdin>) -> CsvCliResult<()> {
         let mut line_num = 0;
         let mut record = csv::StringRecord::new();
         while rdr.read_record(&mut record)? {
-            self.add_record(&record, &line_num)?;
+            self.add_record(&record, line_num)?;
             line_num += 1;
         }
         Ok(())
@@ -188,13 +182,12 @@ impl<T: AggregationMethod> Aggregator<T> {
     }
 
     /// Adds a new record (row) to the aggregator.
-    fn add_record(&mut self, record: &csv::StringRecord, line_num: &usize) -> CsvCliResult<()> {
+    fn add_record(&mut self, record: &csv::StringRecord, line_num: usize) -> CsvCliResult<()> {
         // merges all of the index columns into a single column, separated by FIELD_SEPARATOR
         let indexnames = self.get_colname(&self.index_cols, &record);
         let columnnames = self.get_colname(&self.column_cols, &record);
         // CliConfig + csv crate do error handling that should prevent get from being None
-        let str_val = record
-            .get(self.values_col).unwrap();
+        let str_val = record.get(self.values_col).unwrap();
         // This isn't memory efficient, but it should be OK for now
         // (i.e. I should eventually get self.indexes and self.columns
         // be tied to self.aggregations, rather than cloned)
@@ -206,7 +199,7 @@ impl<T: AggregationMethod> Aggregator<T> {
             self.indexes.insert(indexnames.clone());
         }
 
-        let parsed_val = self.parser.parse_val(str_val, *line_num)?;
+        let parsed_val = self.parser.parse_val(str_val, line_num)?;
         // this determines how to add the data as it's being read
         if parsed_val.is_some() {
             self.update_aggregations(indexnames, columnnames, &parsed_val.unwrap());
@@ -216,11 +209,7 @@ impl<T: AggregationMethod> Aggregator<T> {
 
     /// Converts a vector of column indexes into a String. Used as a way to eliminate code duplication
     /// for the conversion of cells into values for the rows and columns of the final pivot table.
-    fn get_colname(
-        &self,
-        columns: &[usize],
-        record: &csv::StringRecord,
-    ) -> String {
+    fn get_colname(&self, columns: &[usize], record: &csv::StringRecord) -> String {
         let mut colnames: Vec<&str> = Vec::new();
         if columns.is_empty() {
             return "total".to_string();
@@ -266,9 +255,15 @@ where
     values_col: String,
     /// The name of the column(s) (or indexes) forming the columns of the final pivot table. vec![] if no columns.
     column_cols: Vec<String>,
-    /// The name of the column(s) (or indexes) forming the indexes of the final pivot table. 
+    /// The name of the column(s) (or indexes) forming the indexes of the final pivot table.
     indexes: Vec<String>,
     settings: CsvSettings,
+}
+
+impl<U: AggregationMethod> Default for CliConfig<U> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<U: AggregationMethod> CliConfig<U> {
@@ -300,8 +295,11 @@ impl<U: AggregationMethod> CliConfig<U> {
 
         let delim_vals = if let true = arg_matches.is_present("tab") {
             Some(r"\t")
-        } else { arg_matches.value_of("delim") };
-        let settings = CsvSettings::parse_new(&filename, delim_vals, !arg_matches.is_present("noheader"))?;
+        } else {
+            arg_matches.value_of("delim")
+        };
+        let settings =
+            CsvSettings::parse_new(&filename, delim_vals, !arg_matches.is_present("noheader"))?;
 
         let cfg = CliConfig {
             filename: filename.map(String::from),
@@ -309,7 +307,7 @@ impl<U: AggregationMethod> CliConfig<U> {
             values_col,
             indexes,
             column_cols,
-            settings
+            settings,
         };
         Ok(cfg)
     }
@@ -348,17 +346,19 @@ impl<U: AggregationMethod> CliConfig<U> {
 
     /// Validates the columns you enter with the `-c`/`cols`, `-v`/`--val`, and `-r`/`--rows`,
     /// and updates the `Aggregator` object so we can run aggregations.
-    // Note: the below function won't compile without taking only &Vec<&str> because of Iter::collect
-    #[allow(clippy::ptr_arg)]
     fn validate_columns(&mut self, headers: &Vec<&str>) -> CsvCliResult<()> {
         // validates the aggregation columns and then updates the aggregator
         let index_vec = self.settings.get_indexes_from_header_descriptions(
-            &self.indexes.iter().map(|v| v.as_ref()).collect(), headers
-            )?;
+            &self.indexes.iter().map(|v| v.as_ref()).collect(),
+            headers,
+        )?;
         let column_vec = self.settings.get_indexes_from_header_descriptions(
-            &self.column_cols.iter().map(|v| v.as_ref()).collect(), headers
-            )?;
-        let values_vec = self.settings.get_column_from_header_descriptions(&self.values_col, headers)?;
+            &self.column_cols.iter().map(|v| v.as_ref()).collect(),
+            headers,
+        )?;
+        let values_vec = self
+            .settings
+            .get_column_from_header_descriptions(&self.values_col, headers)?;
 
         // need self.aggregator = .. right now bc set_indexes etc return Self (rather than mutating)
         // TODO clean up method chaining to avoid this mess
@@ -373,7 +373,9 @@ impl<U: AggregationMethod> CliConfig<U> {
     pub fn run_config(&mut self) -> CsvCliResult<()> {
         if self.filename.is_some() {
             // unwrap safe because of `is_some` call
-            let mut rdr = self.settings.get_reader_from_path(&self.filename.clone().unwrap())?;
+            let mut rdr = self
+                .settings
+                .get_reader_from_path(&self.filename.clone().unwrap())?;
             let headers = rdr.headers()?;
             self.validate_columns(&headers.iter().collect())?;
             self.aggregator.aggregate_from_file(rdr)?;
@@ -444,7 +446,7 @@ mod tests {
             column_cols: vec![2, 3],
             values_col: 4,
         };
-        agg.add_record(&setup_simple_record(), &0).unwrap();
+        agg.add_record(&setup_simple_record(), 0).unwrap();
         agg
     }
 
@@ -452,13 +454,13 @@ mod tests {
         let mut agg = setup_simple_count();
         let second_vec = vec!["Nashville", "TN", "Predators", "Hockey", "Playoffs"];
         let second_record = csv::StringRecord::from(second_vec);
-        agg.add_record(&second_record, &0).unwrap();
+        agg.add_record(&second_record, 0).unwrap();
         let third_vec = vec!["Nashville", "TN", "Titans", "Football", "Bad"];
         let third_record = csv::StringRecord::from(third_vec);
-        agg.add_record(&third_record, &0).unwrap();
+        agg.add_record(&third_record, 0).unwrap();
         let fourth_vec = vec!["Columbus", "OH", "Blue Jackets", "Hockey", "Bad"];
         let fourth_record = csv::StringRecord::from(fourth_vec);
-        agg.add_record(&fourth_record, &0).unwrap();
+        agg.add_record(&fourth_record, 0).unwrap();
         agg
     }
 
@@ -478,8 +480,8 @@ mod tests {
             values_col: "0".to_string(),
             column_cols: vec!["1".to_string()],
             indexes: vec!["2".to_string()],
-            settings: CsvSettings::parse_new(&Some("test_csvs/one_liner"), 
-                Some(","), true).unwrap(),
+            settings: CsvSettings::parse_new(&Some("test_csvs/one_liner"), Some(","), true)
+                .unwrap(),
         }
     }
 
@@ -499,7 +501,8 @@ mod tests {
             values_col: "0".to_string(),
             column_cols: vec!["1".to_string()],
             indexes: vec!["3".to_string()],
-            settings: CsvSettings::parse_new(&Some("test_csvs/layoffs.csv"), Some(","), true).unwrap()
+            settings: CsvSettings::parse_new(&Some("test_csvs/layoffs.csv"), Some(","), true)
+                .unwrap(),
         }
     }
 
@@ -531,7 +534,10 @@ mod tests {
         // Makes sure the Config struct properly returns a CSV Reader
         // given a filepath
         let config = setup_one_liners();
-        let mut rdr = config.settings.get_reader_from_path(&config.filename.unwrap()).unwrap();
+        let mut rdr = config
+            .settings
+            .get_reader_from_path(&config.filename.unwrap())
+            .unwrap();
         let mut iter = rdr.records();
         if let Some(result) = iter.next() {
             let record = result.unwrap();

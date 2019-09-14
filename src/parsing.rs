@@ -3,7 +3,7 @@
 //! This module interacts with the `Aggregator` class
 //! from the `aggregation` module. Every time we add a new record into the aggregator,
 //! we parse it first, deserializing the record into a given value.
-//! 
+//!
 //! Right now, there are four different types we can parse records into,
 //! represented by the `ParsingType` enum. The floating point and numeric types
 //! both represent numeric data. As you might assume, the difference is in the types of data they hold.
@@ -32,13 +32,13 @@
 //! match U::get_aggtype {
 //!     AggTypes::Count => ParsingType::Text(None)
 //! ...
-//! }   
+//! }
 //! ```
 //! But in case you want to add new parsing types or alter the implementation of parsing
 //! in `csvpivot`, taking a closer look at `ParsingHelper`, `ParsingType`, and `DateFormatter` might be helpful.
 
-use crate::errors::{CsvCliResult, CsvCliError};
-use chrono::{Datelike, NaiveDateTime, NaiveDate};
+use crate::errors::{CsvCliError, CsvCliResult};
+use chrono::{Datelike, NaiveDate, NaiveDateTime};
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 use std::fmt;
@@ -93,7 +93,7 @@ impl Default for DateFormatter {
             parsing_info,
             parser,
             default_date,
-            date_format: None
+            date_format: None,
         }
     }
 }
@@ -122,16 +122,15 @@ impl DateFormatter {
                 let format_w_time = NaiveDateTime::parse_from_str(new_val, &str_format);
                 match format_w_time {
                     Ok(datetime_format) => Ok(datetime_format),
-                    Err(_) => {
-                        NaiveDate::parse_from_str(new_val, &str_format)
-                            .and_then(|v| Ok(v.and_hms(0, 0, 0)))
-                            .or(Err(CsvCliError::ParsingError {
-                                line_num, str_to_parse: new_val.to_string(),
-                                err: "Failed to parse datetime".to_string()
-                            }))
-                    }
+                    Err(_) => NaiveDate::parse_from_str(new_val, &str_format)
+                        .and_then(|v| Ok(v.and_hms(0, 0, 0)))
+                        .or_else(|_| Err(CsvCliError::ParsingError {
+                            line_num,
+                            str_to_parse: new_val.to_string(),
+                            err: "Failed to parse datetime".to_string(),
+                        })),
                 }
-            },
+            }
             None => {
                 let (dt, _offset, _tokens) = self
                     .parser
@@ -145,9 +144,10 @@ impl DateFormatter {
                         false,
                         &HashMap::new(),
                     )
-                    .or(Err(CsvCliError::ParsingError {
-                        line_num, str_to_parse: new_val.to_string(),
-                        err: "Failed to parse datetime".to_string()
+                    .or_else(|_| Err(CsvCliError::ParsingError {
+                        line_num,
+                        str_to_parse: new_val.to_string(),
+                        err: "Failed to parse datetime".to_string(),
                     }))?;
                 Ok(dt)
             }
@@ -181,7 +181,12 @@ impl Default for ParsingHelper {
 
 impl ParsingHelper {
     /// This method is used by `CliConfig` to initialize the `ParsingHelper` the `Aggregator` uses.
-    pub fn from_parsing_type(parsing: ParsingType, dayfirst: bool, yearfirst: bool, date_format: Option<&str>) -> ParsingHelper {
+    pub fn from_parsing_type(
+        parsing: ParsingType,
+        dayfirst: bool,
+        yearfirst: bool,
+        date_format: Option<&str>,
+    ) -> ParsingHelper {
         let date_helper = match parsing {
             ParsingType::DateTypes(_) => Some(DateFormatter::new(dayfirst, yearfirst, date_format)),
             _ => None,
@@ -193,7 +198,7 @@ impl ParsingHelper {
         }
     }
 
-        // the following approach to method chaining comes from
+    // the following approach to method chaining comes from
     // http://www.ameyalokare.com/rust/2017/11/02/rust-builder-pattern.html
     /// Adds the list of index columns to the default aggregator.
     /// (This approach to method chaining comes from
@@ -205,7 +210,7 @@ impl ParsingHelper {
 
     /// Parses a string from the `Aggregator`. Returns `Ok(Some(ParsingType))` if it a)
     /// doesn't run into an error and b) doesn't parse as empty; `Ok(None)` if it a)
-    /// doesn't run into an error but b) parses the string as empty; and 
+    /// doesn't run into an error but b) parses the string as empty; and
     /// `Err(CsvCliError)` if it can't parse the string.
     ///
     /// **Note** that it only determines that a cell is empty if you have set the program
@@ -241,8 +246,9 @@ impl ParsingHelper {
         let parsed_dt = match &self.date_helper {
             Some(helper) => helper.parse(new_val, line_num),
             None => Err(CsvCliError::ParsingError {
-                line_num, str_to_parse: new_val.to_string(),
-                err: "Failed to parse datetime".to_string()
+                line_num,
+                str_to_parse: new_val.to_string(),
+                err: "Failed to parse datetime".to_string(),
             }),
         }?;
         Ok(ParsingType::DateTypes(Some(parsed_dt)))
@@ -252,18 +258,20 @@ impl ParsingHelper {
     fn parse_numeric(new_val: &str, line_num: usize) -> CsvCliResult<ParsingType> {
         let dec = Decimal::from_str(new_val)
             .or_else(|_| Decimal::from_scientific(&new_val.to_ascii_lowercase())) // infer scientific notation on error
-            .or(Err(CsvCliError::ParsingError {
-                line_num, str_to_parse: new_val.to_string(),
-                err: "Failed to parse as numeric type".to_string()
+            .or_else(|_| Err(CsvCliError::ParsingError {
+                line_num,
+                str_to_parse: new_val.to_string(),
+                err: "Failed to parse as numeric type".to_string(),
             }))?;
         Ok(ParsingType::Numeric(Some(dec)))
     }
 
     /// Parses cells as floating point types.
     fn parse_floating(new_val: &str, line_num: usize) -> CsvCliResult<ParsingType> {
-        let num: f64 = new_val.parse().or(Err(CsvCliError::ParsingError {
-            line_num, str_to_parse: new_val.to_string(),
-            err: "Failed to parse floating point number".to_string()
+        let num: f64 = new_val.parse().or_else(|_| Err(CsvCliError::ParsingError {
+            line_num,
+            str_to_parse: new_val.to_string(),
+            err: "Failed to parse floating point number".to_string(),
         }))?;
         Ok(ParsingType::FloatingPoint(Some(num)))
     }
@@ -316,7 +324,8 @@ mod tests {
             "2003.01.03",
             "Jan. 3, 2003",
         ];
-        let helper = ParsingHelper::from_parsing_type(ParsingType::DateTypes(None), false, false, None);
+        let helper =
+            ParsingHelper::from_parsing_type(ParsingType::DateTypes(None), false, false, None);
         for date in parsable_dates {
             let parsed_opt_date = helper.parse_val(date, 0)?;
             let parsed_date = match parsed_opt_date {
