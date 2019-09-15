@@ -1,6 +1,6 @@
-//! The module for describing recoverable errors in `csvpivot`.
+//! The module for describing recoverable errors in `clipivot`.
 //!
-//! > *Note:* All of the error handling for `csvpivot` is structured from
+//! > *Note:* All of the error handling for `clipivot` is structured from
 //! > [this error handling guide](https://blog.burntsushi.net/rust-error-handling)
 //! > and from the source code of the [csv crate](https://github.com/BurntSushi/rust-csv)
 //! > in Rust. If you're hoping to implement you're own library or binary in Rust,
@@ -22,7 +22,7 @@
 //! ```
 //! to see the full line that caused you to run into an error.
 //!
-//! If you plan on altering the error handling in `csvpivot`, whether because you think
+//! If you plan on altering the error handling in `clipivot`, whether because you think
 //! a particular error message is confusing or because the current program panics under some condition(s),
 //! I want you to stick to this approach.
 
@@ -53,7 +53,7 @@ pub enum CsvCliError {
     Io(io::Error),
     /// Errors trying to parse a new value.
 
-    /// The way in which `csvpivot` parses values depends on the aggregation function
+    /// The way in which `clipivot` parses values depends on the aggregation function
     /// and command-line flags, but all errors in converting the string records in the values
     /// column into a particular data type result in a `ParsingError`.
     ParsingError {

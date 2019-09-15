@@ -22,7 +22,7 @@
 //! implementing the `AggregationMethod` trait.) And finally, the `DateFormatter` serves as a helper struct
 //! for `ParsingHelper`, providing settings for parsing dates to the `ParsingHelper`.
 //!
-//! Because `csvpivot` comes with support for parsing text, numeric data, and datetimes, you probably don't
+//! Because `clipivot` comes with support for parsing text, numeric data, and datetimes, you probably don't
 //! need to change anything in the `parsing` module in order to add a feature (assuming you want to add a feature).
 //! Instead, all you'll need to do is set how you want data to be parse in your new feature in the `get_parsing_approach`
 //! function from within the `aggregation` module (and specifically, from within the `CliConfig` struct). The
@@ -35,7 +35,7 @@
 //! }
 //! ```
 //! But in case you want to add new parsing types or alter the implementation of parsing
-//! in `csvpivot`, taking a closer look at `ParsingHelper`, `ParsingType`, and `DateFormatter` might be helpful.
+//! in `clipivot`, taking a closer look at `ParsingHelper`, `ParsingType`, and `DateFormatter` might be helpful.
 
 use crate::errors::{CsvCliError, CsvCliResult};
 use chrono::{Datelike, NaiveDate, NaiveDateTime};
@@ -44,7 +44,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 
-/// The types of data `csvpivot` parses. **Note** that `csvpivot` only parses the value column
+/// The types of data `clipivot` parses. **Note** that `clipivot` only parses the value column
 /// of your data set. (That is, the indexes and columns of your pivot table are purely parsed as strings.)
 #[derive(Debug, PartialEq)]
 pub enum ParsingType {

@@ -7,8 +7,8 @@ use std::env;
 // This function exists so Travis CI can run the integration tests
 fn get_program_name() -> String {
     match env::var("TARGET") {
-        Ok(target_loc) => format!("target/{}/debug/csvpivot", target_loc),
-        Err(_) => "./target/debug/csvpivot".to_string()
+        Ok(target_loc) => format!("target/{}/debug/clipivot", target_loc),
+        Err(_) => "./target/debug/clipivot".to_string()
     }
 }
 type SimpleCount = (String, usize);

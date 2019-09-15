@@ -1,4 +1,4 @@
-//! The `aggregation` module is the part of `csvpivot` that works directly with command-line arguments.
+//! The `aggregation` module is the part of `clipivot` that works directly with command-line arguments.
 //!
 //! The structure is conceptually simple. First, we validate the command-line arguments, using
 //! the `CliConfig` struct. Then, for each row in the dataset, we parse (or deserialize) the row
@@ -515,7 +515,7 @@ mod tests {
             .version(crate_version!())
             .author(crate_authors!())
             .get_matches_from(vec![
-                "csvpivot",
+                "clipivot",
                 "count",
                 "test_csvs/layoffs.csv",
                 "--rows=3",
@@ -559,7 +559,7 @@ mod tests {
             .version(crate_version!())
             .author(crate_authors!())
             .get_matches_from(vec![
-                "csvpivot",
+                "clipivot",
                 "count",
                 "test_csvs/one_liner.csv",
                 "--rows=0",

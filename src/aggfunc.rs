@@ -1,4 +1,4 @@
-//! The `aggfunc` module is the part of the code base for `csvpivot` that
+//! The `aggfunc` module is the part of the code base for `clipivot` that
 //! applies a function to the values column of the data.
 //!
 //! All of the functions rely on the `AggregationMethod` trait in order to operate.
@@ -33,7 +33,7 @@
 //! to the bottom of `run`.
 //!
 //! 5. Update the `get_parsing_approach` method within `CliConfig` so that the parsing
-//! struct attached to `csvpivot` knows how to interpret new records. (In order to make sense
+//! struct attached to `clipivot` knows how to interpret new records. (In order to make sense
 //! of this struct, you'll probably need to look at the `AggregationMethod` API and possibly
 //! the documentation for the `parsing` module.)
 

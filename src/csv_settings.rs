@@ -120,7 +120,7 @@ impl CsvSettings {
     }
 
     /// Given a vector of column descriptions, returns indexes where they appear
-    /// You can see a more complete description on [GitHub](https://www.github.com/maxblee/csvpivot),
+    /// You can see a more complete description on [GitHub](https://www.github.com/maxblee/clipivot),
     /// but at a basic level, the idea of this function is to allow users to
     /// describe columns either by their names or by their indexes.
     pub fn get_indexes_from_header_descriptions(

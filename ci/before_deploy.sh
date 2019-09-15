@@ -17,7 +17,7 @@ mk_tarball() {
     local out_dir=$(pwd)
 
     # NOTE All Cargo build artifacts will be under the 'target/$TARGET/{debug,release}'
-    cp target/$TARGET/release/csvpivot $td
+    cp target/$TARGET/release/clipivot $td
 
     pushd $td
 

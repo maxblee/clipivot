@@ -1,13 +1,13 @@
-# csvpivot
-`csvpivot` is a tool for creating pivot tables from the command line. It's designed to be fast and memory-efficient so it can be used to
+# clipivot
+`clipivot` is a tool for creating pivot tables from the command line. It's designed to be fast and memory-efficient so it can be used to
 aggregate large datasets, and it's designed to be easy to use and easy
 to debug.
 
 ## Table of Contents
 * **[Installation](#installation)**
 * **[Why Pivot Tables?](#why-should-you-use-pivot-tables)**
-* **[Why `csvpivot`?](#why-csvpivot)**
-* **[Why shouldn't you use `csvpivot`](#why-shouldnt-you-use-csvpivot)**
+* **[Why `clipivot`?](#why-clipivot)**
+* **[Why shouldn't you use `clipivot`](#why-shouldnt-you-use-clipivot)**
 * **[Usage Guide](#usage-guide)**
     - **[Basic Usage](#basic-usage)**
     - **[Row names](#row-names)**
@@ -22,14 +22,14 @@ to debug.
 
 ## Installation
 You can download binaries for Windows, Linux, and MacOS on
-the [Releases](#https://github.coom/maxblee/csvpivot/releases/latest)
+the [Releases](#https://github.coom/maxblee/clipivot/releases/latest)
 page of this repository.
 
 Additionally, if you have Rust's package manager, Cargo, installed, you can run
 ```bash
-$ cargo install csvpivot
+$ cargo install clipivot
 ```
-which will compile `csvpivot` from source.
+which will compile `clipivot` from source.
 
 ## Why Pivot Tables?
 
@@ -55,10 +55,10 @@ id,was_fired,salary,department
 
 With this data, you might want to know the number of employees
 who were fired from the company, as well as the number employees who remain. You can do that easily with pivot tables. Here's what
-that syntax looks like in `csvpivot`:
+that syntax looks like in `clipivot`:
 
 ```sh
-$ csvpivot count test_csvs/layoffs.csv --rows=was_fired --val=id
+$ clipivot count test_csvs/layoffs.csv --rows=was_fired --val=id
 ```
 
 That will print this out in your terminal:
@@ -109,10 +109,10 @@ But you might want to set the values from the `was_fired` field as columns in th
 possible.)
 
 With pivot tables, however, it's easy. Here's what that syntax looks like
-in `csvpivot`:
+in `clipivot`:
 
 ```sh
-$ csvpivot sum test_csvs/layoffs.csv --rows=department --cols=was_fired --val=salary
+$ clipivot sum test_csvs/layoffs.csv --rows=department --cols=was_fired --val=salary
 ```
 
 Which will give you this output:
@@ -126,24 +126,24 @@ sales,90000,85000
 In other words, pivot tables provide convenient and easy-to-use ways to
 aggregate datasets. 
 
-## Why should you use `csvpivot`?
+## Why should you use `clipivot`?
 
-In a lot of cases, `csvpivot` isn't necessarily going to be any better
+In a lot of cases, `clipivot` isn't necessarily going to be any better
 than existing tools for creating pivot tables. In the vast majority of
-cases, you can easily do what `csvpivot` does using
+cases, you can easily do what `clipivot` does using
 [`pandas`](https://pandas.pydata.org/) in Python or using R.
 And in a number of cases, you can use SQL or existing CSV toolkits like
 [`csvtk`](https://github.com/shenwei356/csvtk) or [`xsv`](https://github.com/burntsushi/xsv). You can often use Excel, too, although Excel
 doesn't offer good ways to help you document your work or sort your
 pivot tables.
 
-There are a couple of benefits to using `csvpivot` over these tools, though. 
+There are a couple of benefits to using `clipivot` over these tools, though. 
 
-`csvpivot` is easier to use than any CSV toolkit I'm aware of when it comes to creating pivot tables, because it's narrowly and specifically designed to create pivot tables. And it accepts input
+`clipivot` is easier to use than any CSV toolkit I'm aware of when it comes to creating pivot tables, because it's narrowly and specifically designed to create pivot tables. And it accepts input
 from stanard input and filepaths and prints to standard output,
 allowing you to pipe it into and out of other command-line programs.
 
-`csvpivot` also makes it extremely easy to perform analyses on large datasets, including datasets that exceed the RAM on your computer.
+`clipivot` also makes it extremely easy to perform analyses on large datasets, including datasets that exceed the RAM on your computer.
 I used the tool to analyze [the 80 GB ARCCOS dataset](https://www.washingtonpost.com/graphics/2019/investigations/dea-pain-pill-database/) the Washington Post acquired on my laptop, which has 16 GB of RAM. In all, it took me about 10 minutes (with the data stored in an HDD external drive) to create a CSV of the total number of oxycodone and
 hydrocodone pills flowing into each ZIP code in
 the United States between 2006 and 2012. And I didn't have to change any settings to get it to work,
@@ -152,19 +152,19 @@ like I would've had to in `pandas`.
 Beyond that, if you're already working at the command line, it can
 simply be convenient to stay there.
 
-## Why shouldn't you use `csvpivot`?
+## Why shouldn't you use `clipivot`?
 
-But `csvpivot` isn't always going to be the best tool to use.
+But `clipivot` isn't always going to be the best tool to use.
 
 Command-line programs are necessarily harder to configure than
 libraries in programming languages, so if you need an aggregation
-function that isn't supported by `csvpivot`, it's going to be easier
+function that isn't supported by `clipivot`, it's going to be easier
 to use a data science library like `pandas` than it will be to configure
-`csvpivot` for your use case. (As in, configuring `csvpivot` will
+`clipivot` for your use case. (As in, configuring `clipivot` will
 require you to make significant changes to the source code of
-`csvpivot`.)
+`clipivot`.)
 
-And `csvpivot` isn't designed for cleaning data. It has a limited number
+And `clipivot` isn't designed for cleaning data. It has a limited number
 of functions that will parse your data, but the parsing is mostly useful
 for already well-formed data.
 
@@ -173,14 +173,14 @@ for already well-formed data.
 For basic syntax, I recommend that you use the help message provided with the binary:
 
 ```sh
-$ csvpivot --help
-csvpivot 0.1.0
+$ clipivot --help
+clipivot 0.1.0
 Max Lee <maxbmhlee@gmail.com>
 A tool for creating pivot tables from the command line. 
-For more information, visit https://github.com/maxblee/csvpivot
+For more information, visit https://github.com/maxblee/clipivot
 
 USAGE:
-    csvpivot [FLAGS] [OPTIONS] <aggfunc> --val <value> [--] [filename]
+    clipivot [FLAGS] [OPTIONS] <aggfunc> --val <value> [--] [filename]
 
 FLAGS:
         --day-first     In ambiguous datetimes, parses the day first. See
@@ -225,19 +225,19 @@ ARGS:
     <filename>    The path to the delimited file you want to create a pivot table from
 ```
 
-That should provide you with a decent overview of the usage of `csvpivot`. But let me provide a little bit more information.
+That should provide you with a decent overview of the usage of `clipivot`. But let me provide a little bit more information.
 
-The basic syntax of `csvpivot` is simple. Every command needs to have
+The basic syntax of `clipivot` is simple. Every command needs to have
 a function and a values column connected to it. That values column
-tells `csvpivot` which column it needs to apply an aggregation
+tells `clipivot` which column it needs to apply an aggregation
 function to. 
 
-In addition, `csvpivot` needs a data source. This can either be explicitly typed after the name of the function, or it can be in the form of standard input. So the following commands are all equivalent:
+In addition, `clipivot` needs a data source. This can either be explicitly typed after the name of the function, or it can be in the form of standard input. So the following commands are all equivalent:
 
 ```sh
-$ csvpivot count mydata.csv --val id
-$ cat mydata.csv | csvpivot count --val id
-$ csvpivot count --val id < mydata.csv
+$ clipivot count mydata.csv --val id
+$ cat mydata.csv | clipivot count --val id
+$ clipivot count --val id < mydata.csv
 ```
 
 Finally, you can apply the `--cols` or `--rows` options to aggregate
@@ -259,7 +259,7 @@ col1,col2,col1,col3
 In order to access the first column, we can type the following things:
 
 * `col1`: This will grab the first column named `col1`
-* `0`: This will grab the first column, regardless of the name. (The numbers throughout `csvpivot` are 0-indexed to conform with standards in most programming languages.)
+* `0`: This will grab the first column, regardless of the name. (The numbers throughout `clipivot` are 0-indexed to conform with standards in most programming languages.)
 * `col1[0]`: This will grab the first column named `col1`
 
 In order to access the third column, we can type the following things:
@@ -288,7 +288,7 @@ One category interprets every item as text. It will validate that your text is
 valid UTF-8 but won't do any parsing on top of that. Because of that,
 most data you encounter *should* be able to be parsed without error if you are using one of these methods.
 
-In case your data cannot be properly parsed by `csvpivot` using one of these functions, you can change
+In case your data cannot be properly parsed by `clipivot` using one of these functions, you can change
 the encoding of your file on most Unix-based systems by using `iconv`. (The actual process of doing so may be a bit tricky, since figuring out
 your file encoding is tricky and inexact, but `uchardet` and `chardetect` both work pretty well in most cases.) (Note: You will
 likely have to install `uchardet` and `chardetect`. `chardetect`
@@ -311,7 +311,7 @@ for numeric data, regardless of the aggregation function:
 * `-1.5`
 
 However, currency markers like dollar signs and thousands separators
-cannot be parsed using `csvpivot`. (If you want to parse those from the
+cannot be parsed using `clipivot`. (If you want to parse those from the
 command line, I recommend `csvtk replace`.)
 
 These functions are: `mean`, `median`, `stddev` (or the sample standard deviation), and `sum`.
@@ -347,7 +347,7 @@ value. This has the advantage of being considerably faster than converting all o
 (i.e. some variant of YYYY-MM-DD or YY-MM-DD). All of which is to say you probably shouldn't run `min` or `max` under their string conditions unless you are only doing so to get a general sense of the date range of your data; you *really* trust the people who cleaned the data; or you tested all of the data against a regular expression
 using a tool like `grep`.
 
-Alternatively, `csvpivot` can convert dates into datetimes using one of two options.
+Alternatively, `clipivot` can convert dates into datetimes using one of two options.
 
 First of all, you can pass the `-F` flag, along with a specification for how your datetimes are formatted.
 This uses the string formatting options from Rust's `chrono` crate, which can be found 
@@ -361,7 +361,7 @@ You can also use the `-i` flag, which tries to automatically parse dates into da
 which is a port of Python's [`dateutil`](https://dateutil.readthedocs.io/en/stable/parser.html) parser. This will take
 any date and try to convert it into a datetime object. 
 
-If you are using the `-i` flag, you can also pass the `--year-first` or `--day-first` flags to `csvpivot` to alter how `csvpivot` interprets ambiguous dates like
+If you are using the `-i` flag, you can also pass the `--year-first` or `--day-first` flags to `clipivot` to alter how `clipivot` interprets ambiguous dates like
 `01-05-09`. These function like the dateutil parser's `dayfirst`
 and `yearfirst` options, and I'd recommend visiting the dateutil documentation to learn more about how they function.
 
@@ -371,14 +371,14 @@ into datetime objects, uses the `-i` flag by default. But you can alternatively 
 
 ### Delimiters
 
-You can also tell `csvpivot` to use something other than commas
-as a field delimiter. By default, `csvpivot` will assume that files
+You can also tell `clipivot` to use something other than commas
+as a field delimiter. By default, `clipivot` will assume that files
 ending with the `.tsv` or `.tab` extensions are tab-delimited,
 while other files are assumed to be comma-separated. However, both of those can be overriden. You can select any other 
 single-byte UTF-8 character as a delimiter using the `-d` option, or you can use the
 `-t` flag to choose to read tabs as the file dilimiter.
 
-**Note: The file extension tool only works when `csvpivot` is
+**Note: The file extension tool only works when `clipivot` is
 directly reading a file. If it is receiving tab-delimited data
 from standard input, you need to use the `-t` flag or the `-d`
 option.**
@@ -386,22 +386,22 @@ option.**
 ### Headers
 
 If you don't have a header row, you can use the `--no-header` flag
-to have `csvpivot` read the first row as a record, rather than as a header line. 
+to have `clipivot` read the first row as a record, rather than as a header line. 
 
 Alternatively, if you have a header row, but it is not on the first
-line of your file, you can use `tail -n +` to have `csvpivot` read everything but the nth row. For instance, if the header row of your
+line of your file, you can use `tail -n +` to have `clipivot` read everything but the nth row. For instance, if the header row of your
 CSV file `bad_csv.csv` is on the fifth line, you can type
 
 ```sh
-tail bad_csv.csv -n +5 | csvpivot countunique -v 0
+tail bad_csv.csv -n +5 | clipivot countunique -v 0
 ```
 
 To count the number of unique values in the first column of your bad
 CSV file.
 ### Null values
 
-You can have `csvpivot` ignore empty values. If you use the `-e` flag,
-`csvpivot` will skip past any cells that match (case- or whitespace-insensitively) to any of these strings:
+You can have `clipivot` ignore empty values. If you use the `-e` flag,
+`clipivot` will skip past any cells that match (case- or whitespace-insensitively) to any of these strings:
 
 * "": an empty string
 * "na"
@@ -413,13 +413,13 @@ You can have `csvpivot` ignore empty values. If you use the `-e` flag,
 As [this article](https://www.wired.com/2015/11/null/) eloquently
 explains, this can be overly aggressive, so you should make sure
 this is a reasonable approach for parsing your data. In particular,
-I'd recommend spot-checking your data to see which points `csvpivot`
+I'd recommend spot-checking your data to see which points `clipivot`
 interprets as null before using the `-e` flag.
 
 Which brings me to:
 
 ### Error handling
-I've tried to make error handling clear and helpful in `csvpivot`.
+I've tried to make error handling clear and helpful in `clipivot`.
 
 In all, there are four errors you might wind up seeing.
 
@@ -438,10 +438,10 @@ debugging information. One example looks like this:
 Could not properly configure the aggregator: Column selection must be between 0 <= selection < 42
 ```
 If you see that error, there's a decent chance you simply forgot
-that fields in `csvpivot` are zero-indexed.
+that fields in `clipivot` are zero-indexed.
 
 * The third type of error you might see is a CSV error, from the CSV
-parsing library `csvpivot` uses. Those errors look like this:
+parsing library `clipivot` uses. Those errors look like this:
 ```sh
 CSV error: record 1 (line: 2, byte: 597): found record with 4 fields, but the previous record has 1 fields
 ```
@@ -456,16 +456,16 @@ Could not parse record `NA` with index 167: Failed to parse as numeric type
 This can be a sign that your file has some null or empty values in it,
 or that it is not as well-formatted as you might have hoped.
 
-It can also be a sign that `csvpivot` is trying to parse your data in a different format than you expected (for instance, that it is trying to parse a bunch of strings as dates for the range function, when
+It can also be a sign that `clipivot` is trying to parse your data in a different format than you expected (for instance, that it is trying to parse a bunch of strings as dates for the range function, when
 you want it to parse everything as a number.)
 
 These errors will all provide you with the string value of the record
-`csvpivot` couldn't parse, the index of the record (where the first non-header record has an index of 0), and the type of data that it tried to parse your data into -- all of which should make it easier for you to debug.
+`clipivot` couldn't parse, the index of the record (where the first non-header record has an index of 0), and the type of data that it tried to parse your data into -- all of which should make it easier for you to debug.
 
 (As a side note, I recommend pairing this utility with `xsv slice -i`, which prints out a row from a CSV file at a given line.)
 
 ## Contributors
-So far, no one has directly contributed code to `csvpivot`.
+So far, no one has directly contributed code to `clipivot`.
 (Note: Once you've used the tool, [you should change that](#developer-guide).) 
 
 But a number of people have contributed in other ways.
@@ -477,7 +477,7 @@ design of [`xsv`](https://github.com/BurntSushi/xsv)
 and the [`csv` crate in Rust](https://github.com/BurntSushi/rust-csv),
 all by the same author, in a number of ways, while a number of other
 guides were useful toward getting me to write code in Rust. I've tried to
-document all of the guides and source code that helped me develop `csvpivot` in inline comments and docstrings within the source code.
+document all of the guides and source code that helped me develop `clipivot` in inline comments and docstrings within the source code.
 
 Other CSV toolkits also helped me design this program. The most direct
 connection between these toolkits is probably the approach I've taken to
@@ -494,19 +494,19 @@ And finally, the CSV files I've used to validate the numerical accuracy
 of the mean and standard deviation functions (in `tests/test_numerical_accuracy.rs`) are from the [Statistical Reference Datasets](https://www.itl.nist.gov/div898/strd/univ/homepage.html) from the Nation Institute of Standards and Technology.
 
 ## Developer Guide
-Now that you've used `csvpivot`, do you want to help make it better?
-I've concocted a [developer guide](https://docs.rs/csvpivot/0.1.0/index.html) with some suggestions of things I'd like to see
+Now that you've used `clipivot`, do you want to help make it better?
+I've concocted a [developer guide](https://docs.rs/clipivot/0.1.0/index.html) with some suggestions of things I'd like to see
 improved. The guide is designed to allow people with no coding experience,
 people who have written code but haven't written any Rust, and people who
 have written code in Rust to help. So don't by any means feel like you're not
 qualified to improve this project. 
 
 And I really mean that. People who don't have much (or any) coding experience
-are likely going to be better able at showing me where `csvpivot`'s documentation
+are likely going to be better able at showing me where `clipivot`'s documentation
 needs to be improved than developers with years of experience.
 
 ## Contact Me
-If you have any questions about `csvpivot` or if you have identified any bugs in the program or you want
+If you have any questions about `clipivot` or if you have identified any bugs in the program or you want
 to contribute to it, please send me an email at maxbmhlee@gmail.com or contact me through Twitter. 
-I'm [@maxblee](https://twitter.com/maxblee). And if you wind up using `csvpivot` in any of your projects,
+I'm [@maxblee](https://twitter.com/maxblee). And if you wind up using `clipivot` in any of your projects,
 I'd love to know.
