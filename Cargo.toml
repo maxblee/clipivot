@@ -22,11 +22,12 @@ travis-ci = { repository = "maxblee/clipivot" }
 clap = { version = "~2.27.0", features = ["yaml"] }
 chrono = "0.4"
 csv = "1"
+csv_cli_core = { git = "https://github.com/maxblee/csv_cli_core", tag = "v0.1.0" }
 dtparse = "1.0.3"
 rust_decimal = "1.0.1"
 
 [dev-dependencies]
 approx = "0.3.2"
-cli_testing_utils = { git = "https://github.com/maxblee/cli_testing_utils" }
+cli_testing_utils = { git = "https://github.com/maxblee/cli_testing_utils", tag = "v0.1.0" }
 proptest = "0.9.4"
 rand = "0.6"

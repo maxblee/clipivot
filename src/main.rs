@@ -107,8 +107,6 @@ use std::process;
 
 pub mod aggfunc;
 pub mod aggregation;
-pub mod csv_settings;
-pub mod errors;
 pub mod parsing;
 
 fn main() {

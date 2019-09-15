@@ -37,7 +37,7 @@
 //! But in case you want to add new parsing types or alter the implementation of parsing
 //! in `clipivot`, taking a closer look at `ParsingHelper`, `ParsingType`, and `DateFormatter` might be helpful.
 
-use crate::errors::{CsvCliError, CsvCliResult};
+use csv_cli_core::errors::{CsvCliError, CsvCliResult};
 use chrono::{Datelike, NaiveDate, NaiveDateTime};
 use rust_decimal::Decimal;
 use std::collections::HashMap;

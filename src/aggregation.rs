@@ -31,10 +31,10 @@ use std::fs;
 use std::io;
 
 use crate::aggfunc::*;
-use crate::csv_settings::CsvSettings;
-use crate::errors::CsvCliResult;
 use crate::parsing::{ParsingHelper, ParsingType};
 use clap::ArgMatches;
+use csv_cli_core::errors::CsvCliResult;
+use csv_cli_core::CsvSettings;
 
 const FIELD_SEPARATOR: &str = "_<sep>_";
 
@@ -348,20 +348,18 @@ impl<U: AggregationMethod> CliConfig<U> {
     /// and updates the `Aggregator` object so we can run aggregations.
     fn validate_columns(&mut self, headers: &Vec<&str>) -> CsvCliResult<()> {
         // validates the aggregation columns and then updates the aggregator
-        let index_vec = self.settings.get_indexes_from_header_descriptions(
+        let index_vec = self.settings.get_field_indexes(
             &self.indexes.iter().map(|v| v.as_ref()).collect(),
             headers,
         )?;
-        let column_vec = self.settings.get_indexes_from_header_descriptions(
+        let column_vec = self.settings.get_field_indexes(
             &self.column_cols.iter().map(|v| v.as_ref()).collect(),
             headers,
         )?;
         let values_vec = self
             .settings
-            .get_column_from_header_descriptions(&self.values_col, headers)?;
+            .get_field_index(&self.values_col, headers)?;
 
-        // need self.aggregator = .. right now bc set_indexes etc return Self (rather than mutating)
-        // TODO clean up method chaining to avoid this mess
         self.aggregator
             .set_indexes(index_vec)
             .set_columns(column_vec)
