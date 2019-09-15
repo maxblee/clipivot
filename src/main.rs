@@ -31,6 +31,11 @@
 //! I've gotten working in stable Rust panics when I include property-based tests from Rust's
 //! `proptest` crate.
 //! (This is because of a bug in Rust's compiler; see more [here](https://github.com/xd009642/tarpaulin/issues/161).)
+//! - Continuous Integration: Thanks to [two](https://github.com/japaric/trust) [great](https://github.com/BurntSushi/xsv)
+//! templates, I managed to get continuous integration working in Travis CI for two version ins of Linux, one version of OSX,
+//! and one version of Windows. However, some versions I tried to deploy failed 
+//! (they're currently commented out in the .travis.yml file). If anyone wants to help get those working or wants to add support
+//! for other environments, I would really appreciate it.
 //!
 //! ## Doesn't require programming experience
 //! - Bugs: If something in this program doesn't work like you think it's supposed to, please let me know.

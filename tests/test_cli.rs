@@ -4,6 +4,7 @@ use std::process::Command;
 use std::str;
 use std::env;
 
+// This function exists so Travis CI can run the integration tests
 fn get_program_name() -> String {
     match env::var("TARGET") {
         Ok(target_loc) => format!("target/{}/debug/csvpivot", target_loc),

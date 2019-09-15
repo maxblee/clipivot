@@ -36,6 +36,7 @@ fn mean_epsilon() -> f64 {
 
 fn get_actual_result(filename: &str, aggfunc: &str) -> f64 {
     // Returns the result from NIST's dataset given the relative file path
+    // the match formatting is required to get these tests to work in Travis CI
     let program_name = match env::var("TARGET") {
         Ok(target_loc) => format!("target/{}/debug/csvpivot", target_loc),
         Err(_) => "./target/debug/csvpivot".to_string()

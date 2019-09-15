@@ -13,18 +13,22 @@ matrix:
   - env: TARGET=i686-unknown-linux-musl
     os: linux
   # OS-X
-  - env: TARGET=i686-apple-darwin
-    os: osx
+  # TODO: Get this working (currently fails because there isn't a `default-names` option in this Homebrew)
+  # - env: TARGET=i686-apple-darwin
+  #   os: osx
   - env: TARGET=x86_64-apple-darwin
     os: osx
   # Windows
-  - env: TARGET=x86_64-pc-windows-gnu
-    os: windows
+  # TODO: Get this working (currently fails, possibly because Windows support new on Travis (but maybe not bc of that))
+  # - env: TARGET=x86_64-pc-windows-gnu
+  #   os: windows
   - env: TARGET=x86_64-pc-windows-msvc
     os: windows
-  - env: TARGET=i686-pc-windows-gnu
-    os: windows
-  - env: TARGET=i686-pc-windows-msvc
+  # TODO: Get this working (currently fails, possibly bc of new Windows support for Travis)
+  # - env: TARGET=i686-pc-windows-gnu
+  #   os: windows
+  # TODO: Get working (failed earlier bc couldn't find linker.exe)
+  # - env: TARGET=i686-pc-windows-msvc
 
 # adapted from https://github.com/BurntSushi/xsv/blob/master/.travis.yml
 # with setup using `travis setup releases`
