@@ -21,11 +21,12 @@ to debug.
 * **[Contact Me](#contact-me)**
 
 ## Installation
-You can download binaries for Windows, Linux, and MacOS on
+Eventually (hopefully soon!), you'll be able to install binaries from
 the [Releases](#https://github.coom/maxblee/clipivot/releases/latest)
-page of this repository.
+page of this repository. 
 
-Additionally, if you have Rust's package manager, Cargo, installed, you can run
+However, I have yet to properly set up Travis-CI to do that. So for now, you'll need to 
+use Rust's package manager, Cargo, and run
 ```bash
 $ cargo install clipivot
 ```
