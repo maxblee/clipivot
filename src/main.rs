@@ -23,9 +23,8 @@
 //! while maintaining the best case memory efficiency of `BTreeMap`.)
 //! - Coding style: This is my first project in Rust, so I'm sure there are parts of the code
 //! that are not idiomatic in Rust or that are poorly structured.
-//! - Testing: I've tried to have robust testing for this tool, but text data and (barely existent)
-//! CSV standards are both full of edge cases. So if there are any additional tests you think the program
-//! needs, let me know or make a pull request.
+//! - Testing: I think I've included fairly decent testing for this tool, but I'm sure there are places
+//! where my testing can improve.
 //! - Coverage Testing: If you're familiar with coverage testing schemes in Rust, I'd love your help.
 //! Right now, I don't have any coverage testing on this crate because the one coverage testing tool
 //! I've gotten working in stable Rust panics when I include property-based tests from Rust's
