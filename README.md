@@ -22,7 +22,7 @@ to debug.
 
 ## Installation
 You can download binaries for Windows, Linux, and MacOS on
-the [Releases](#https://github.coom/maxblee/clipivot/releases/latest)
+the [Releases](#https://github.com/maxblee/clipivot/releases/latest)
 page of this repository.
 
 Additionally, if you have Rust's package manager, Cargo, installed, you can run
@@ -140,11 +140,11 @@ pivot tables.
 There are a couple of benefits to using `clipivot` over these tools, though. 
 
 `clipivot` is easier to use than any CSV toolkit I'm aware of when it comes to creating pivot tables, because it's narrowly and specifically designed to create pivot tables. And it accepts input
-from stanard input and filepaths and prints to standard output,
+from standard input and file paths and prints to standard output,
 allowing you to pipe it into and out of other command-line programs.
 
 `clipivot` also makes it extremely easy to perform analyses on large datasets, including datasets that exceed the RAM on your computer.
-I used the tool to analyze [the 80 GB ARCCOS dataset](https://www.washingtonpost.com/graphics/2019/investigations/dea-pain-pill-database/) the Washington Post acquired on my laptop, which has 16 GB of RAM. In all, it took me about 10 minutes (with the data stored in an HDD external drive) to create a CSV of the total number of oxycodone and
+I used the tool to analyze [the 80 GB ARCOS dataset](https://www.washingtonpost.com/graphics/2019/investigations/dea-pain-pill-database/) the Washington Post acquired on my laptop, which has 16 GB of RAM. In all, it took me about 10 minutes (with the data stored in an HDD external drive) to create a CSV of the total number of oxycodone and
 hydrocodone pills flowing into each ZIP code in
 the United States between 2006 and 2012. And I didn't have to change any settings to get it to work,
 like I would've had to in `pandas`.
@@ -374,7 +374,7 @@ into datetime objects, uses the `-i` flag by default. But you can alternatively 
 You can also tell `clipivot` to use something other than commas
 as a field delimiter. By default, `clipivot` will assume that files
 ending with the `.tsv` or `.tab` extensions are tab-delimited,
-while other files are assumed to be comma-separated. However, both of those can be overriden. You can select any other 
+while other files are assumed to be comma-separated. However, both of those can be overridden. You can select any other 
 single-byte UTF-8 character as a delimiter using the `-d` option, or you can use the
 `-t` flag to choose to read tabs as the file dilimiter.
 
