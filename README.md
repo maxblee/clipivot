@@ -496,15 +496,92 @@ of the mean and standard deviation functions (in `tests/test_numerical_accuracy.
 
 ## Developer Guide
 Now that you've used `clipivot`, do you want to help make it better?
-I've concocted a [developer guide](https://docs.rs/clipivot/0.1.0/index.html) with some suggestions of things I'd like to see
-improved. The guide is designed to allow people with no coding experience,
-people who have written code but haven't written any Rust, and people who
-have written code in Rust to help. So don't by any means feel like you're not
-qualified to improve this project. 
 
-And I really mean that. People who don't have much (or any) coding experience
-are likely going to be better able at showing me where `clipivot`'s documentation
-needs to be improved than developers with years of experience.
+I've concocted a developer guide. Currently, you need to have Rust's package manager, Cargo, installed to see it. Simply
+type
+```bash
+$ cargo doc --open
+```
+and a browser will open displaying the guide. Eventually, I want to have the developer guide published on
+Rust's documentation website, [https://docs.rs](docs.rs), but I haven't figured out how to get that to work.
+(If you know how to get it to display an API for a binary, let me know!)
+
+In the meantime, here are the things I'd generally like to see improved with the tool. I've divided them into
+things that I think you'd need to have coding experience in order to address, and things that don't require any
+programming experience whatsoever. 
+
+### Requires programming experience
+- Performance: I've tried to design `clipivot` to be reasonably performant, but I'm sure there
+are places where performance could be optimized. If you have any suggestions, I'd love to hear them.
+(Note: I'm aware that there are technically faster algorithms for computing median than the one I
+wound up with, the [`BTreeMap`](https://doc.rust-lang.org/std/collections/struct.BTreeMap.html)
+in Rust's standard library. The reason I chose the `BTreeMap` is that it is well-suited for
+adding items from a stream and it is more memory efficient than other algorithms I'm aware of.
+But let me know if you're aware of a way to improve the speed of the median computation
+while maintaining the best case memory efficiency of `BTreeMap`.)
+- Coding style: This is my first project in Rust, so I'm sure there are parts of the code
+that are not idiomatic in Rust or that are poorly structured.
+- Testing: I think I've included fairly decent testing for this tool, but I'm sure there are places
+where my testing can improve.
+- Coverage Testing: If you're familiar with coverage testing schemes in Rust, I'd love your help.
+Right now, I don't have any coverage testing on this crate because the one coverage testing tool
+I've gotten working in stable Rust panics when I include property-based tests from Rust's
+`proptest` crate.
+(This is because of a bug in Rust's compiler; see more [here](https://github.com/xd009642/tarpaulin/issues/161).)
+- Continuous Integration: Thanks to [two](https://github.com/japaric/trust) [great](https://github.com/BurntSushi/xsv)
+templates, I managed to get continuous integration working in Travis CI for two version ins of Linux, one version of OSX,
+and one version of Windows. However, some versions I tried to deploy failed 
+(they're currently commented out in the .travis.yml file). If anyone wants to help get those working or wants to add support
+for other environments, I would really appreciate it.
+
+### Doesn't require programming experience
+- Bugs: If something in this program doesn't work like you think it's supposed to, please let me know.
+- Error handling: I've tried to make error handling as clear and helpful as possible, so if an error
+message you get from `clipivot` confuses you, let me know and I'll do what I can to fix it.
+
+In particular, pretty much nothing you run should ever result in what Rust calls a "panic" -- basically an unanticipated,
+fast exit from a program. Panics look something like:
+
+```sh
+thread 'main' panicked at 'explicit_panic', src/main.rs:5:1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+```
+The only exceptions I can think of are that some of the mathematical operations can techinically
+result in overflows, and that all of the algorithms can potentially cause you to run out of memory.
+But both of those examples should be exceptionally rare (even when dealing with datasets larger than your RAM),
+so if you ever run into a panic, please send me a bit of information about the query you ran so I can fix this.
+
+### Development Environment
+In order to contribute code, first clone the repository to install the source code:
+
+```sh
+$ git clone https://github.com/maxblee/clipivot
+```
+Then, make changes to the code and/or add/change tests, and then run
+
+```sh
+$ cargo test
+```
+
+to run tests.
+### Formatting
+In addition, I use `clippy` to lint code and `rustfmt` to automatically format code.
+
+To install them, type
+```sh
+$ rustup update
+$ rustup component add rustfmt --toolchain stable
+$ rustup component add clippy --toolchain stable
+```
+And from there, you can run `rustfmt` with
+```sh
+$ cargo fmt --all
+```
+and `clippy` with
+```sh
+$ cargo clippy -- -A clippy::ptr_arg
+```
+**Note that I am ignoring the `clippy::ptr_arg` warning, which raises a warning when you put a `&Vec<T>` into a function call.**
 
 ## Contact Me
 If you have any questions about `clipivot` or if you have identified any bugs in the program or you want
