@@ -1,7 +1,7 @@
 [package]
 name = "clipivot"
 description = "A command-line tool for quickly generating pivot tables."
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Max Lee <maxbmhlee@gmail.com>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -27,5 +27,6 @@ rust_decimal = "1.0.1"
 
 [dev-dependencies]
 approx = "0.3.2"
+cli_testing_utils = { git = "https://github.com/maxblee/cli_testing_utils" }
 proptest = "0.9.4"
 rand = "0.6"
