@@ -503,7 +503,7 @@ type
 $ cargo doc --open
 ```
 and a browser will open displaying the guide. Eventually, I want to have the developer guide published on
-Rust's documentation website, [https://docs.rs](docs.rs), but I haven't figured out how to get that to work.
+Rust's documentation website, [docs.rs](https://docs.rs), but I haven't figured out how to get that to work.
 (If you know how to get it to display an API for a binary, let me know!)
 
 In the meantime, here are the things I'd generally like to see improved with the tool. I've divided them into
