@@ -21,6 +21,7 @@
 use approx::assert_abs_diff_eq;
 use std::process::Command;
 use std::str;
+use std::env;
 
 type NumericRecord = (String, f64);
 
@@ -35,7 +36,11 @@ fn mean_epsilon() -> f64 {
 
 fn get_actual_result(filename: &str, aggfunc: &str) -> f64 {
     // Returns the result from NIST's dataset given the relative file path
-    let output = Command::new("./target/debug/csvpivot")
+    let program_name = match env::var("TARGET") {
+        Ok(target_loc) => format!("target/{}/debug/csvpivot", target_loc),
+        Err(_) => "./target/debug/csvpivot".to_string()
+    };
+    let output = Command::new(program_name)
         .args(&[aggfunc, filename, "-v", "0"])
         .output()
         .expect("Process failed to execute")
