@@ -35,17 +35,39 @@ fn setup_sorting_columns(query: &[&str]) -> Vec<String> {
     let stroutput = str::from_utf8(&output).unwrap();
     let mut rdr = csv::Reader::from_reader(stroutput.as_bytes());
     // skip so we ignore row column
-    rdr.headers().unwrap().iter().skip(1).map(String::from).collect()
+    rdr.headers()
+        .unwrap()
+        .iter()
+        .skip(1)
+        .map(String::from)
+        .collect()
 }
 
 #[test]
 fn test_column_sorting() {
-    let mut args = vec!["count", "test_csvs/sorting_csv.csv", "-v", "0", "-c", "year"];
+    let mut args = vec![
+        "count",
+        "test_csvs/sorting_csv.csv",
+        "-v",
+        "0",
+        "-c",
+        "year",
+    ];
     let asc_order = setup_sorting_columns(&args);
-    let mut sorting_expected = vec!["2016".to_string(), "2017".to_string(), "2018".to_string(), "2019".to_string()];
+    let mut sorting_expected = vec![
+        "2016".to_string(),
+        "2017".to_string(),
+        "2018".to_string(),
+        "2019".to_string(),
+    ];
     assert_eq!(asc_order, sorting_expected);
     args.push("--index-cols");
-    let index_expected = vec!["2017".to_string(), "2018".to_string(), "2016".to_string(), "2019".to_string()];
+    let index_expected = vec![
+        "2017".to_string(),
+        "2018".to_string(),
+        "2016".to_string(),
+        "2019".to_string(),
+    ];
     let index_order = setup_sorting_columns(&args);
     assert_eq!(index_order, index_expected);
     sorting_expected.reverse();
@@ -56,13 +78,20 @@ fn test_column_sorting() {
 
 #[test]
 fn test_index_sorting_works() {
-    let mut args = vec!["count", "test_csvs/sorting_csv.csv", "-v", "0", "-r", "year"];
+    let mut args = vec![
+        "count",
+        "test_csvs/sorting_csv.csv",
+        "-v",
+        "0",
+        "-r",
+        "year",
+    ];
     let index_order = setup_sorting_tests(&args);
     let index_expected = vec![
         vec!["2017".to_string(), "2".to_string()],
         vec!["2018".to_string(), "2".to_string()],
         vec!["2016".to_string(), "1".to_string()],
-        vec!["2019".to_string(), "1".to_string()]
+        vec!["2019".to_string(), "1".to_string()],
     ];
     assert_eq!(index_order, index_expected);
     args.push("--asc-rows");
@@ -71,7 +100,7 @@ fn test_index_sorting_works() {
         vec!["2016".to_string(), "1".to_string()],
         vec!["2017".to_string(), "2".to_string()],
         vec!["2018".to_string(), "2".to_string()],
-        vec!["2019".to_string(), "1".to_string()]
+        vec!["2019".to_string(), "1".to_string()],
     ];
     assert_eq!(sorted_asc, sorting_expected);
     args[6] = "--desc-rows";

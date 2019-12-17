@@ -24,7 +24,7 @@
 //! the command-line without getting an error message.
 //! 4. Update the `run` method in `aggregation.rs` so your program will actually do something when you
 //! write the function name in the command line. This should be as simple as adding
-//! ```rust
+//! ```rust,ignore
 //! else if aggfunc == "mynewfunction" {
 //!     let mut config : CliConfig<MyNewFunction> = CliConfig::from_arg_matches(arg_matches)?;
 //!     config.run_config()?;

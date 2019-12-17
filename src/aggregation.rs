@@ -26,15 +26,15 @@
 //!
 //! 6. Finally, the `Aggregator` struct will write the results to standard output.
 
-use std::collections::HashMap;
-use std::fs;
-use std::io;
-use indexmap::set::IndexSet;
 use crate::aggfunc::*;
 use crate::parsing::{ParsingHelper, ParsingType};
 use clap::ArgMatches;
 use csv_cli_core::errors::CsvCliResult;
 use csv_cli_core::CsvSettings;
+use indexmap::set::IndexSet;
+use std::collections::HashMap;
+use std::fs;
+use std::io;
 
 /// The order in which columns or rows are presented
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -79,7 +79,7 @@ where
     /// The order in which the final rows appear
     row_order: OutputOrder,
     /// The order in which the final columns appear
-    column_order: OutputOrder
+    column_order: OutputOrder,
 }
 
 impl<T: AggregationMethod> Default for Aggregator<T> {
@@ -99,7 +99,7 @@ impl<T: AggregationMethod> Aggregator<T> {
             column_cols: Vec::new(),
             values_col: 0,
             row_order: OutputOrder::IndexOrder,
-            column_order: OutputOrder::Ascending
+            column_order: OutputOrder::Ascending,
         }
     }
 
@@ -207,14 +207,22 @@ impl<T: AggregationMethod> Aggregator<T> {
 
     fn sort_results(&mut self) {
         match self.column_order {
-            OutputOrder::Ascending => { self.columns.sort(); },
-            OutputOrder::Descending => { self.columns.sort_by(|a,b| b.cmp(a) ); },
-            OutputOrder::IndexOrder => { }
+            OutputOrder::Ascending => {
+                self.columns.sort();
+            }
+            OutputOrder::Descending => {
+                self.columns.sort_by(|a, b| b.cmp(a));
+            }
+            OutputOrder::IndexOrder => {}
         };
         match self.row_order {
-            OutputOrder::Ascending => { self.indexes.sort(); },
-            OutputOrder::Descending => { self.indexes.sort_by(|a, b| b.cmp(a)); },
-            OutputOrder::IndexOrder => { }
+            OutputOrder::Ascending => {
+                self.indexes.sort();
+            }
+            OutputOrder::Descending => {
+                self.indexes.sort_by(|a, b| b.cmp(a));
+            }
+            OutputOrder::IndexOrder => {}
         }
     }
 
@@ -248,9 +256,13 @@ impl<T: AggregationMethod> Aggregator<T> {
 
         let parsed_val = self.parser.parse_val(str_val, line_num)?;
         // this determines how to add the data as it's being read
-        if parsed_val.is_some() {
-            self.update_aggregations(indexnames, columnnames, &parsed_val.unwrap());
-        }
+        match parsed_val {
+            Some(val) => self.update_aggregations(indexnames, columnnames, &val),
+            _ => { } 
+        };
+        // if parsed_val.is_some() {
+        //     self.update_aggregations(indexnames, columnnames, &parsed_val.unwrap());
+        // }
         Ok(())
     }
 
@@ -306,7 +318,7 @@ where
     indexes: Vec<String>,
     settings: CsvSettings,
     column_order: OutputOrder,
-    row_order: OutputOrder
+    row_order: OutputOrder,
 }
 
 impl<U: AggregationMethod> Default for CliConfig<U> {
@@ -326,7 +338,7 @@ impl<U: AggregationMethod> CliConfig<U> {
             indexes: vec![],
             settings: CsvSettings::default(),
             column_order: OutputOrder::Ascending,
-            row_order: OutputOrder::IndexOrder
+            row_order: OutputOrder::IndexOrder,
         }
     }
     /// Takes command-line arguments and tries to convert them into a `CliConfig` object, returning an error on failure.
@@ -352,27 +364,17 @@ impl<U: AggregationMethod> CliConfig<U> {
         let settings =
             CsvSettings::parse_new(&filename, delim_vals, !arg_matches.is_present("noheader"))?;
 
-        let column_order = match arg_matches.is_present("indexcol") {
-            true => OutputOrder::IndexOrder,
-            false => {
-                match arg_matches.is_present("desccol") {
-                    true => OutputOrder::Descending,
-                    false => OutputOrder::Ascending
-                }
-            }
-        };
+        let column_order = if arg_matches.is_present("indexcol") {
+            OutputOrder::IndexOrder
+        } else if arg_matches.is_present("desccol") {
+            OutputOrder::Descending
+        } else { OutputOrder::Ascending };
 
-        let row_order = match arg_matches.is_present("ascrow") {
-            true => {
-                OutputOrder::Ascending
-            },
-            false => {
-                match arg_matches.is_present("descrow") {
-                    true => OutputOrder::Descending,
-                    false => OutputOrder::IndexOrder
-                }
-            }
-        };
+        let row_order = if arg_matches.is_present("ascrow") {
+            OutputOrder::Ascending
+        } else if arg_matches.is_present("descrow") {
+            OutputOrder::Descending
+        } else { OutputOrder::IndexOrder };
 
         let cfg = CliConfig {
             filename: filename.map(String::from),
@@ -382,7 +384,7 @@ impl<U: AggregationMethod> CliConfig<U> {
             column_cols,
             settings,
             column_order,
-            row_order
+            row_order,
         };
         Ok(cfg)
     }
@@ -424,17 +426,14 @@ impl<U: AggregationMethod> CliConfig<U> {
     /// and updates the `Aggregator` object so we can run aggregations.
     fn validate_columns(&mut self, headers: &Vec<&str>) -> CsvCliResult<()> {
         // validates the aggregation columns and then updates the aggregator
-        let index_vec = self.settings.get_field_indexes(
-            &self.indexes.iter().map(|v| v.as_ref()).collect(),
-            headers,
-        )?;
+        let index_vec = self
+            .settings
+            .get_field_indexes(&self.indexes.iter().map(|v| v.as_ref()).collect(), headers)?;
         let column_vec = self.settings.get_field_indexes(
             &self.column_cols.iter().map(|v| v.as_ref()).collect(),
             headers,
         )?;
-        let values_vec = self
-            .settings
-            .get_field_index(&self.values_col, headers)?;
+        let values_vec = self.settings.get_field_index(&self.values_col, headers)?;
 
         self.aggregator
             .set_indexes(index_vec)
@@ -466,8 +465,8 @@ impl<U: AggregationMethod> CliConfig<U> {
             self.validate_columns(&headers.iter().collect())?;
             self.aggregator.aggregate_from_stdin(rdr)?;
         }
-    self.aggregator.write_results()?;
-    Ok(())
+        self.aggregator.write_results()?;
+        Ok(())
     }
 }
 
@@ -527,7 +526,7 @@ mod tests {
             column_cols: vec![2, 3],
             values_col: 4,
             column_order: OutputOrder::Ascending,
-            row_order: OutputOrder::IndexOrder
+            row_order: OutputOrder::IndexOrder,
         };
         agg.add_record(&setup_simple_record(), 0).unwrap();
         agg
@@ -557,7 +556,7 @@ mod tests {
             column_cols: vec![1],
             values_col: 0,
             column_order: OutputOrder::Ascending,
-            row_order: OutputOrder::IndexOrder
+            row_order: OutputOrder::IndexOrder,
         };
         CliConfig {
             filename: Some("test_csvs/one_liner.csv".to_string()),
@@ -568,7 +567,7 @@ mod tests {
             settings: CsvSettings::parse_new(&Some("test_csvs/one_liner"), Some(","), true)
                 .unwrap(),
             column_order: OutputOrder::Ascending,
-            row_order: OutputOrder::IndexOrder
+            row_order: OutputOrder::IndexOrder,
         }
     }
 
@@ -582,7 +581,7 @@ mod tests {
             column_cols: vec![1],
             values_col: 0,
             column_order: OutputOrder::Ascending,
-            row_order: OutputOrder::IndexOrder
+            row_order: OutputOrder::IndexOrder,
         };
         CliConfig {
             filename: Some("test_csvs/layoffs.csv".to_string()),
@@ -593,7 +592,7 @@ mod tests {
             settings: CsvSettings::parse_new(&Some("test_csvs/layoffs.csv"), Some(","), true)
                 .unwrap(),
             column_order: OutputOrder::Ascending,
-            row_order: OutputOrder::IndexOrder
+            row_order: OutputOrder::IndexOrder,
         }
     }
 

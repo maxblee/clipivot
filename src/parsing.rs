@@ -28,7 +28,7 @@
 //! function from within the `aggregation` module (and specifically, from within the `CliConfig` struct). The
 //! implementation for `Count` should give you a sense of how this is done:
 //!
-//! ```rust
+//! ```rust,ignore
 //! match U::get_aggtype {
 //!     AggTypes::Count => ParsingType::Text(None)
 //! ...
@@ -37,8 +37,8 @@
 //! But in case you want to add new parsing types or alter the implementation of parsing
 //! in `clipivot`, taking a closer look at `ParsingHelper`, `ParsingType`, and `DateFormatter` might be helpful.
 
-use csv_cli_core::errors::{CsvCliError, CsvCliResult};
 use chrono::{Datelike, NaiveDate, NaiveDateTime};
+use csv_cli_core::errors::{CsvCliError, CsvCliResult};
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 use std::fmt;
@@ -124,11 +124,13 @@ impl DateFormatter {
                     Ok(datetime_format) => Ok(datetime_format),
                     Err(_) => NaiveDate::parse_from_str(new_val, &str_format)
                         .and_then(|v| Ok(v.and_hms(0, 0, 0)))
-                        .or_else(|_| Err(CsvCliError::ParsingError {
-                            line_num,
-                            str_to_parse: new_val.to_string(),
-                            err: "Failed to parse datetime".to_string(),
-                        })),
+                        .or_else(|_| {
+                            Err(CsvCliError::ParsingError {
+                                line_num,
+                                str_to_parse: new_val.to_string(),
+                                err: "Failed to parse datetime".to_string(),
+                            })
+                        }),
                 }
             }
             None => {
@@ -144,11 +146,13 @@ impl DateFormatter {
                         false,
                         &HashMap::new(),
                     )
-                    .or_else(|_| Err(CsvCliError::ParsingError {
-                        line_num,
-                        str_to_parse: new_val.to_string(),
-                        err: "Failed to parse datetime".to_string(),
-                    }))?;
+                    .or_else(|_| {
+                        Err(CsvCliError::ParsingError {
+                            line_num,
+                            str_to_parse: new_val.to_string(),
+                            err: "Failed to parse datetime".to_string(),
+                        })
+                    })?;
                 Ok(dt)
             }
         }
@@ -258,21 +262,25 @@ impl ParsingHelper {
     fn parse_numeric(new_val: &str, line_num: usize) -> CsvCliResult<ParsingType> {
         let dec = Decimal::from_str(new_val)
             .or_else(|_| Decimal::from_scientific(&new_val.to_ascii_lowercase())) // infer scientific notation on error
-            .or_else(|_| Err(CsvCliError::ParsingError {
-                line_num,
-                str_to_parse: new_val.to_string(),
-                err: "Failed to parse as numeric type".to_string(),
-            }))?;
+            .or_else(|_| {
+                Err(CsvCliError::ParsingError {
+                    line_num,
+                    str_to_parse: new_val.to_string(),
+                    err: "Failed to parse as numeric type".to_string(),
+                })
+            })?;
         Ok(ParsingType::Numeric(Some(dec)))
     }
 
     /// Parses cells as floating point types.
     fn parse_floating(new_val: &str, line_num: usize) -> CsvCliResult<ParsingType> {
-        let num: f64 = new_val.parse().or_else(|_| Err(CsvCliError::ParsingError {
-            line_num,
-            str_to_parse: new_val.to_string(),
-            err: "Failed to parse floating point number".to_string(),
-        }))?;
+        let num: f64 = new_val.parse().or_else(|_| {
+            Err(CsvCliError::ParsingError {
+                line_num,
+                str_to_parse: new_val.to_string(),
+                err: "Failed to parse floating point number".to_string(),
+            })
+        })?;
         Ok(ParsingType::FloatingPoint(Some(num)))
     }
 }
