@@ -68,4 +68,4 @@ script:
   - bash ci/script.sh
 
 before_deploy:
-  - sh ci/before_deploy.sh
+  - bash ci/before_deploy.sh

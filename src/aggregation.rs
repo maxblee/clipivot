@@ -26,15 +26,26 @@
 //!
 //! 6. Finally, the `Aggregator` struct will write the results to standard output.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fs;
 use std::io;
-
+use indexmap::set::IndexSet;
 use crate::aggfunc::*;
 use crate::parsing::{ParsingHelper, ParsingType};
 use clap::ArgMatches;
 use csv_cli_core::errors::CsvCliResult;
 use csv_cli_core::CsvSettings;
+
+/// The order in which columns or rows are presented
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum OutputOrder {
+    /// Index order (i.e. the order in which they appear)
+    IndexOrder,
+    /// Ascending order (A-Z)
+    Ascending,
+    /// Descending order (Z-A)
+    Descending,
+}
 
 const FIELD_SEPARATOR: &str = "_<sep>_";
 
@@ -44,7 +55,7 @@ const FIELD_SEPARATOR: &str = "_<sep>_";
 /// and a struct implementing the`AggregationMethod` trait to build the aggregations.
 /// Once it has built these aggregations, it goes row by row using `AggregationMethod` to write the
 /// computed records to standard output.
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct Aggregator<T>
 where
     T: AggregationMethod,
@@ -53,9 +64,9 @@ where
     /// `AggregationMethod` trait, like `Count`.
     aggregations: HashMap<(String, String), T>,
     /// Holds all of the unique row names
-    indexes: HashSet<String>,
+    indexes: IndexSet<String>,
     /// Holds the unique column names
-    columns: HashSet<String>,
+    columns: IndexSet<String>,
     /// Determines how new records are aggregated. See [this](../parsing/index.html)
     /// for details.
     parser: ParsingHelper,
@@ -65,18 +76,30 @@ where
     column_cols: Vec<usize>,
     /// The column that determines the values of each cell in the pivot table
     values_col: usize,
+    /// The order in which the final rows appear
+    row_order: OutputOrder,
+    /// The order in which the final columns appear
+    column_order: OutputOrder
+}
+
+impl<T: AggregationMethod> Default for Aggregator<T> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<T: AggregationMethod> Aggregator<T> {
     pub fn new() -> Aggregator<T> {
         Aggregator {
             aggregations: HashMap::new(),
-            indexes: HashSet::new(),
-            columns: HashSet::new(),
+            indexes: IndexSet::new(),
+            columns: IndexSet::new(),
             parser: ParsingHelper::default(),
             index_cols: Vec::new(),
             column_cols: Vec::new(),
             values_col: 0,
+            row_order: OutputOrder::IndexOrder,
+            column_order: OutputOrder::Ascending
         }
     }
 
@@ -97,6 +120,16 @@ impl<T: AggregationMethod> Aggregator<T> {
     /// Adds the list of columns to the aggregator.
     pub fn set_columns(&mut self, new_cols: Vec<usize>) -> &mut Aggregator<T> {
         self.column_cols = new_cols;
+        self
+    }
+
+    pub fn set_column_order(&mut self, output_order: OutputOrder) -> &mut Aggregator<T> {
+        self.column_order = output_order;
+        self
+    }
+
+    pub fn set_row_order(&mut self, output_order: OutputOrder) -> &mut Aggregator<T> {
+        self.row_order = output_order;
         self
     }
 
@@ -152,8 +185,9 @@ impl<T: AggregationMethod> Aggregator<T> {
 
     /// This method goes cell by cell and serializes the data inside the `Aggregator.aggregations`
     /// attribute and outputs them into standard output.
-    pub fn write_results(&self) -> CsvCliResult<()> {
+    pub fn write_results(&mut self) -> CsvCliResult<()> {
         let mut wtr = csv::Writer::from_writer(io::stdout());
+        self.sort_results();
         let mut header = vec![""];
         for col in &self.columns {
             header.push(col);
@@ -169,6 +203,19 @@ impl<T: AggregationMethod> Aggregator<T> {
         }
         wtr.flush()?;
         Ok(())
+    }
+
+    fn sort_results(&mut self) {
+        match self.column_order {
+            OutputOrder::Ascending => { self.columns.sort(); },
+            OutputOrder::Descending => { self.columns.sort_by(|a,b| b.cmp(a) ); },
+            OutputOrder::IndexOrder => { }
+        };
+        match self.row_order {
+            OutputOrder::Ascending => { self.indexes.sort(); },
+            OutputOrder::Descending => { self.indexes.sort_by(|a, b| b.cmp(a)); },
+            OutputOrder::IndexOrder => { }
+        }
     }
 
     /// This method parses a given cell, outputting it as a string so the CSV
@@ -258,6 +305,8 @@ where
     /// The name of the column(s) (or indexes) forming the indexes of the final pivot table.
     indexes: Vec<String>,
     settings: CsvSettings,
+    column_order: OutputOrder,
+    row_order: OutputOrder
 }
 
 impl<U: AggregationMethod> Default for CliConfig<U> {
@@ -276,6 +325,8 @@ impl<U: AggregationMethod> CliConfig<U> {
             column_cols: vec![],
             indexes: vec![],
             settings: CsvSettings::default(),
+            column_order: OutputOrder::Ascending,
+            row_order: OutputOrder::IndexOrder
         }
     }
     /// Takes command-line arguments and tries to convert them into a `CliConfig` object, returning an error on failure.
@@ -301,6 +352,28 @@ impl<U: AggregationMethod> CliConfig<U> {
         let settings =
             CsvSettings::parse_new(&filename, delim_vals, !arg_matches.is_present("noheader"))?;
 
+        let column_order = match arg_matches.is_present("indexcol") {
+            true => OutputOrder::IndexOrder,
+            false => {
+                match arg_matches.is_present("desccol") {
+                    true => OutputOrder::Descending,
+                    false => OutputOrder::Ascending
+                }
+            }
+        };
+
+        let row_order = match arg_matches.is_present("ascrow") {
+            true => {
+                OutputOrder::Ascending
+            },
+            false => {
+                match arg_matches.is_present("descrow") {
+                    true => OutputOrder::Descending,
+                    false => OutputOrder::IndexOrder
+                }
+            }
+        };
+
         let cfg = CliConfig {
             filename: filename.map(String::from),
             aggregator,
@@ -308,9 +381,12 @@ impl<U: AggregationMethod> CliConfig<U> {
             indexes,
             column_cols,
             settings,
+            column_order,
+            row_order
         };
         Ok(cfg)
     }
+
     /// Determines how to parse data, depending on the type of function you're running and command-line flags.
     fn get_parsing_approach(&self, parse_numeric: bool, parse_date: bool) -> ParsingType {
         match U::get_aggtype() {
@@ -367,8 +443,15 @@ impl<U: AggregationMethod> CliConfig<U> {
         Ok(())
     }
 
+    fn set_ordering(&mut self) {
+        self.aggregator
+            .set_column_order(self.column_order)
+            .set_row_order(self.row_order);
+    }
+
     /// Runs the `Aggregator` for the given type.
     pub fn run_config(&mut self) -> CsvCliResult<()> {
+        self.set_ordering();
         if self.filename.is_some() {
             // unwrap safe because of `is_some` call
             let mut rdr = self
@@ -383,8 +466,8 @@ impl<U: AggregationMethod> CliConfig<U> {
             self.validate_columns(&headers.iter().collect())?;
             self.aggregator.aggregate_from_stdin(rdr)?;
         }
-        self.aggregator.write_results()?;
-        Ok(())
+    self.aggregator.write_results()?;
+    Ok(())
     }
 }
 
@@ -437,12 +520,14 @@ mod tests {
     fn setup_simple_count() -> Aggregator<Count> {
         let mut agg: Aggregator<Count> = Aggregator {
             aggregations: HashMap::new(),
-            indexes: HashSet::new(),
-            columns: HashSet::new(),
+            indexes: IndexSet::new(),
+            columns: IndexSet::new(),
             parser: ParsingHelper::default(),
             index_cols: vec![0, 1],
             column_cols: vec![2, 3],
             values_col: 4,
+            column_order: OutputOrder::Ascending,
+            row_order: OutputOrder::IndexOrder
         };
         agg.add_record(&setup_simple_record(), 0).unwrap();
         agg
@@ -465,12 +550,14 @@ mod tests {
     fn setup_one_liners() -> CliConfig<Count> {
         let agg: Aggregator<Count> = Aggregator {
             aggregations: HashMap::new(),
-            indexes: HashSet::new(),
-            columns: HashSet::new(),
+            indexes: IndexSet::new(),
+            columns: IndexSet::new(),
             parser: ParsingHelper::default(),
             index_cols: vec![2],
             column_cols: vec![1],
             values_col: 0,
+            column_order: OutputOrder::Ascending,
+            row_order: OutputOrder::IndexOrder
         };
         CliConfig {
             filename: Some("test_csvs/one_liner.csv".to_string()),
@@ -480,18 +567,22 @@ mod tests {
             indexes: vec!["2".to_string()],
             settings: CsvSettings::parse_new(&Some("test_csvs/one_liner"), Some(","), true)
                 .unwrap(),
+            column_order: OutputOrder::Ascending,
+            row_order: OutputOrder::IndexOrder
         }
     }
 
     fn setup_config() -> CliConfig<Count> {
         let agg: Aggregator<Count> = Aggregator {
             aggregations: HashMap::new(),
-            indexes: HashSet::new(),
-            columns: HashSet::new(),
+            indexes: IndexSet::new(),
+            columns: IndexSet::new(),
             parser: ParsingHelper::default(),
             index_cols: vec![3],
             column_cols: vec![1],
             values_col: 0,
+            column_order: OutputOrder::Ascending,
+            row_order: OutputOrder::IndexOrder
         };
         CliConfig {
             filename: Some("test_csvs/layoffs.csv".to_string()),
@@ -501,6 +592,8 @@ mod tests {
             indexes: vec!["3".to_string()],
             settings: CsvSettings::parse_new(&Some("test_csvs/layoffs.csv"), Some(","), true)
                 .unwrap(),
+            column_order: OutputOrder::Ascending,
+            row_order: OutputOrder::IndexOrder
         }
     }
 
@@ -608,7 +701,7 @@ mod tests {
     #[test]
     fn test_adding_record_stores_agg_indexes() {
         let agg = setup_simple_count();
-        let mut expected_indexes = HashSet::new();
+        let mut expected_indexes = IndexSet::new();
         expected_indexes.insert("Columbus_<sep>_OH".to_string());
         assert_eq!(agg.indexes, expected_indexes);
     }
@@ -616,7 +709,7 @@ mod tests {
     #[test]
     fn test_adding_record_stores_agg_columns() {
         let agg = setup_simple_count();
-        let mut expected_columns = HashSet::new();
+        let mut expected_columns = IndexSet::new();
         expected_columns.insert("Blue Jackets_<sep>_Hockey".to_string());
         assert_eq!(agg.columns, expected_columns);
     }
@@ -624,7 +717,7 @@ mod tests {
     #[test]
     fn test_multiple_indexes() {
         let agg = setup_multiple_counts();
-        let mut expected_indexes = HashSet::new();
+        let mut expected_indexes = IndexSet::new();
         expected_indexes.insert("Columbus_<sep>_OH".to_string());
         expected_indexes.insert("Nashville_<sep>_TN".to_string());
         assert_eq!(agg.indexes, expected_indexes);
@@ -633,7 +726,7 @@ mod tests {
     #[test]
     fn test_multiple_columns() {
         let agg = setup_multiple_counts();
-        let mut expected_columns = HashSet::new();
+        let mut expected_columns = IndexSet::new();
         expected_columns.insert("Blue Jackets_<sep>_Hockey".to_string());
         expected_columns.insert("Predators_<sep>_Hockey".to_string());
         expected_columns.insert("Titans_<sep>_Football".to_string());
