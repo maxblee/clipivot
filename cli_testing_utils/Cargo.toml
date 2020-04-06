@@ -1,0 +1,10 @@
+[package]
+name = "cli_testing_utils"
+version = "0.1.0"
+authors = ["Max Lee <maxbmhlee@gmail.com>"]
+edition = "2018"
+license = "MIT"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
