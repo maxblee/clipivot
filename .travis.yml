@@ -22,8 +22,8 @@ matrix:
   # TODO: Get this working (currently fails, possibly because Windows support new on Travis (but maybe not bc of that))
   # - env: TARGET=x86_64-pc-windows-gnu
   #   os: windows
-  - env: TARGET=x86_64-pc-windows-msvc
-    os: windows
+  # - env: TARGET=x86_64-pc-windows-msvc
+  #   os: windows
   # TODO: Get this working (currently fails, possibly bc of new Windows support for Travis)
   # - env: TARGET=i686-pc-windows-gnu
   #   os: windows

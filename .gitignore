@@ -5,3 +5,4 @@
 tmp/
 coverage/
 *.code-workspace
+*.html
