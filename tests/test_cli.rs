@@ -4,7 +4,7 @@ use std::process::Output;
 use std::str;
 
 #[macro_use]
-extern crate cli_testing_utils;
+mod common;
 
 fn setup_cmd(query: &[&str]) -> Output {
     let program_name = program_path!();

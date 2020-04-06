@@ -28,14 +28,3 @@ macro_rules! program_path {
         }
     }};
 }
-
-#[cfg(test)]
-mod test {
-    #[test]
-    fn no_target_yields_local_result() {
-        // If there isn't a TARGET env variable, returns target/debug/PKG_NAME
-        assert_eq!(program_path!(), "target/debug/cli_testing_utils");
-        // Note: the option_env! macro checks the environment variable *at compile time*
-        // so I can't directly mock that with an env::set_var call
-    }
-}

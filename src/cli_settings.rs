@@ -1,104 +1,106 @@
+//! Defines some basic settings surrounding a CSV file.
+//!
+//! This is designed to make it simple for me to create new command-line
+//! interfaces for parsing CSVs. I built this specifically for the
+//! command-line tool [I built](https://github.com/maxblee/clipivot) for
+//! creating pivot tables. So far, I have not adapted the code at all,
+//! except to change the documentation and change the names on some of the functions.
+//!
+//! The basic idea is that you can use this tool to convert `ArgMatches`
+//! from `Clap` (a command-line argument parser in Rust) into things that
+//! are more convenient from a back-end logic perspective.
+//!
+//! For instance, say you have a `Clap` app that looks like this:
+//! ```ignore
+//! extern crate clap;
+//! use clap:::{Arg, App};
+//! let app = App::new("CSV Program")
+//!                     .version("0.1.0")
+//!                     .author("Max Lee<maxbmhlee@gmail.com")
+//!                     .about("Selects fields from a CSV file")
+//!                     .arg(Arg::with_name("filename")
+//!                         .takes_value(true))
+//!                     .arg(Arg::with_name("delimiter")
+//!                         .takes_value(true))
+//!                     .arg(Arg::with_name("noheader"))
+//!                     .arg(Arg::with_name("fieldselect")
+//!                         .multiple(true));
+//! let matches = app.get_matches();
+//! ```
+//! where "filename" refers to the name of your file (or None if you're reading from standard input),
+//! "delimiter" refers to the single byte UTF-8 delimiter separating fields in each row,
+//! "noheader" refers to whether or not your file has a header row,
+//! and "fieldselect" refers to a list of fields from the CSV file that the user wants to do
+//! something based off (more on that in a bit).
+//! 
+//! In order to create a `CsvSettings` object *and* validate your delimiter,
+//! simply type
+//! ```ignore
+//! let filename = matches.value_of("filename");
+//! let settings = CsvSettings::parse_new(
+//!          &filename,
+//!         matches.value_of("delimiter"),
+//!         !matches.is_present("noheader")
+//!     ).expect("Couldn't properly parse the delimiter");
+//! ```
+//!
+//! From there, you can easily create a `csv::Reader` object:
+//! ```ignore
+//! if filename.is_some() {
+//!     let mut rdr = settings.get_reader_from_path(&filename).expect("Couldn't read file");
+//! } else {
+//!     let mut rdr = settings.get_reader_from_stdin();
+//! }
+//! ```
+//! Finally, let's say you want to allow a user to select a list of fields from a CSV
+//! file and do something based on the values of those fields. If the header row looks like this:
+//! ```csv
+//! col1,col2,col1,col3
+//! ```
+//! The user can enter one of the following things to select the first column:
+//! - col1
+//! - 0
+//! - col1\[0\]
+//!
+//! Or, to grab the third column, the user can type
+//! - 2
+//! - col1\[1\]
+//!
+//! And finally, assuming the user is allowed to select multiple columns,
+//! the user can type one of the following things to grab the first two columns in our file:
+//! - --option col1,col2
+//! - --option col1 col2
+//! - --option col1 --option col2
+//! 
+//! In order to convert the user's selection into a list of unsigned integers
+//! so your program can more easily retrieve the value of a given row at a column the user selected,
+//! simply take one of the `csv::Reader` objects you created and type
+//! ```ignore
+//! let headers = rdr.headers().expect("Couldn't parse header");
+//! let string_fields = matches.values_of("fieldselect")
+//!     .unwrap_or(vec![]);
+//! let index_vec = settings.get_field_indexes(
+//!     &string_fileds, &headers.iter().collect()
+//! ).expect("Couldn't parse one or more of the fields");
+//! ```
+//! Or, to select one column and return its index after parsing, type:
+//! ```ignore
+//! let colname = matches.value_of("selection").unwrap();
+//! let col_idx = settings.get_field_index(colname, &headers.iter().collect());
+//! ```
+//! 
+//! One final thing: When it comes to field selection, `CsvSettings` keeps in mind
+//! whether or not you have a header row. If you don't, it will require that
+//! all of your fields be unsigned integers between 0 and the total number of fields
+//! in the first row of your CSV file. And because the `rdr.headers()` method
+//! returns the first row of your file regardless of whether or not the file has a header row,
+//! you don't need to change a line of code to get it to work.
 use crate::errors::{CsvCliError, CsvCliResult};
 use std::fs;
 use std::io;
-/// Defines some basic settings surrounding a CSV file.
-///
-/// This is designed to make it simple for me to create new command-line
-/// interfaces for parsing CSVs. I built this specifically for the
-/// command-line tool [I built](https://github.com/maxblee/clipivot) for
-/// creating pivot tables. So far, I have not adapted the code at all,
-/// except to change the documentation and change the names on some of the functions.
-///
-/// The basic idea is that you can use this tool to convert `ArgMatches`
-/// from `Clap` (a command-line argument parser in Rust) into things that
-/// are more convenient from a back-end logic perspective.
-///
-/// For instance, say you have a `Clap` app that looks like this:
-/// ```ignore
-/// extern crate clap;
-/// use clap:::{Arg, App};
-/// let app = App::new("CSV Program")
-///                     .version("0.1.0")
-///                     .author("Max Lee<maxbmhlee@gmail.com")
-///                     .about("Selects fields from a CSV file")
-///                     .arg(Arg::with_name("filename")
-///                         .takes_value(true))
-///                     .arg(Arg::with_name("delimiter")
-///                         .takes_value(true))
-///                     .arg(Arg::with_name("noheader"))
-///                     .arg(Arg::with_name("fieldselect")
-///                         .multiple(true));
-/// let matches = app.get_matches();
-/// ```
-/// where "filename" refers to the name of your file (or None if you're reading from standard input),
-/// "delimiter" refers to the single byte UTF-8 delimiter separating fields in each row,
-/// "noheader" refers to whether or not your file has a header row,
-/// and "fieldselect" refers to a list of fields from the CSV file that the user wants to do
-/// something based off (more on that in a bit).
-/// 
-/// In order to create a `CsvSettings` object *and* validate your delimiter,
-/// simply type
-/// ```ignore
-/// let filename = matches.value_of("filename");
-/// let settings = CsvSettings::parse_new(
-///          &filename,
-///         matches.value_of("delimiter"),
-///         !matches.is_present("noheader")
-///     ).expect("Couldn't properly parse the delimiter");
-/// ```
-///
-/// From there, you can easily create a `csv::Reader` object:
-/// ```ignore
-/// if filename.is_some() {
-///     let mut rdr = settings.get_reader_from_path(&filename).expect("Couldn't read file");
-/// } else {
-///     let mut rdr = settings.get_reader_from_stdin();
-/// }
-/// ```
-/// Finally, let's say you want to allow a user to select a list of fields from a CSV
-/// file and do something based on the values of those fields. If the header row looks like this:
-/// ```csv
-/// col1,col2,col1,col3
-/// ```
-/// The user can enter one of the following things to select the first column:
-/// - col1
-/// - 0
-/// - col1[0]
-///
-/// Or, to grab the third column, the user can type
-/// - 2
-/// - col1[1]
-///
-/// And finally, assuming the user is allowed to select multiple columns,
-/// the user can type one of the following things to grab the first two columns in our file:
-/// - --option col1,col2
-/// - --option col1 col2
-/// - --option col1 --option col2
-/// 
-/// In order to convert the user's selection into a list of unsigned integers
-/// so your program can more easily retrieve the value of a given row at a column the user selected,
-/// simply take one of the `csv::Reader` objects you created and type
-/// ```ignore
-/// let headers = rdr.headers().expect("Couldn't parse header");
-/// let string_fields = matches.values_of("fieldselect")
-///     .unwrap_or(vec![]);
-/// let index_vec = settings.get_field_indexes(
-///     &string_fileds, &headers.iter().collect()
-/// ).expect("Couldn't parse one or more of the fields");
-/// ```
-/// Or, to select one column and return its index after parsing, type:
-/// ```ignore
-/// let colname = matches.value_of("selection").unwrap();
-/// let col_idx = settings.get_field_index(colname, &headers.iter().collect());
-/// ```
-/// 
-/// One final thing: When it comes to field selection, `CsvSettings` keeps in mind
-/// whether or not you have a header row. If you don't, it will require that
-/// all of your fields be unsigned integers between 0 and the total number of fields
-/// in the first row of your CSV file. And because the `rdr.headers()` method
-/// returns the first row of your file regardless of whether or not the file has a header row,
-/// you don't need to change a line of code to get it to work.
 
+/// The core struct of the settings module, providing general settings and utilities for 
+/// writing CSV command-line tools.
 #[derive(Debug, PartialEq)]
 pub struct CsvSettings {
     /// The column separator (e.g. '\t' for TSV files, ',' for CSV, etc.)

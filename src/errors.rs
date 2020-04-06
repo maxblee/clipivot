@@ -1,4 +1,4 @@
-//! The module for describing recoverable errors in my CSV command-lline tools.
+//! The module for describing recoverable errors in my CSV command-line tools.
 //!
 //! > *Note:* All of the error handling in this module is structured from
 //! > [this error handling guide](https://blog.burntsushi.net/rust-error-handling)

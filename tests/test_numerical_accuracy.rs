@@ -17,7 +17,7 @@ use std::process::Command;
 use std::str;
 
 #[macro_use]
-extern crate cli_testing_utils;
+mod common;
 
 type NumericRecord = (String, f64);
 

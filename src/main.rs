@@ -10,8 +10,8 @@ use rust_decimal::Decimal;
 use clipivot::aggfunc::*;
 use clipivot::aggregation::{Aggregator, OutputOrder, ParsingStrategy};
 use clipivot::parsing::{self, CustomDateObject, DecimalWrapper};
-use csv_cli_core::errors::{CsvCliError, CsvCliResult};
-use csv_cli_core::CsvSettings;
+use clipivot::errors::{CsvCliError, CsvCliResult};
+use clipivot::cli_settings::CsvSettings;
 
 const ALLOWED_AGGFUNCS: [&str; 11] = [
     "count",

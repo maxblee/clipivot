@@ -5,7 +5,7 @@
 //! outputs the aggregated values to standard output.
 use crate::aggfunc::Accumulate;
 use crate::parsing::INPUT_DATE_FORMAT;
-use csv_cli_core::errors::{CsvCliError, CsvCliResult};
+use crate::errors::{CsvCliError, CsvCliResult};
 use indexmap::set::IndexSet;
 use once_cell::sync::Lazy;
 use std::collections::hash_map::Entry;
