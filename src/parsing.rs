@@ -1,351 +1,157 @@
-//! The module for deserializing text records.
+//! The module for customized parsing of types for the command-line program.
 //!
-//! This module interacts with the `Aggregator` class
-//! from the `aggregation` module. Every time we add a new record into the aggregator,
-//! we parse it first, deserializing the record into a given value.
-//!
-//! Right now, there are four different types we can parse records into,
-//! represented by the `ParsingType` enum. The floating point and numeric types
-//! both represent numeric data. As you might assume, the difference is in the types of data they hold.
-//! `FloatingPoint` `ParsingType` records hold floating point values, as you probably guessed, while
-//! `Numeric` `ParsingType` records hold decimal values. (Mean and sum both use the Decimal type
-//! to avoid truncation errors.)
-//!
-//! In addition, we have a `ParsingType` enum for text, which basically just converts `&str` splices
-//! into `String` objects, and a `DateType` `ParsingType` enum which converts string dates into
-//! datetimes using `dtparse`, Rust's equivalent of the Python `dateutil` parser, or `chrono`.
-//!
-//! Finally, there are the two structs that do the heavy lifting, `ParsingHelper` and `DateFormatter`.
-//! The `Aggregator` struct passes each value in the values column field as a string to the `ParsingHelper`.
-//! The `ParsingHelper` will then deserialize the string based on its settings, before handing the final
-//! object back to the `Aggregator`. (Then, the `Aggregator` passes those values to one of the structs
-//! implementing the `AggregationMethod` trait.) And finally, the `DateFormatter` serves as a helper struct
-//! for `ParsingHelper`, providing settings for parsing dates to the `ParsingHelper`.
-//!
-//! Because `clipivot` comes with support for parsing text, numeric data, and datetimes, you probably don't
-//! need to change anything in the `parsing` module in order to add a feature (assuming you want to add a feature).
-//! Instead, all you'll need to do is set how you want data to be parse in your new feature in the `get_parsing_approach`
-//! function from within the `aggregation` module (and specifically, from within the `CliConfig` struct). The
-//! implementation for `Count` should give you a sense of how this is done:
-//!
-//! ```rust,ignore
-//! match U::get_aggtype {
-//!     AggTypes::Count => ParsingType::Text(None)
-//! ...
-//! }
-//! ```
-//! But in case you want to add new parsing types or alter the implementation of parsing
-//! in `clipivot`, taking a closer look at `ParsingHelper`, `ParsingType`, and `DateFormatter` might be helpful.
-
-use chrono::{Datelike, NaiveDate, NaiveDateTime};
-use csv_cli_core::errors::{CsvCliError, CsvCliResult};
+//! The two objects, `CustomDateObject` and `DecimalWrapper` are simple wrappers over existing
+//! data types -- `chrono::NaiveDateTime` in the case of `CustomDateObject` and `rust_decimal::Decimal`
+//! in the case of `DecimalWrapper`.
+//! 
+//! This is necessary because `chrono` doesn't use `FromStr` (because it doesn't know the format it needs to parse)
+//! and because I wanted to return the number of days between datetimes for range (overwriting `std::ops::Sub`).
+//! And decimal has a way of parsing values in scientific notation and parsing normal numbers. So I added
+//! the scientific notation parsing to the implementation of `FromStr`.
+use chrono::NaiveDateTime;
+use once_cell::sync::OnceCell;
 use rust_decimal::Decimal;
-use std::collections::HashMap;
 use std::fmt;
-use std::str::FromStr;
 
-/// The types of data `clipivot` parses. **Note** that `clipivot` only parses the value column
-/// of your data set. (That is, the indexes and columns of your pivot table are purely parsed as strings.)
-#[derive(Debug, PartialEq)]
-pub enum ParsingType {
-    /// Represents String data
-    Text(Option<String>),
-    /// This is used for most numeric calculations. The Decimal type prevents truncation errors from
-    /// unnecessarily reducing the accuracy of your calculations.
-    Numeric(Option<Decimal>),
-    /// This is used for numeric operations involving standard deviation
-    FloatingPoint(Option<f64>),
-    /// This is used for parsing date types. Its implementation can be fairly slow.
-    ///
-    /// However, you can improve performance by either using `ISO`-formatted dates (e.g. YYYY-MM-DD),
-    /// which sort as strings, when calculating minimum or maximum or by using the `-F` flag
-    /// and specifying the formatting of your dates.
-    DateTypes(Option<NaiveDateTime>),
+const OUTPUT_DATE_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
+/// The user-entered date format, used to allow `CustomDateObject` to run `FromStr` without needing an input string.
+pub static INPUT_DATE_FORMAT: OnceCell<&str> = OnceCell::new();
+
+/// Sets `INPUT_DATE_FORMAT`.
+// this sets static variable, so there's no need to do anything here
+#[allow(unused_must_use)]
+pub fn set_date_format(s: &'static str) {
+    INPUT_DATE_FORMAT.set(s);
 }
 
-/// Forms the settings for parsing dates. The settings come directly from the command-line arguments.
-pub struct DateFormatter {
-    parser: dtparse::Parser,
-    pub parsing_info: dtparse::ParserInfo,
-    default_date: NaiveDateTime,
-    date_format: Option<String>,
+/// A light wrapper over `rust_decimal::Decimal`.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct DecimalWrapper {
+    pub item: Decimal,
 }
 
-impl fmt::Debug for DateFormatter {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.parsing_info.fmt(f)
+impl std::str::FromStr for DecimalWrapper {
+    type Err = rust_decimal::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Decimal::from_str(s)
+            .or_else(|_| Decimal::from_scientific(s))
+            .map(|v| DecimalWrapper { item: v })
     }
 }
 
-impl PartialEq for DateFormatter {
-    fn eq(&self, other: &Self) -> bool {
-        self.parsing_info == other.parsing_info && self.default_date == other.default_date
+impl fmt::Display for DecimalWrapper {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.item.to_string())
     }
 }
 
-impl Default for DateFormatter {
-    fn default() -> DateFormatter {
-        let parsing_info = dtparse::ParserInfo::default();
-        let parser = dtparse::Parser::default();
-        let cur_year = chrono::Local::today().year();
-        let default_date = chrono::NaiveDate::from_ymd(cur_year, 1, 1).and_hms(0, 0, 0);
-        DateFormatter {
-            parsing_info,
-            parser,
-            default_date,
-            date_format: None,
+// necessary to get range to work
+impl std::ops::Sub for DecimalWrapper {
+    type Output = Decimal;
+
+    /// Returns the total number of days between two dates
+    fn sub(self, other: DecimalWrapper) -> Decimal {
+        self.item - other.item
+    }
+}
+
+// necessary for Sum
+impl std::ops::AddAssign for DecimalWrapper {
+    fn add_assign(&mut self, other: Self) {
+        *self = Self {
+            item: self.item + other.item,
         }
     }
 }
 
-impl DateFormatter {
-    /// Converts string dates into datetimes or errors.
-    pub fn new(dayfirst: bool, yearfirst: bool, format: Option<&str>) -> DateFormatter {
-        let mut base_formatter = DateFormatter::default();
-        if format.is_some() {
-            // https://users.rust-lang.org/t/convert-option-str-to-option-string/20533
-            base_formatter.date_format = format.map(String::from);
-        }
-        base_formatter.parsing_info.dayfirst = dayfirst;
-        base_formatter.parsing_info.yearfirst = yearfirst;
-        base_formatter
-    }
+impl std::ops::Add for DecimalWrapper {
+    type Output = DecimalWrapper;
 
-    /// Tries to convert a string value into a datetime, given the `DateFormatter` settings, returning an error if it fails.
-    pub fn parse(&self, new_val: &str, line_num: usize) -> CsvCliResult<NaiveDateTime> {
-        // ignore tokens (not using in impl)
-        // TODO handle offsets/timezones
-        // TODO Currently fails on "01042007" formatted dates because of underlying dtparser/Python dateutil issue
-        // (See https://github.com/dateutil/dateutil/issues/796 )
-        match &self.date_format {
-            Some(str_format) => {
-                let format_w_time = NaiveDateTime::parse_from_str(new_val, &str_format);
-                match format_w_time {
-                    Ok(datetime_format) => Ok(datetime_format),
-                    Err(_) => NaiveDate::parse_from_str(new_val, &str_format)
-                        .and_then(|v| Ok(v.and_hms(0, 0, 0)))
-                        .or_else(|_| {
-                            Err(CsvCliError::ParsingError {
-                                line_num,
-                                str_to_parse: new_val.to_string(),
-                                err: "Failed to parse datetime".to_string(),
-                            })
-                        }),
-                }
-            }
-            None => {
-                let (dt, _offset, _tokens) = self
-                    .parser
-                    .parse(
-                        new_val,
-                        Some(self.parsing_info.dayfirst),
-                        Some(self.parsing_info.yearfirst),
-                        false,
-                        false,
-                        Some(&self.default_date),
-                        false,
-                        &HashMap::new(),
-                    )
-                    .or_else(|_| {
-                        Err(CsvCliError::ParsingError {
-                            line_num,
-                            str_to_parse: new_val.to_string(),
-                            err: "Failed to parse datetime".to_string(),
-                        })
-                    })?;
-                Ok(dt)
-            }
-        }
-    }
-}
-/// Parses new records into `ParsingType` values.
-#[derive(Debug, PartialEq)]
-pub struct ParsingHelper {
-    /// Represents the type of data `ParsingHelper` will convert `&str` records
-    /// into while aggregating
-    values_type: ParsingType,
-    /// Determines whether or not to parse empty values. If you use the `-e` flag
-    /// with any query, `parse_empty` will be true and the `ParsingHelper` will pass over the record any time
-    /// it's empty
-    parse_empty: bool,
-    /// The date formatter. This object is `None` when you are dealing with data other than
-    /// datetimes and is some `DateFormatter` otherwise.
-    date_helper: Option<DateFormatter>,
-}
-
-impl Default for ParsingHelper {
-    fn default() -> ParsingHelper {
-        ParsingHelper {
-            values_type: ParsingType::Text(None),
-            parse_empty: true,
-            date_helper: None,
+    fn add(self, other: Self) -> Self {
+        Self {
+            item: self.item + other.item,
         }
     }
 }
 
-impl ParsingHelper {
-    /// This method is used by `CliConfig` to initialize the `ParsingHelper` the `Aggregator` uses.
-    pub fn from_parsing_type(
-        parsing: ParsingType,
-        dayfirst: bool,
-        yearfirst: bool,
-        date_format: Option<&str>,
-    ) -> ParsingHelper {
-        let date_helper = match parsing {
-            ParsingType::DateTypes(_) => Some(DateFormatter::new(dayfirst, yearfirst, date_format)),
-            _ => None,
-        };
-        ParsingHelper {
-            values_type: parsing,
-            parse_empty: true,
-            date_helper,
+impl std::ops::Div for DecimalWrapper {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        DecimalWrapper {
+            item: self.item / rhs.item,
         }
     }
+}
 
-    // the following approach to method chaining comes from
-    // http://www.ameyalokare.com/rust/2017/11/02/rust-builder-pattern.html
-    /// Adds the list of index columns to the default aggregator.
-    /// (This approach to method chaining comes from
-    /// [http://www.ameyalokare.com/rust/2017/11/02/rust-builder-pattern.html](http://www.ameyalokare.com/rust/2017/11/02/rust-builder-pattern.html).)
-    pub fn parse_empty_vals(mut self, yes: bool) -> Self {
-        self.parse_empty = yes;
-        self
+/// A light wrapper over `chrono::NaiveDateTime`. Also implements `std::ops::Sub` to compute the total number of
+/// days between two dates. This is probably not smart, but it allows me to easily run `Range` on dates.
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+pub struct CustomDateObject(NaiveDateTime);
+
+impl std::str::FromStr for CustomDateObject {
+    type Err = chrono::format::ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let parsed_dt = NaiveDateTime::parse_from_str(s, INPUT_DATE_FORMAT.get().unwrap())?;
+        Ok(CustomDateObject(parsed_dt))
     }
+}
 
-    /// Parses a string from the `Aggregator`. Returns `Ok(Some(ParsingType))` if it a)
-    /// doesn't run into an error and b) doesn't parse as empty; `Ok(None)` if it a)
-    /// doesn't run into an error but b) parses the string as empty; and
-    /// `Err(CsvCliError)` if it can't parse the string.
-    ///
-    /// **Note** that it only determines that a cell is empty if you have set the program
-    /// to skip past empty values (using the `-e` flag) and the cell has one of the following values:
-    /// - ""
-    /// - "na"
-    /// - "n/a"
-    /// - "none"
-    /// - "null"
-    /// - "nan"
-    ///
-    /// (Thanks to Python's [`agate` library](https://agate.readthedocs.io/en/1.6.1/api/data_types.html)
-    /// for coming up with these null values so I didn't have to.)
-    pub fn parse_val(&self, new_val: &str, line_num: usize) -> CsvCliResult<Option<ParsingType>> {
-        // list of empty values heavily borrowed from `agate` in Python
-        // https://agate.readthedocs.io/en/1.6.1/api/data_types.html
-        // Note: this should probably use a HashSet, but doesn't matter enough for me to figure out how to do that.
-        let empty_vals = vec!["", "na", "n/a", "none", "null", "nan"];
-        if empty_vals.contains(&new_val.to_ascii_lowercase().as_str()) && !self.parse_empty {
-            return Ok(None);
-        }
-        let parsed_val = match self.values_type {
-            ParsingType::Text(_) => Ok(ParsingType::Text(Some(new_val.to_string()))),
-            ParsingType::Numeric(_) => ParsingHelper::parse_numeric(new_val, line_num),
-            ParsingType::FloatingPoint(_) => ParsingHelper::parse_floating(new_val, line_num),
-            ParsingType::DateTypes(_) => self.parse_datetime(new_val, line_num),
-        }?;
-        Ok(Some(parsed_val))
+// necessary to get range to work
+impl std::ops::Sub for CustomDateObject {
+    type Output = f64;
+
+    /// Returns the total number of days between two dates
+    #[allow(clippy::suspicious_arithmetic_impl)]
+    fn sub(self, other: CustomDateObject) -> f64 {
+        let duration = self.0.signed_duration_since(other.0);
+        duration.num_seconds() as f64 / 86400.
     }
+}
 
-    /// This parses strings as datetimes given the setting of `self.date_helper`.
-    fn parse_datetime(&self, new_val: &str, line_num: usize) -> CsvCliResult<ParsingType> {
-        let parsed_dt = match &self.date_helper {
-            Some(helper) => helper.parse(new_val, line_num),
-            None => Err(CsvCliError::ParsingError {
-                line_num,
-                str_to_parse: new_val.to_string(),
-                err: "Failed to parse datetime".to_string(),
-            }),
-        }?;
-        Ok(ParsingType::DateTypes(Some(parsed_dt)))
-    }
-
-    /// Parses cells as numeric (Decimal) types
-    fn parse_numeric(new_val: &str, line_num: usize) -> CsvCliResult<ParsingType> {
-        let dec = Decimal::from_str(new_val)
-            .or_else(|_| Decimal::from_scientific(&new_val.to_ascii_lowercase())) // infer scientific notation on error
-            .or_else(|_| {
-                Err(CsvCliError::ParsingError {
-                    line_num,
-                    str_to_parse: new_val.to_string(),
-                    err: "Failed to parse as numeric type".to_string(),
-                })
-            })?;
-        Ok(ParsingType::Numeric(Some(dec)))
-    }
-
-    /// Parses cells as floating point types.
-    fn parse_floating(new_val: &str, line_num: usize) -> CsvCliResult<ParsingType> {
-        let num: f64 = new_val.parse().or_else(|_| {
-            Err(CsvCliError::ParsingError {
-                line_num,
-                str_to_parse: new_val.to_string(),
-                err: "Failed to parse floating point number".to_string(),
-            })
-        })?;
-        Ok(ParsingType::FloatingPoint(Some(num)))
+impl fmt::Display for CustomDateObject {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0.format(OUTPUT_DATE_FORMAT))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::{NaiveDate, NaiveTime};
+    use chrono::NaiveDate;
+    use proptest::prelude::*;
 
     #[test]
-    fn test_scientific_notation_parsed() -> CsvCliResult<()> {
-        // Makes sure Decimal conversion parses numbers as scientific notation
-        let scinot1 = ParsingHelper::parse_numeric("1e-4", 0);
-        assert!(scinot1.is_ok());
-        let scinot1_extract = match scinot1 {
-            Ok(ParsingType::Numeric(Some(val))) => Ok(val.to_string()),
-            Ok(_) => Ok("".to_string()),
-            Err(e) => Err(e),
-        }?;
-        assert_eq!(scinot1_extract, "0.0001".to_string());
-        let scinot2 = ParsingHelper::parse_numeric("1.3E4", 0);
-        assert!(scinot2.is_ok());
-        let scinot2_extract = match scinot2 {
-            Ok(ParsingType::Numeric(Some(val))) => Ok(val.to_string()),
-            Ok(_) => Ok("".to_string()),
-            Err(e) => Err(e),
-        }?;
-        assert_eq!(scinot2_extract, "13000".to_string());
-        Ok(())
+    fn test_date_subtraction() {
+        let day_recent = CustomDateObject(NaiveDate::from_ymd(2019, 1, 1).and_hms(0, 0, 0));
+        let day_previous = CustomDateObject(NaiveDate::from_ymd(2018, 12, 31).and_hms(0, 0, 0));
+        assert_eq!(day_recent - day_previous, 1.);
     }
 
     #[test]
-    fn test_automatic_date_conversion() -> CsvCliResult<()> {
-        // determines whether valid month, day, year formats get properly handled
-        // Note that this should also handle ISO8601 formats
-        let parsable_dates = vec![
-            "2003-01-03",
-            "1/3/03",
-            "January 3, 2003",
-            "Jan 3, 2003",
-            "3 Jan 2003",
-            "3 January 2003",
-            "Jan 3, 2003 12:00 a.m.",
-            "Jan 3, 2003 12:00:00 a.m.",
-            "Jan 3, 2003 00:00",
-            "Jan 3, 2003 00:00:00",
-            "2003-01-03T00:00:00",
-            "2003-01-03T00:00:00+00:00",
-            "2003.01.03",
-            "Jan. 3, 2003",
-        ];
-        let helper =
-            ParsingHelper::from_parsing_type(ParsingType::DateTypes(None), false, false, None);
-        for date in parsable_dates {
-            let parsed_opt_date = helper.parse_val(date, 0)?;
-            let parsed_date = match parsed_opt_date {
-                Some(ParsingType::DateTypes(Some(val))) => val,
-                // Since we're parsing from ParsingType::DateTypes, this should never happen
-                _ => panic!(),
-            };
-            let naive_date = NaiveDate::from_ymd(2003, 1, 3);
-            let naive_time = NaiveTime::from_hms(0, 0, 0);
-            let expected_utc = NaiveDateTime::new(naive_date, naive_time);
-            assert_eq!(parsed_date, expected_utc);
+    fn test_scientific_notation() {
+        let scinot1: DecimalWrapper = "1e-4".parse().unwrap();
+        assert_eq!(scinot1.to_string(), "0.0001".to_string());
+        let scinot2: DecimalWrapper = "1.3E4".parse().unwrap();
+        assert_eq!(scinot2.to_string(), "13000".to_string());
+    }
+
+    proptest! {
+        #[test]
+        fn test_date_parsing(year in 1900..=2020i32, month in 1..=12u32, day in 1..=28u32, hour in 0..=23u32, minute in 0..=59u32, second in 0..=59u32) {
+            let dt = CustomDateObject(NaiveDate::from_ymd(year, month, day).and_hms(hour, minute, second));
+            let _ex = INPUT_DATE_FORMAT.get_or_init(|| "%Y-%m-%d %H:%M:%S");
+            let deser_ser : CustomDateObject = dt.to_string().parse().unwrap();
+            assert_eq!(dt, deser_ser);
         }
-        Ok(())
+        #[test]
+        fn test_parses_decimal_normal(num in -1000000..=1000000i64, scale in 0..=16u32) {
+            let dec = Decimal::new(num, scale);
+            let decimal_wrapper = DecimalWrapper { item: dec };
+            let deser_ser : DecimalWrapper = decimal_wrapper.to_string().parse().unwrap();
+            assert_eq!(deser_ser.item, dec);
+        }
     }
 }

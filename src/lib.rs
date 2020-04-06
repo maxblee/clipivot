@@ -25,13 +25,8 @@
 //! that are not idiomatic in Rust or that are poorly structured.
 //! - Testing: I think I've included fairly decent testing for this tool, but I'm sure there are places
 //! where my testing can improve.
-//! - Coverage Testing: If you're familiar with coverage testing schemes in Rust, I'd love your help.
-//! Right now, I don't have any coverage testing on this crate because the one coverage testing tool
-//! I've gotten working in stable Rust panics when I include property-based tests from Rust's
-//! `proptest` crate.
-//! (This is because of a bug in Rust's compiler; see more [here](https://github.com/xd009642/tarpaulin/issues/161).)
-//! - Continuous Integration: Thanks to [two](https://github.com/japaric/trust) [great](https://github.com/BurntSushi/xsv)
-//! templates, I managed to get continuous integration working in Travis CI for two version ins of Linux, one version of OSX,
+//! - Continuous Integration: Thanks to [two](https://github.com/japaric/trust) [templates](https://github.com/BurntSushi/xsv),
+//! I managed to get continuous integration working in Travis CI for two version ins of Linux, one version of OSX,
 //! and one version of Windows. However, some versions I tried to deploy failed
 //! (they're currently commented out in the .travis.yml file). If anyone wants to help get those working or wants to add support
 //! for other environments, I would really appreciate it.
@@ -48,11 +43,6 @@
 //! thread 'main' panicked at 'explicit_panic', src/main.rs:5:1
 //! note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 //! ```
-//!
-//! The only exceptions I can think of are that some of the mathematical operations can techinically
-//! result in overflows, and that all of the algorithms can potentially cause you to run out of memory.
-//! But both of those examples should be exceptionally rare (even when dealing with datasets larger than your RAM),
-//! so if you ever run into a panic, please send me a bit of information about the query you ran so I can fix this.
 //!
 //! - Documentation: You shouldn't be confused about how to get `clipivot` to work. If you've read the guide
 //! on GitHub and the help message and are confused by part of it, please let me know.
@@ -98,10 +88,6 @@
 //! # Contact me
 //! To get in touch with me about `clipivot`, send me an email at <maxbmhlee@gmail.com> or submit an issue on
 //! the GitHub page.
-
-#[macro_use]
-extern crate clap;
-
 pub mod aggfunc;
 pub mod aggregation;
 pub mod parsing;

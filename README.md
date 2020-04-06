@@ -1,7 +1,5 @@
 # clipivot
-`clipivot` is a tool for creating pivot tables from the command line. It's designed to be fast and memory-efficient so it can be used to
-aggregate large datasets, and it's designed to be easy to use and easy
-to debug.
+`clipivot` is a tool for creating pivot tables from the command line. It's designed to be fast and memory-efficient so it can be used to aggregate large datasets, and it's designed to be easy to use and easy to debug.
 
 ## Table of Contents
 * **[Installation](#installation)**
@@ -21,9 +19,10 @@ to debug.
 * **[Contact Me](#contact-me)**
 
 ## Installation
-You can download binaries for Windows, Linux, and MacOS on
+*Ideally*, you'll be able to download binaries for Windows, Linux, and MacOS on
 the [Releases](#https://github.com/maxblee/clipivot/releases/latest)
-page of this repository.
+page of this repository. However, I've had some difficulty getting Travis CI set up to
+do that, so you may have to compile the program using cargo.
 
 Additionally, if you have Rust's package manager, Cargo, installed, you can run
 ```bash
@@ -65,8 +64,8 @@ That will print this out in your terminal:
 
 ```sh
 ,total
-false,2
 true,3
+false,2
 ```
 
 Which tells you that three employees were fired and that two remain.
@@ -118,9 +117,9 @@ $ clipivot sum test_csvs/layoffs.csv --rows=department --cols=was_fired --val=sa
 Which will give you this output:
 
 ```csv
-,true,false
-engineering,75000,175000
-sales,90000,85000
+,false,true
+sales,85000,90000
+engineering,175000,75000
 ```
 
 In other words, pivot tables provide convenient and easy-to-use ways to
@@ -143,11 +142,9 @@ There are a couple of benefits to using `clipivot` over these tools, though.
 from standard input and file paths and prints to standard output,
 allowing you to pipe it into and out of other command-line programs.
 
-`clipivot` also makes it extremely easy to perform analyses on large datasets, including datasets that exceed the RAM on your computer.
+`clipivot` also makes it easy to perform analyses on large datasets, including datasets that exceed the RAM on your computer.
 I used the tool to analyze [the 80 GB ARCOS dataset](https://www.washingtonpost.com/graphics/2019/investigations/dea-pain-pill-database/) the Washington Post acquired on my laptop, which has 16 GB of RAM. In all, it took me about 10 minutes (with the data stored in an HDD external drive) to create a CSV of the total number of oxycodone and
-hydrocodone pills flowing into each ZIP code in
-the United States between 2006 and 2012. And I didn't have to change any settings to get it to work,
-like I would've had to in `pandas`.
+hydrocodone pills flowing into each ZIP code in the United States between 2006 and 2012. And I didn't have to change any settings to get it to work, like I would've had to in `pandas`.
 
 Beyond that, if you're already working at the command line, it can
 simply be convenient to stay there.
@@ -174,55 +171,51 @@ For basic syntax, I recommend that you use the help message provided with the bi
 
 ```sh
 $ clipivot --help
-clipivot 0.1.0
+clipivot 0.2.0
 Max Lee <maxbmhlee@gmail.com>
-A tool for creating pivot tables from the command line. 
-For more information, visit https://github.com/maxblee/clipivot
+A tool for creating pivot tables from the command line.
+For more information, visit https://www.github.com/maxblee/clipivot
 
 USAGE:
     clipivot [FLAGS] [OPTIONS] <aggfunc> --val <value> [--] [filename]
 
 FLAGS:
-        --day-first     In ambiguous datetimes, parses the day first. See
-                        https://dateutil.readthedocs.io/en/stable/parser.html for details.
-    -e                  Ignores empty/null values (e.g. "", NULL, NaN, etc.)
+    -A, --asc-rows      Displays the rows in sorted, ascending order (default is index order).
+    -R, --desc-cols     Display column names in sorted, descending order (default is ascending)
+    -D, --desc-rows     Displays the rows in sorted, descending order (default is index order).
+    -e                  Ignores empty/null values ('', NULL, NaN, NONE, NA, N/A)
     -h, --help          Prints help information
-    -i                  Infers the type/date format of type-independent functions
-        --no-header     Used when the CSV file does not have a header row
-    -N                  Parses the type-independent functions as numbers
-    -t                  Fields are tab-separated (equivalent of setting delimiter to '\t')
+    -I, --index-cols    Display column names in index order. Defaults to sorted, ascending order.
+        --no-header     Skip the header row of the CSV file.
+    -N                  Parse values as numeric data. This is only necessary for min, max, and minmax, which can parse
+                        strings.
+    -t                  Set the delimiter of the file to a tab.
     -V, --version       Prints version information
-        --year-first    In ambiguous datetimes, parses the year first. See
-                        https://dateutil.readthedocs.io/en/stable/parser.html for details.
 
 OPTIONS:
     -c, --cols <columns>...    The name of the column(s) to aggregate on. Accepts string fieldnames or 0-indexed fields.
-    -d, --delim <delim>        The delimiter used to separate fields (defaults to ',')
+    -d, --delim <delim>        The delimiter used to separate fields. Defaults to ','.
     -F <format>                The format of a date field (e.g. %Y-%m-%d for dates like 2010-09-21)
     -r, --rows <rows>...       The name of the index(es) to aggregate on. Accepts string fieldnames or 0-indexed fields.
-    -v, --val <value>          The name of the field you want to apply the aggregation function to.
+    -v, --val <value>          
 
 ARGS:
-    <aggfunc>     The function you use to run across the pivot table. 
-                  The functions fit into three main categories: numeric, textual, and type-independent. 
-                  - Numeric functions parse records as numbers, raising an error if it can't identify a number. 
-                  	- mean computes a mean across the matching records 
-                  	- median computes the median of the matching records 
-                  	- stddev computes the sample standard deviation of the matching records 
-                  	- sum sums the values 
-                  - Textual functions parse everything as text 
-                  	- count counts all of the individual records; it operates independently from the values 
-                  	- countunique counts all of the unique records. 
-                  	- mode determines the mode (the most commonly appearing value), in insertion order in the case of
-                  a tie 
-                  - Type-independent functions have a default parsing method that can be overridden with the `-i` or
-                  `-N` flags 
-                  	- max computes the maximum value. Defaults to strings (mainly for YYYYMMDD HHMMSS date formats) 
-                  	- min works identically to max but for computing the minimum value (or oldest date) 
-                  	- range computes the difference between `min` and `max`. Only works for valid numeric and date
-                  formats. 
-                   [values: count, countunique, max, mean, median, min, mode, range, stddev, sum]
-    <filename>    The path to the delimited file you want to create a pivot table from
+    <aggfunc>     The function you use to run across the pivot table.
+                              - count counts the number of matching records.
+                              - countunique counts the number of unique matching records.
+                              - max returns the maximum value of the records given a specified data type.
+                              - mean returns the mean.
+                              - median returns the median value. Requires numeric data.
+                              - min returns the minimum value of the records given a specified data type.
+                              - minmax returns both the minimum and maximum values of the records, split by a
+                  hyphen.
+                              - mode returns the most commonly appearing value.
+                              - range returns the difference between the minimum and maximum values. Returns the
+                  number of days in the case of dates.
+                              - stddev returns the sample standard deviation.
+                              - sum returns the sum of the values. [values: count, countunique, max, mean, median,
+                  min, minmax, mode, range, stddev, sum]
+    <filename>    The path to the file you want to create a pivot table from
 ```
 
 That should provide you with a decent overview of the usage of `clipivot`. But let me provide a little bit more information.
@@ -295,7 +288,7 @@ likely have to install `uchardet` and `chardetect`. `chardetect`
 requires Python and can be installed using `pip`, Python's package manager. `uchardet` can be installed using Homebrew in Mac or
 apt for Linux.)
 
-The functions that parse things as text are `count`, `median`, and `mode`. You can also technically use `min` and `max` to parse text,
+The functions that parse things as text are `count`, `median`, and `mode`. You can also technically use `min`, `max`, and `minmax` to parse text,
 but that's primarily aimed at reading through dates, so we'll talk more
 about that later.
 
@@ -323,51 +316,42 @@ against the [Statistical Reference Datasets](https://www.itl.nist.gov/div898/str
 
 #### Numerical *or* date functions
 
-There are three algorithms designed to work with either numerical
-data or with dates. They are the minimum, the maximum, and the range.
+There are four algorithms designed to work with either numerical
+data or with dates. They are the minimum, the maximum, minmax (which outputs the minimum and maximum separated by a hyphen) and the range.
 
 In the case of numerical data, the definitions for these terms should
-be obvious. The minimum refers to the smallest number in the aggregation, the maximum refers to the largest number, and the range
-refers to the difference between the minimum and the maximum.
+be obvious. The minimum refers to the smallest number in the aggregation, the maximum refers to the largest number, the range
+refers to the difference between the minimum and the maximum, and the minmax outputs the smallest number followed by a hyphen followed by the largest number.
 
-**Note: In order to parse these numerical functions as numerical data,
+**Note: In order to parse `min`,`max`, or `minmax` as numeric data,
 you must type the `-N` flag.**
 
-With dates, it's more complicated. The minimum date refers to the
-earliest date in an aggregation, so an aggregation containing
+With dates, the minimum refers to the earliest date, so an aggregation containing
 the dates April 1, 2019 and March 31, 2019 would have a minimum of
 March 31, 2019. The maximum date is then the most recent date, while
 the range is the difference between the earliest date and the most
 recent date, in days.
 
-Dates get even more complicated than that because of the control you
-have surrounding formatting. If you run either `min` or `max`
-by default, you will get the string that evaluates to the lowest
-value. This has the advantage of being considerably faster than converting all of the dates into datetimes. *However*, it is also less reliable. Dates will only sort properly if they are all in exactly the same format *and* if that format conforms to ISO standards
-(i.e. some variant of YYYY-MM-DD or YY-MM-DD). All of which is to say you probably shouldn't run `min` or `max` under their string conditions unless you are only doing so to get a general sense of the date range of your data; you *really* trust the people who cleaned the data; or you tested all of the data against a regular expression
-using a tool like `grep`.
-
-Alternatively, `clipivot` can convert dates into datetimes using one of two options.
-
-First of all, you can pass the `-F` flag, along with a specification for how your datetimes are formatted.
+In order to parse dates as date objects, you must pass the `-F` flag, along with a specification for how your datetimes are formatted.
 This uses the string formatting options from Rust's `chrono` crate, which can be found 
 [here](https://docs.rs/chrono/0.4.9/chrono/format/strftime/index.html).
 
-This requires you to know how your dates are formatted and know or be willing to look up string formatting specifiers.
-But it allows you to deal with a complicated set of date formatting options, and it runs faster than the second option.
+### Sorting
 
-You can also use the `-i` flag, which tries to automatically parse dates into datetimes. This uses Rust's
-[`dtparse`](https://docs.rs/dtparse/1.0.3/dtparse/) library,
-which is a port of Python's [`dateutil`](https://dateutil.readthedocs.io/en/stable/parser.html) parser. This will take
-any date and try to convert it into a datetime object. 
+With `clipivot`, you can choose how to sort the columns and rows of your pivot table -- by the order in which they appear,
+in ascending, alphabetic order, or in descending, alphabetic order. By default, the columns will appear in sorted
+ascending error, while the rows will appear in index order. However, you can override those defaults.
 
-If you are using the `-i` flag, you can also pass the `--year-first` or `--day-first` flags to `clipivot` to alter how `clipivot` interprets ambiguous dates like
-`01-05-09`. These function like the dateutil parser's `dayfirst`
-and `yearfirst` options, and I'd recommend visiting the dateutil documentation to learn more about how they function.
+By using `-A` or `--asc-rows`, the rows will appear in ascending order; by using `-D` or `--desc-cols`, they will appear in descending order. By using `-R` or `--desc-cols`, the columns will appear in descending order; by using `-I` or `--index-cols`, they will appear in the order in which they appear.
 
-In order to get this date parsing behavior for `min` and `max`,
-you need to use the `-i` flag or the `-F`. `range`, which *cannot* parse strings without serializing them
-into datetime objects, uses the `-i` flag by default. But you can alternatively use the `-F` flag.
+### Additional Information
+
+The broad definitions of functions are provided in the help message. However, there are a few things I should clarify here:
+
+- `clipivot` technically allows you to parse the `min`, `max`, and `minmax` functions as strings, or text. (In fact, this is the default.) This is almost completely intended to speed up the processing of dates in formats like YYYY-MM-DD that sort alphabetically. 
+- In cases where there is more than 1 true mode, the mode algorithm here simply returns the value that first reached
+the maximum number of occurrences (so, if you have a set of values "a, b, b, a", it would return "b", because the second occurrence of "b" happened earlier than the second occurrence of "a.")
+- The standard deviation returns the *sample* standard deviation.
 
 ### Delimiters
 
@@ -389,8 +373,7 @@ If you don't have a header row, you can use the `--no-header` flag
 to have `clipivot` read the first row as a record, rather than as a header line. 
 
 Alternatively, if you have a header row, but it is not on the first
-line of your file, you can use `tail -n +` to have `clipivot` read everything but the nth row. For instance, if the header row of your
-CSV file `bad_csv.csv` is on the fifth line, you can type
+line of your file, you can use `tail -n +` to have `clipivot` read everything but the nth row. For instance, if the header row of your CSV file `bad_csv.csv` is on the fifth line, you can type
 
 ```sh
 tail bad_csv.csv -n +5 | clipivot countunique -v 0
@@ -398,6 +381,7 @@ tail bad_csv.csv -n +5 | clipivot countunique -v 0
 
 To count the number of unique values in the first column of your bad
 CSV file.
+
 ### Null values
 
 You can have `clipivot` ignore empty values. If you use the `-e` flag,
@@ -451,7 +435,7 @@ to use the `-t` flag when piping in a TSV file from standard input).
 
 * Finally, you might get a parsing error that looks like this:
 ```sh
-Could not parse record `NA` with index 167: Failed to parse as numeric type
+Could not parse record `NA` with index 167: Failed to parse as numeric
 ```
 This can be a sign that your file has some null or empty values in it,
 or that it is not as well-formatted as you might have hoped.
@@ -465,17 +449,15 @@ These errors will all provide you with the string value of the record
 (As a side note, I recommend pairing this utility with `xsv slice -i`, which prints out a row from a CSV file at a given line.)
 
 ## Contributors
-So far, no one has directly contributed code to `clipivot`.
-(Note: Once you've used the tool, [you should change that](#developer-guide).) 
 
-But a number of people have contributed in other ways.
+The design for the sorting comes from [this issue](https://github.com/maxblee/clipivot/issues/2).
 
-In particular, the error handling I've used here comes
-directly from
-[this fantastic guide to error handling in Rust](https://blog.burntsushi.net/rust-error-handling/). I've also used the
-design of [`xsv`](https://github.com/BurntSushi/xsv)
-and the [`csv` crate in Rust](https://github.com/BurntSushi/rust-csv),
-all by the same author, in a number of ways, while a number of other
+The error handling I've used here comes directly from
+[this fantastic guide to error handling in Rust](https://blog.burntsushi.net/rust-error-handling/). I've additionally
+used the shell scripts along with other design components and code snippets from [`xsv`](https://github.com/BurntSushi/xsv)
+and the [`csv` crate in Rust](https://github.com/BurntSushi/rust-csv).
+
+A number of other
 guides were useful toward getting me to write code in Rust. I've tried to
 document all of the guides and source code that helped me develop `clipivot` in inline comments and docstrings within the source code.
 
@@ -494,8 +476,7 @@ And finally, the CSV files I've used to validate the numerical accuracy
 of the mean and standard deviation functions (in `tests/test_numerical_accuracy.rs`) are from the [Statistical Reference Datasets](https://www.itl.nist.gov/div898/strd/univ/homepage.html) from the Nation Institute of Standards and Technology.
 
 ## Developer Guide
-Now that you've used `clipivot`, do you want to help make it better?
-I've concocted a [developer guide](https://docs.rs/clipivot/0.1.0/index.html) with some suggestions of things I'd like to see
+If you want to make changes to `clipivot`, I recommend you look at [the developer guide](https://docs.rs/clipivot/0.1.0/index.html), which provides an overview of the design of the code along with some suggestions of things I'd like to see
 improved. The guide is designed to allow people with no coding experience,
 people who have written code but haven't written any Rust, and people who
 have written code in Rust to help. So don't by any means feel like you're not
