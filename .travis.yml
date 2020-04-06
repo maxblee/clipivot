@@ -36,12 +36,11 @@ deploy:
   provider: releases
   api_key:
     secure: DBCJMy/GOJzRq/dMrv0alS+rb5OUJ10ToOSlFV939PNkXHE95eh9xuO+PaVOdr9HPk55bfPoGCwpkzMmkUy/Ru64L/DoNM7d4MiU0CxscRFh2L9B9cgIDoQb8/FgC/xRtVmybSQ93yBVIWjQjyX3hGYPAGcAdvBdb/0TTGmNb6EgcmR8OIh4oSgZ/3chUolGebAayXlfGhnKVx5NRwXBpEcz8UmXkct0j0t1IfHl22fI7/lUrPyVAUPStMwj1/eTRGhsMXHN7A1BDJaWRui0lr5NieTWn57i9azTVKbLTZSywp4qv2P8EdDPGVRW3HJOhMfOMDB3itLK8kgrhiPJOeY6rZHdlNg5pLF2SqJb67GqSdxvubcC89Yd8AkYmu+piFF1Yxvs2+rt1Gpc4dwhW55BuK3Gd0lzr7Cr4MR9sHsekMOE7XRx5B2QWX4R/oXbfWnJ4TVRmzD30QBkDRJJmPccdO64teZ/T5kUyDEZB9Du5x5RKLFG5AhESrf+CwG+EGH8YhoA1TcVBRgChtta7gAmyxWs5QPUIzswTGOS6sGdVm6h1Uvw+5TLo7V0PPkJyVUPsNhFgyVkfqiSNt2ui6T84aBsReDCzqv/i7WYmWd60aeaM8Aeb4SYrY+wZ6B2BeQDLjWKLrsNjOCecaa2IY3Ra/yLvVSNMHFqE1+yuZE=
-  file: ${PROJECT_NAME}-${TRAVIS_TAG}-${TARGET}.*
   file_glob: true
+  file: ${PROJECT_NAME}-${TRAVIS_TAG}-${TARGET}.*
   skip_cleanup: true
   on:
     condition: $TRAVIS_RUST_VERSION = stable
-    repo: maxblee/clipivot
     tags: true
 
 cache: cargo
@@ -69,4 +68,4 @@ script:
   - bash ci/script.sh
 
 before_deploy:
-  - sh ci/before_deploy.sh
+  - bash ci/before_deploy.sh

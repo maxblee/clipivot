@@ -5,23 +5,19 @@
 //! from NIST, which are designed for comparing means, standard deviations, and
 //! autocorrelation coefficients to their certified values.
 //!
-//! All of the tests assert that the standard deviation algorithms are accurate
-//! on all of the NIST datasets to within 9 significant digits. In some extreme cases, the exact
-//! performance may be worse than that. For example, one of the test cases in the `aggfunc`
-//! module, called `stdev_computation_is_stable` typically performs accurately only to
-//! 8 significant digits and sometimes performs accurately to only 7 significant digits.
-//! However, that's demonstrating the accuracy of the computation on an unusual edge case
-//! and the algorithm still performs fairly well, if imperfectly, on that case.
-//!
-//! The mean algorithms, meanwhile, are more accurate than that, since they rely solely on
-//! Decimal addition and a single Decimal division operation. As these tests show, all the mean
-//! algorithms perform accurately on NIST's dataset to at least 12 significant digits;
-//! more typically, they perform perfectly accurately. There are some extreme cases in which
-//! summation might cause an overflow. Those currently will panic and eventually will throw an error.
+//! These tests are designed to catch obvious problems in the numerical stability of common operations.
+//! In this case, the standard deviation algorithms all operate within 9 significant digits of the true correct
+//! answer, while the mean (and, presumably, summation) algorithms perform correctly within 12 significant digits.
+//! There are tradeoffs in both of these algorithms -- the standard deviation uses a streaming algorithm,
+//! while the summation and mean use fixed-point precision decimal types -- but the tests should show
+//! that the results are sensible.
+
 use approx::assert_abs_diff_eq;
 use std::process::Command;
 use std::str;
-use std::env;
+
+#[macro_use]
+extern crate cli_testing_utils;
 
 type NumericRecord = (String, f64);
 
@@ -37,10 +33,7 @@ fn mean_epsilon() -> f64 {
 fn get_actual_result(filename: &str, aggfunc: &str) -> f64 {
     // Returns the result from NIST's dataset given the relative file path
     // the match formatting is required to get these tests to work in Travis CI
-    let program_name = match env::var("TARGET") {
-        Ok(target_loc) => format!("target/{}/debug/clipivot", target_loc),
-        Err(_) => "./target/debug/clipivot".to_string()
-    };
+    let program_name = program_path!();
     let output = Command::new(program_name)
         .args(&[aggfunc, filename, "-v", "0"])
         .output()

@@ -18,10 +18,10 @@ args:
       \n\t- count counts all of the individual records; it operates independently from the values
       \n\t- countunique counts all of the unique records.
       \n\t- mode determines the mode (the most commonly appearing value), in insertion order in the case of a tie
-      \n- Type-independent functions have a default parsing method that can be overridden with the `-i` or `-N` flags
+      \n- Type-independent functions have a default parsing method that can be overridden with the -i or -N flags
       \n\t- max computes the maximum value. Defaults to strings (mainly for YYYYMMDD HHMMSS date formats)
       \n\t- min works identically to max but for computing the minimum value (or oldest date)
-      \n\t- range computes the difference between `min` and `max`. Only works for valid numeric and date formats.
+      \n\t- range computes the difference between min and max. Only works for valid numeric and date formats.
       \n"
       required: true
       index: 1
@@ -90,3 +90,19 @@ args:
   - yearfirst:
       help: In ambiguous datetimes, parses the year first. See https://dateutil.readthedocs.io/en/stable/parser.html for details.
       long: year-first
+  - indexcol:
+      help: Displays column names in index order (i.e. the order in which they appear)
+      long: index-cols
+      short: I
+  - desccol:
+      help: Displays the column names in descending sorted order (default is ascending)
+      long: desc-cols
+      short: R
+  - ascrow:
+      help: Displays the rows in ascending order (default is index order)
+      long: asc-rows
+      short: a
+  - descrow:
+      help: Displays the rows in descending order (defaul is index order)
+      long: desc-rows
+      short: D
