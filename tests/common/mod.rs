@@ -7,7 +7,7 @@
 /// or using Travis-CI.
 ///
 /// Here's an example of how you might use it:
-/// 
+///
 /// ```ignore
 /// use std::process::Command;
 /// let cmd = Command::new(program_path!());
@@ -24,7 +24,7 @@ macro_rules! program_path {
         let package_name = env!("CARGO_PKG_NAME");
         &match option_env!("TARGET") {
             Some(target_loc) => format!("target/{}/debug/{}", target_loc, package_name),
-            None => format!("target/debug/{}", package_name)
+            None => format!("target/debug/{}", package_name),
         }
     }};
 }

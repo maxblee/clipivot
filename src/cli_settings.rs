@@ -32,7 +32,7 @@
 //! "noheader" refers to whether or not your file has a header row,
 //! and "fieldselect" refers to a list of fields from the CSV file that the user wants to do
 //! something based off (more on that in a bit).
-//! 
+//!
 //! In order to create a `CsvSettings` object *and* validate your delimiter,
 //! simply type
 //! ```ignore
@@ -71,7 +71,7 @@
 //! - --option col1,col2
 //! - --option col1 col2
 //! - --option col1 --option col2
-//! 
+//!
 //! In order to convert the user's selection into a list of unsigned integers
 //! so your program can more easily retrieve the value of a given row at a column the user selected,
 //! simply take one of the `csv::Reader` objects you created and type
@@ -88,7 +88,7 @@
 //! let colname = matches.value_of("selection").unwrap();
 //! let col_idx = settings.get_field_index(colname, &headers.iter().collect());
 //! ```
-//! 
+//!
 //! One final thing: When it comes to field selection, `CsvSettings` keeps in mind
 //! whether or not you have a header row. If you don't, it will require that
 //! all of your fields be unsigned integers between 0 and the total number of fields
@@ -99,7 +99,7 @@ use crate::errors::{CsvCliError, CsvCliResult};
 use std::fs;
 use std::io;
 
-/// The core struct of the settings module, providing general settings and utilities for 
+/// The core struct of the settings module, providing general settings and utilities for
 /// writing CSV command-line tools.
 #[derive(Debug, PartialEq)]
 pub struct CsvSettings {
@@ -185,11 +185,7 @@ impl CsvSettings {
 
     /// Returns a single index where a single string appears. Allows you to validate a single column, rather
     /// than multiple columns.
-    pub fn get_field_index(
-        &self,
-        colname: &str,
-        headers: &Vec<&str>,
-    ) -> CsvCliResult<usize> {
+    pub fn get_field_index(&self, colname: &str, headers: &Vec<&str>) -> CsvCliResult<usize> {
         let infered_num = match self.get_numeric_index(&colname) {
             Some(num) if num < headers.len() => Ok(Some(num)),
             Some(_num) => Err(CsvCliError::InvalidConfiguration(format!(
@@ -271,7 +267,6 @@ impl CsvSettings {
         Some(parsed_str.parse().unwrap())
     }
 
-
     fn get_string_index(&self, colname: &str, headers: &Vec<&str>) -> CsvCliResult<usize> {
         // same implementation here as in `split_arg_string`
         let mut quote_char = None;
@@ -308,12 +303,12 @@ impl CsvSettings {
         if expected_order.is_empty() {
             expected_order = "0".to_string();
         }
-        let order = expected_order
-            .parse::<usize>()
-            .or_else(|_| Err(CsvCliError::InvalidConfiguration(format!(
+        let order = expected_order.parse::<usize>().or_else(|_| {
+            Err(CsvCliError::InvalidConfiguration(format!(
                 "Could not convert column name `{}`. Hint: consider enclosing the column in quotes",
                 colname
-            ))))?;
+            )))
+        })?;
         self.find_index_from_expected(&expected_header, order, headers)
     }
 

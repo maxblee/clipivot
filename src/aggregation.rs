@@ -1,11 +1,11 @@
-//! The module that actually aggregates the records. 
-//! 
+//! The module that actually aggregates the records.
+//!
 //! It has three main methods: `new`, which initializes the data; `aggregate`, which takes
 //! a csv file and creates an `IndexMap` of `Accumulator`s; and `write_results` which
 //! outputs the aggregated values to standard output.
 use crate::aggfunc::Accumulate;
-use crate::parsing::INPUT_DATE_FORMAT;
 use crate::errors::{CsvCliError, CsvCliResult};
+use crate::parsing::INPUT_DATE_FORMAT;
 use indexmap::set::IndexSet;
 use once_cell::sync::Lazy;
 use std::collections::hash_map::Entry;
@@ -139,8 +139,8 @@ where
                     .get(&(row.to_string(), col.to_string()))
                     .map_or(String::new(), |v| {
                         v.compute()
-                        .map(|v| v.to_string())
-                        .unwrap_or_else(String::new)
+                            .map(|v| v.to_string())
+                            .unwrap_or_else(String::new)
                     });
                 record.push(cell);
             }
@@ -182,7 +182,7 @@ where
                 "Could not parse as date with {} format",
                 INPUT_DATE_FORMAT.get().unwrap()
             ),
-            _ => "Generic parsing error".to_string()
+            _ => "Generic parsing error".to_string(),
         }
     }
 
@@ -193,11 +193,13 @@ where
         input_str: &str,
         line_num: usize,
     ) -> CsvCliResult<()> {
-        let parsed_val = input_str.parse().or_else(|_| Err(CsvCliError::ParsingError {
-            line_num,
-            str_to_parse: input_str.to_string(),
-            err: self.describe_err(),
-        }))?;
+        let parsed_val = input_str.parse().or_else(|_| {
+            Err(CsvCliError::ParsingError {
+                line_num,
+                str_to_parse: input_str.to_string(),
+                err: self.describe_err(),
+            })
+        })?;
 
         match self.aggregations.entry((indexname, columnname)) {
             Entry::Occupied(entry) => {

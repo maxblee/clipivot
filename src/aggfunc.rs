@@ -5,7 +5,7 @@
 //! This trait requires two types, an input type (which is used by the `new` and `update` functions) and an `output` type.
 //!
 //! Internally, all of the structs implementing this trait are used in the main `aggregation` module
-//! with the input type bounded by `FromStr` so the tool can convert from string records to the internal data types 
+//! with the input type bounded by `FromStr` so the tool can convert from string records to the internal data types
 //! that these aggregation types manipulate. And the output type is bounded by `Display` so the tool can write
 //! the outputs to standard output.
 
@@ -15,8 +15,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::marker::PhantomData;
 
 /// Accumulates records from a stream, in order to allow functions to be optimized for minimal memory usage.
-pub trait Accumulate<I, O>
-{
+pub trait Accumulate<I, O> {
     /// Creates a new object with an initial value (often based on the value of `item`.)
     ///
     /// This has a separate function for the initialization because some functions like sample standard deviation
@@ -32,9 +31,7 @@ pub trait Accumulate<I, O>
 /// The total number of records added to the accumulator.
 pub struct Count<I>(usize, PhantomData<I>);
 
-impl<I> Accumulate<I, usize> for Count<I>
-where
-{
+impl<I> Accumulate<I, usize> for Count<I> {
     fn new(_item: I) -> Count<I> {
         Count(1, PhantomData)
     }
@@ -232,8 +229,8 @@ where
     }
 }
 
-/// The most commonly appearing item. 
-/// 
+/// The most commonly appearing item.
+///
 /// If there is more than one mode, it returns
 /// the item that reached the maximum value first. So in the case of
 /// ["a", "b", "b", "a"], it will return "b" because "b" was the first

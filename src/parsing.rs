@@ -3,7 +3,7 @@
 //! The two objects, `CustomDateObject` and `DecimalWrapper` are simple wrappers over existing
 //! data types -- `chrono::NaiveDateTime` in the case of `CustomDateObject` and `rust_decimal::Decimal`
 //! in the case of `DecimalWrapper`.
-//! 
+//!
 //! This is necessary because `chrono` doesn't use `FromStr` (because it doesn't know the format it needs to parse)
 //! and because I wanted to return the number of days between datetimes for range (overwriting `std::ops::Sub`).
 //! And decimal has a way of parsing values in scientific notation and parsing normal numbers. So I added

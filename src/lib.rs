@@ -90,6 +90,6 @@
 //! the GitHub page.
 pub mod aggfunc;
 pub mod aggregation;
-pub mod parsing;
 pub mod cli_settings;
 pub mod errors;
+pub mod parsing;

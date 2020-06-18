@@ -9,9 +9,9 @@ use rust_decimal::Decimal;
 
 use clipivot::aggfunc::*;
 use clipivot::aggregation::{Aggregator, OutputOrder, ParsingStrategy};
-use clipivot::parsing::{self, CustomDateObject, DecimalWrapper};
-use clipivot::errors::{CsvCliError, CsvCliResult};
 use clipivot::cli_settings::CsvSettings;
+use clipivot::errors::{CsvCliError, CsvCliResult};
+use clipivot::parsing::{self, CustomDateObject, DecimalWrapper};
 
 const ALLOWED_AGGFUNCS: [&str; 11] = [
     "count",
@@ -121,7 +121,7 @@ where
     let filename = arg_matches.value_of("filename");
     let delim_values = if arg_matches.is_present("tab") {
         Some(r"\t")
-    } else { 
+    } else {
         arg_matches.value_of("delim")
     };
     let settings =
@@ -222,15 +222,15 @@ pub fn run() -> CsvCliResult<()> {
         "count" => run_and_init::<Count<String>, String, usize>(&CLI_ARGS, ParsingStrategy::Text),
         "countunique" => {
             run_and_init::<CountUnique<String>, String, usize>(&CLI_ARGS, ParsingStrategy::Text)
-        },
+        }
         "max" if (CLI_ARGS.is_present("numeric") && CLI_ARGS.is_present("format")) => {
             Err(CsvCliError::InvalidConfiguration(
                 "You can only enter one of the -N and -F flags/options".to_string(),
             ))
-        },
+        }
         "max" if CLI_ARGS.is_present("numeric") => {
             run_and_init::<Maximum<f64>, f64, f64>(&CLI_ARGS, ParsingStrategy::Numeric)
-        },
+        }
         "max" if CLI_ARGS.is_present("format") => run_and_init::<
             Maximum<CustomDateObject>,
             CustomDateObject,
@@ -249,10 +249,10 @@ pub fn run() -> CsvCliResult<()> {
             Err(CsvCliError::InvalidConfiguration(
                 "You can only enter one of the -N and -F flags/options".to_string(),
             ))
-        },
+        }
         "min" if CLI_ARGS.is_present("numeric") => {
             run_and_init::<Minimum<f64>, f64, f64>(&CLI_ARGS, ParsingStrategy::Numeric)
-        },
+        }
         "min" if CLI_ARGS.is_present("format") => run_and_init::<
             Minimum<CustomDateObject>,
             CustomDateObject,
@@ -263,10 +263,10 @@ pub fn run() -> CsvCliResult<()> {
             Err(CsvCliError::InvalidConfiguration(
                 "You can only enter one of the -N and -F flags/options".to_string(),
             ))
-        },
+        }
         "minmax" if CLI_ARGS.is_present("numeric") => {
             run_and_init::<MinMax<f64>, f64, String>(&CLI_ARGS, ParsingStrategy::Numeric)
-        },
+        }
         "minmax" if CLI_ARGS.is_present("format") => run_and_init::<
             MinMax<CustomDateObject>,
             CustomDateObject,
@@ -274,7 +274,7 @@ pub fn run() -> CsvCliResult<()> {
         >(&CLI_ARGS, ParsingStrategy::Date),
         "minmax" => {
             run_and_init::<MinMax<String>, String, String>(&CLI_ARGS, ParsingStrategy::Text)
-        },
+        }
         "range" if CLI_ARGS.is_present("format") => run_and_init::<
             Range<CustomDateObject, f64>,
             CustomDateObject,
