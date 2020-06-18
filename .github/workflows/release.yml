@@ -84,3 +84,42 @@ jobs:
       with:
         name: ${{ runner.os }}
         path: artifacts/
+    # adapted from https://github.com/actions/upload-release-asset
+    # not in original
+    - uses: actions/create-release@v1
+      name: Create Release
+      id: create_release
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+    - uses: actions/upload-release-asset@v1
+      name: Upload Release for Linux
+      if: matrix.os == 'ubuntu-latest'
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./artifacts/${{ env.RELEASE_BIN }}-linux-x86_64.tar.gz
+        asset_name: ${{ env.RELEASE_BIN }}-linux-x86_64.tar.gz
+        # https://en.wikipedia.org/wiki/List_of_archive_formats
+        asset_content_type: application/x-gzip
+    - uses: actions/upload-release-asset@v1
+      name: Upload Release for MacOS
+      if: matrix.os == 'macos-latest'
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./artifacts/${{ env.RELEASE_BIN }}-mac-x86_64.zip
+        asset_name: ${{ env.RELEASE_BIN }}-mac-x86_64.zip
+        # https://en.wikipedia.org/wiki/List_of_archive_formats
+        asset_content_type: application/zip
+    - uses: actions/upload-release-asset@v1
+      name: Upload Release for Windows
+      if: matrix.os == 'windows-latest'
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./artifacts/${{ env.RELEASE_BIN }}-windows-x86_64.zip
+        asset_name: ${{ env.RELEASE_BIN }}-windows-x86_64.zip
+        # https://en.wikipedia.org/wiki/List_of_archive_formats
+        asset_content_type: application/zip
+
+      
