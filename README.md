@@ -19,17 +19,21 @@
 * **[Contact Me](#contact-me)**
 
 ## Installation
+You should be able to currently download binaries for Windows, Linux and MacOS
+on the [Releases](#https://github.com/maxblee/clipivot/releases/latest)
+page of this repository.
 *Ideally*, you'll be able to download binaries for Windows, Linux, and MacOS on
 the [Releases](#https://github.com/maxblee/clipivot/releases/latest)
 page of this repository. However, I've had some difficulty getting Travis CI set up to
 do that, so you may have to compile the program using cargo.
 
-To do that, you'll need to 
-use Rust's package manager, Cargo, and run
+Alternatively, you can compile the program using Rust's package manager, `cargo`, using:
+
 ```bash
 $ cargo install clipivot
 ```
-which will compile `clipivot` from source.
+
+Or you can download directly from source.
 
 ## Why Pivot Tables?
 
@@ -567,7 +571,10 @@ and `clippy` with
 ```sh
 $ cargo clippy -- -A clippy::ptr_arg
 ```
-**Note that I am ignoring the `clippy::ptr_arg` warning, which raises a warning when you put a `&Vec<T>` into a function call.**
+
+Clippy currently has a couple of warnings. Some of these should be corrected; some, like
+a warning to convert `&Vec<T>` to `&[u8]`, I'm intentionally ignoring because doing otherwise
+would cause the program to fail to compile.
 
 ## Contact Me
 If you have any questions about `clipivot` or if you have identified any bugs in the program or you want
