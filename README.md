@@ -459,7 +459,7 @@ The design for the sorting comes from [this issue](https://github.com/maxblee/cl
 
 The error handling I've used here comes directly from
 [this fantastic guide to error handling in Rust](https://blog.burntsushi.net/rust-error-handling/). I've additionally
-used the shell scripts along with other design components and code snippets from [`xsv`](https://github.com/BurntSushi/xsv)
+used design components and code snippets from [`xsv`](https://github.com/BurntSushi/xsv)
 and the [`csv` crate in Rust](https://github.com/BurntSushi/rust-csv).
 
 A number of other
@@ -479,6 +479,9 @@ I strongly recommend them both.
 
 And finally, the CSV files I've used to validate the numerical accuracy
 of the mean and standard deviation functions (in `tests/test_numerical_accuracy.rs`) are from the [Statistical Reference Datasets](https://www.itl.nist.gov/div898/strd/univ/homepage.html) from the Nation Institute of Standards and Technology.
+
+Outside of the core Rust code, I used code from [this guide for uploading release assets](https://github.com/marketplace/actions/upload-a-release-asset)
+and [this template for deadling with Rust binaries](https://github.com/paskausks/rust-bin-github-workflows).
 
 ## Developer Guide
 If you want to make changes to `clipivot`, I recommend you look at [the developer guide](https://docs.rs/clipivot/0.1.0/index.html), which provides an overview of the design of the code along with some suggestions of things I'd like to see
