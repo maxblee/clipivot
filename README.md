@@ -343,7 +343,7 @@ With `clipivot`, you can choose how to sort the columns and rows of your pivot t
 in ascending, alphabetic order, or in descending, alphabetic order. By default, the columns will appear in sorted
 ascending error, while the rows will appear in index order. However, you can override those defaults.
 
-By using `-A` or `--asc-rows`, the rows will appear in ascending order; by using `-D` or `--desc-cols`, they will appear in descending order. By using `-R` or `--desc-cols`, the columns will appear in descending order; by using `-I` or `--index-cols`, they will appear in the order in which they appear.
+By using `-A` or `--asc-rows`, the rows will appear in ascending order; by using `-D` or `--desc-rows`, they will appear in descending order. By using `-R` or `--desc-cols`, the columns will appear in descending order; by using `-I` or `--index-cols`, they will appear in the order in which they appear.
 
 ### Additional Information
 
