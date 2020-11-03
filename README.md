@@ -22,10 +22,6 @@
 You should be able to currently download binaries for Windows, Linux and MacOS
 on the [Releases](#https://github.com/maxblee/clipivot/releases/latest)
 page of this repository.
-*Ideally*, you'll be able to download binaries for Windows, Linux, and MacOS on
-the [Releases](#https://github.com/maxblee/clipivot/releases/latest)
-page of this repository. However, I've had some difficulty getting Travis CI set up to
-do that, so you may have to compile the program using cargo.
 
 Alternatively, you can compile the program using Rust's package manager, `cargo`, using:
 
