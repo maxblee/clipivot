@@ -10,10 +10,12 @@
     - **[Basic Usage](#basic-usage)**
     - **[Row names](#row-names)**
     - **[Functions](#functions)**
+    - **[Sorting](#sorting)
     - **[Delimiters](#delimiters)**
     - **[Headers](#headers)**
     - **[Null values](#null-values)**
     - **[Error handling](#error-handling)**
+    - **[Additional Information](#additional-information)
 * **[Contributors](#contributors)**
 * **[Developer Guide](#developer-guide)**
 * **[Contact Me](#contact-me)**
@@ -345,15 +347,6 @@ ascending error, while the rows will appear in index order. However, you can ove
 
 By using `-A` or `--asc-rows`, the rows will appear in ascending order; by using `-D` or `--desc-rows`, they will appear in descending order. By using `-R` or `--desc-cols`, the columns will appear in descending order; by using `-I` or `--index-cols`, they will appear in the order in which they appear.
 
-### Additional Information
-
-The broad definitions of functions are provided in the help message. However, there are a few things I should clarify here:
-
-- `clipivot` technically allows you to parse the `min`, `max`, and `minmax` functions as strings, or text. (In fact, this is the default.) This is almost completely intended to speed up the processing of dates in formats like YYYY-MM-DD that sort alphabetically. 
-- In cases where there is more than 1 true mode, the mode algorithm here simply returns the value that first reached
-the maximum number of occurrences (so, if you have a set of values "a, b, b, a", it would return "b", because the second occurrence of "b" happened earlier than the second occurrence of "a.")
-- The standard deviation returns the *sample* standard deviation.
-
 ### Delimiters
 
 You can also tell `clipivot` to use something other than commas
@@ -448,6 +441,15 @@ These errors will all provide you with the string value of the record
 `clipivot` couldn't parse, the index of the record (where the first non-header record has an index of 0), and the type of data that it tried to parse your data into -- all of which should make it easier for you to debug.
 
 (As a side note, I recommend pairing this utility with `xsv slice -i`, which prints out a row from a CSV file at a given line.)
+
+### Additional Information
+
+The broad definitions of functions are provided in the help message. However, there are a few things I should clarify here:
+
+- `clipivot` technically allows you to parse the `min`, `max`, and `minmax` functions as strings, or text. (In fact, this is the default.) This is almost completely intended to speed up the processing of dates in formats like YYYY-MM-DD that sort alphabetically. 
+- In cases where there is more than 1 true mode, the mode algorithm here simply returns the value that first reached
+the maximum number of occurrences (so, if you have a set of values "a, b, b, a", it would return "b", because the second occurrence of "b" happened earlier than the second occurrence of "a.")
+- The standard deviation returns the *sample* standard deviation.
 
 ## Contributors
 
