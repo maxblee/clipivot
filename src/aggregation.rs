@@ -117,37 +117,62 @@ where
         Ok(())
     }
 
+    /// Writes the aggregated information into a list of records
+    pub fn to_vec(&self) -> Vec<Vec<String>> {
+        let mut rows = vec![];
+        rows.push(self.get_pivot_header());
+        for row in &self.indexes {
+            rows.push(self.get_pivot_row(row));
+        }
+        rows
+    }
+
     /// Writes the aggregated information to standard output.
-    pub fn write_results(&mut self) -> CsvCliResult<()> {
+    pub fn write_results<W: io::Write>(&mut self, mut writer: csv::Writer<W>) -> CsvCliResult<()> {
+        self.prepare_write()?;
+        writer.write_record(self.get_pivot_header())?;
+        for row in &self.indexes {
+            writer.write_record(self.get_pivot_row(row))?;
+        }
+        writer.flush()?;
+        Ok(())
+    }
+
+    /// This prepares a pivot table for output (sorting it
+    /// and verifying that there's more than 1 row)
+    fn prepare_write(&mut self) -> CsvCliResult<()> {
         if self.columns.is_empty() {
             return Err(CsvCliError::InvalidConfiguration(
                 "Did not parse any lines before finishing".to_string(),
             ));
         }
         self.sort_results();
-        let mut writer = csv::Writer::from_writer(io::stdout());
-        let mut header = vec![""];
-        for col in &self.columns {
-            header.push(col);
-        }
-        writer.write_record(header)?;
-        for row in &self.indexes {
-            let mut record = vec![row.to_string()];
-            for col in &self.columns {
-                let cell = self
-                    .aggregations
-                    .get(&(row.to_string(), col.to_string()))
-                    .map_or(String::new(), |v| {
-                        v.compute()
-                            .map(|v| v.to_string())
-                            .unwrap_or_else(String::new)
-                    });
-                record.push(cell);
-            }
-            writer.write_record(record)?;
-        }
-        writer.flush()?;
         Ok(())
+    }
+
+    fn get_pivot_header(&self) -> Vec<String> {
+        let mut header = vec![String::new()];
+        for col in &self.columns {
+            header.push(col.to_string());
+        }
+        header
+    }
+
+    /// this gets a single row of the pivot table, given the index value
+    fn get_pivot_row(&self, row_value: &str) -> Vec<String> {
+        let mut record = vec![row_value.to_string()];
+        for col in &self.columns {
+            let cell = self
+                .aggregations
+                .get(&(row_value.to_string(), col.to_string()))
+                .map_or(String::new(), |v| {
+                    v.compute()
+                        .map(|v| v.to_string())
+                        .unwrap_or_else(String::new)
+                });
+            record.push(cell);
+        }
+        record
     }
 
     fn add_record(&mut self, record: &csv::StringRecord, line_num: usize) -> CsvCliResult<()> {
@@ -301,6 +326,35 @@ mod tests {
     #[test]
     fn test_no_vals_is_error() {
         let mut agg = setup_simple();
-        assert!(agg.write_results().is_err());
+        let cursor_data: Vec<u8> = Vec::new();
+        let writer = csv::Writer::from_writer(io::Cursor::new(cursor_data));
+        assert!(agg.write_results(writer).is_err());
+    }
+
+    #[test]
+    fn test_vector_output() {
+        let mut agg: Aggregator<Count<String>, String, usize> = Aggregator::new(
+            vec![0],
+            vec![],
+            1,
+            false,
+            OutputOrder::IndexOrder,
+            OutputOrder::Ascending,
+            ParsingStrategy::Text,
+        );
+        let data = vec![
+            StringRecord::from(vec!["example".to_string(), "record".to_string()]),
+            StringRecord::from(vec!["example".to_string(), "again".to_string()]),
+        ];
+        for (count, record) in data.iter().enumerate() {
+            agg.add_record(&record, count).unwrap();
+        }
+        agg.prepare_write().unwrap();
+        let results = agg.to_vec();
+        let expected = vec![
+            vec![String::new(), "total".to_string()],
+            vec!["example".to_string(), "2".to_string()],
+        ];
+        assert_eq!(results, expected);
     }
 }

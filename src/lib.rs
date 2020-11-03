@@ -25,18 +25,13 @@
 //! that are not idiomatic in Rust or that are poorly structured.
 //! - Testing: I think I've included fairly decent testing for this tool, but I'm sure there are places
 //! where my testing can improve.
-//! - Continuous Integration: Thanks to [two](https://github.com/japaric/trust) [templates](https://github.com/BurntSushi/xsv),
-//! I managed to get continuous integration working in Travis CI for two version ins of Linux, one version of OSX,
-//! and one version of Windows. However, some versions I tried to deploy failed
-//! (they're currently commented out in the .travis.yml file). If anyone wants to help get those working or wants to add support
-//! for other environments, I would really appreciate it.
 //!
 //! ## Doesn't require programming experience
 //! - Bugs: If something in this program doesn't work like you think it's supposed to, please let me know.
 //! - Error handling: I've tried to make error handling as clear and helpful as possible, so if an error
 //!  message you get from `clipivot` confuses you, let me know and I'll do what I can to fix it.
 //!
-//! In particular, pretty much nothing you run should ever result in what Rust calls a "panic" -- basically an unanticipated,
+//! In particular, pretty much nothing you run should ever result in what Rust calls a "panic" — basically an unanticipated,
 //! fast exit from a program. Panics look something like:
 //!
 //! ```sh
@@ -83,7 +78,7 @@
 //! $ cargo clippy -- -A clippy::ptr_arg
 //! ```
 //! **Note that I am ignoring the `clippy::ptr_arg` warning, which raises a warning
-//! when you put a `&Vec<T>` into a function call.
+//! when you put a `&Vec<T>` into a function call.**
 //!
 //! # Contact me
 //! To get in touch with me about `clipivot`, send me an email at <maxbmhlee@gmail.com> or submit an issue on

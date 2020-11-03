@@ -78,7 +78,7 @@ to running `GROUP BY` queries. In fact, you could run the same thing
 I just did in SQL:
 
 ```sql
-SELECT COUNT(id)
+SELECT was_fired, COUNT(id)
 FROM my_table
 GROUP BY was_fired;
 ```
@@ -91,7 +91,7 @@ If you want to find the total salary of the employees in the `layoffs.csv` datas
 whether or not they were fired. You could do this in SQL:
 
 ```sql
-SELECT SUM(salary)
+SELECT department, was_fired, SUM(salary)
 FROM my_table
 GROUP BY department, was_fired;
 ```
@@ -154,7 +154,7 @@ simply be convenient to stay there.
 
 ## Why shouldn't you use `clipivot`?
 
-But `clipivot` isn't always going to be the best tool to use.
+`clipivot` isn't always going to be the best tool to use.
 
 Command-line programs are necessarily harder to configure than
 libraries in programming languages, so if you need an aggregation
@@ -291,7 +291,7 @@ likely have to install `uchardet` and `chardetect`. `chardetect`
 requires Python and can be installed using `pip`, Python's package manager. `uchardet` can be installed using Homebrew in Mac or
 apt for Linux.)
 
-The functions that parse things as text are `count`, `median`, and `mode`. You can also technically use `min`, `max`, and `minmax` to parse text,
+The functions that parse things as text are `count` and `countunique`. You can also technically use `min`, `max`, and `minmax` to parse text,
 but that's primarily aimed at reading through dates, so we'll talk more
 about that later.
 
@@ -438,13 +438,11 @@ It can also be a sign that `clipivot` is trying to parse your data in a differen
 you want it to parse everything as a number.)
 
 These errors will all provide you with the string value of the record
-`clipivot` couldn't parse, the index of the record (where the first non-header record has an index of 0), and the type of data that it tried to parse your data into -- all of which should make it easier for you to debug.
+`clipivot` couldn't parse, the index of the record (where the first non-header record has an index of 0), and the type of data that it tried to parse your data into — all of which should make it easier for you to debug.
 
 (As a side note, I recommend pairing this utility with `xsv slice -i`, which prints out a row from a CSV file at a given line.)
 
 ### Additional Information
-
-The broad definitions of functions are provided in the help message. However, there are a few things I should clarify here:
 
 - `clipivot` technically allows you to parse the `min`, `max`, and `minmax` functions as strings, or text. (In fact, this is the default.) This is almost completely intended to speed up the processing of dates in formats like YYYY-MM-DD that sort alphabetically. 
 - In cases where there is more than 1 true mode, the mode algorithm here simply returns the value that first reached
@@ -479,103 +477,14 @@ And finally, the CSV files I've used to validate the numerical accuracy
 of the mean and standard deviation functions (in `tests/test_numerical_accuracy.rs`) are from the [Statistical Reference Datasets](https://www.itl.nist.gov/div898/strd/univ/homepage.html) from the Nation Institute of Standards and Technology.
 
 Outside of the core Rust code, I used code from [this guide for uploading release assets](https://github.com/marketplace/actions/upload-a-release-asset)
-and [this template for deadling with Rust binaries](https://github.com/paskausks/rust-bin-github-workflows).
+and [this template for dealing with Rust binaries](https://github.com/paskausks/rust-bin-github-workflows).
 
 ## Developer Guide
-If you want to make changes to `clipivot`, I recommend you look at [the developer guide](https://docs.rs/clipivot/0.1.0/index.html), which provides an overview of the design of the code along with some suggestions of things I'd like to see
+If you want to make changes to `clipivot`, I recommend you look at [the developer guide](https://docs.rs/clipivot/latest/clipivot/), which provides an overview of the design of the code along with some suggestions of things I'd like to see
 improved. The guide is designed to allow people with no coding experience,
 people who have written code but haven't written any Rust, and people who
 have written code in Rust to help. So don't by any means feel like you're not
 qualified to improve this project. 
-
-I've concocted a developer guide. Currently, you need to have Rust's package manager, Cargo, installed to see it. Simply
-type
-```bash
-$ cargo doc --open
-```
-and a browser will open displaying the guide. Eventually, I want to have the developer guide published on
-Rust's documentation website, [docs.rs](https://docs.rs), but I haven't figured out how to get that to work.
-(If you know how to get it to display an API for a binary, let me know!)
-
-In the meantime, here are the things I'd generally like to see improved with the tool. I've divided them into
-things that I think you'd need to have coding experience in order to address, and things that don't require any
-programming experience whatsoever. 
-
-### Requires programming experience
-- Performance: I've tried to design `clipivot` to be reasonably performant, but I'm sure there
-are places where performance could be optimized. If you have any suggestions, I'd love to hear them.
-(Note: I'm aware that there are technically faster algorithms for computing median than the one I
-wound up with, the [`BTreeMap`](https://doc.rust-lang.org/std/collections/struct.BTreeMap.html)
-in Rust's standard library. The reason I chose the `BTreeMap` is that it is well-suited for
-adding items from a stream and it is more memory efficient than other algorithms I'm aware of.
-But let me know if you're aware of a way to improve the speed of the median computation
-while maintaining the best case memory efficiency of `BTreeMap`.)
-- Coding style: This is my first project in Rust, so I'm sure there are parts of the code
-that are not idiomatic in Rust or that are poorly structured.
-- Testing: I think I've included fairly decent testing for this tool, but I'm sure there are places
-where my testing can improve.
-- Coverage Testing: If you're familiar with coverage testing schemes in Rust, I'd love your help.
-Right now, I don't have any coverage testing on this crate because the one coverage testing tool
-I've gotten working in stable Rust panics when I include property-based tests from Rust's
-`proptest` crate.
-(This is because of a bug in Rust's compiler; see more [here](https://github.com/xd009642/tarpaulin/issues/161).)
-- Continuous Integration: Thanks to [two](https://github.com/japaric/trust) [great](https://github.com/BurntSushi/xsv)
-templates, I managed to get continuous integration working in Travis CI for two version ins of Linux, one version of OSX,
-and one version of Windows. However, some versions I tried to deploy failed 
-(they're currently commented out in the .travis.yml file). If anyone wants to help get those working or wants to add support
-for other environments, I would really appreciate it.
-
-### Doesn't require programming experience
-- Bugs: If something in this program doesn't work like you think it's supposed to, please let me know.
-- Error handling: I've tried to make error handling as clear and helpful as possible, so if an error
-message you get from `clipivot` confuses you, let me know and I'll do what I can to fix it.
-
-In particular, pretty much nothing you run should ever result in what Rust calls a "panic" -- basically an unanticipated,
-fast exit from a program. Panics look something like:
-
-```sh
-thread 'main' panicked at 'explicit_panic', src/main.rs:5:1
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
-```
-The only exceptions I can think of are that some of the mathematical operations can techinically
-result in overflows, and that all of the algorithms can potentially cause you to run out of memory.
-But both of those examples should be exceptionally rare (even when dealing with datasets larger than your RAM),
-so if you ever run into a panic, please send me a bit of information about the query you ran so I can fix this.
-
-### Development Environment
-In order to contribute code, first clone the repository to install the source code:
-
-```sh
-$ git clone https://github.com/maxblee/clipivot
-```
-Then, make changes to the code and/or add/change tests, and then run
-
-```sh
-$ cargo test
-```
-
-to run tests.
-### Formatting
-In addition, I use `clippy` to lint code and `rustfmt` to automatically format code.
-
-To install them, type
-```sh
-$ rustup update
-$ rustup component add rustfmt --toolchain stable
-$ rustup component add clippy --toolchain stable
-```
-And from there, you can run `rustfmt` with
-```sh
-$ cargo fmt --all
-```
-and `clippy` with
-```sh
-$ cargo clippy -- -A clippy::ptr_arg
-```
-
-Clippy currently has a couple of warnings. Some of these should be corrected; some, like
-a warning to convert `&Vec<T>` to `&[u8]`, I'm intentionally ignoring because doing otherwise
-would cause the program to fail to compile.
 
 ## Contact Me
 If you have any questions about `clipivot` or if you have identified any bugs in the program or you want

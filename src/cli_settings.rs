@@ -198,8 +198,8 @@ impl CsvSettings {
             None => Ok(None),
         }?;
         // TODO There's probably a way to handle this with combinators
-        if infered_num.is_some() {
-            return Ok(infered_num.unwrap());
+        if let Some(num) = infered_num {
+            return Ok(num);
         }
         let str_idx = self.get_string_index(&colname, headers)?;
         Ok(str_idx)

@@ -2,9 +2,29 @@
 
 ## Table of Contents
 
+- [Version 0.3](#version-03)
 - [Version 0.2](#version-02)
     - [v0.2.1](#v021)
     - [v0.2.0](#v020)
+
+## Version 0.3
+### v0.3.0
+For people using the command-line tool, there aren't going to be any
+differences you'll notice. The only changes in this version were to core code in Rust.
+
+All of these changes were slight re-designs so I could port the code I wrote into a WebAssembly package. However, one of the changes I made was a breaking change, so I'm upping the minor version.
+
+#### Added
+- Added a function (just in the core Rust) allowing you to export the aggregations as a vector
+of vectors of strings.
+
+#### Changed
+- Revised the documentation
+- Changed the function to write results from the aggregations to make it work for anything that implements `std::io::Write`, instead of only working on `std::io:stdout`.
+
+#### Removed
+- Removed `impl std::error::Error` because the only method I implemented
+is now deprecated.
 
 ## Version 0.2
 

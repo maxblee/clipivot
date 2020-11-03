@@ -3,7 +3,7 @@ extern crate clap;
 
 use clap::{App, AppSettings, Arg, ArgMatches};
 use once_cell::sync::Lazy;
-use std::process;
+use std::{io, process};
 
 use rust_decimal::Decimal;
 
@@ -131,7 +131,7 @@ where
         agg_from_reader::<T, I, O, std::fs::File>(arg_matches, &settings, parsing_strategy, rdr)?;
     } else {
         let rdr = settings.get_reader_from_stdin();
-        agg_from_reader::<T, I, O, std::io::Stdin>(arg_matches, &settings, parsing_strategy, rdr)?;
+        agg_from_reader::<T, I, O, io::Stdin>(arg_matches, &settings, parsing_strategy, rdr)?;
     }
     Ok(())
 }
@@ -146,7 +146,7 @@ where
     T: Accumulate<I, O>,
     I: std::str::FromStr,
     O: std::fmt::Display,
-    R: std::io::Read,
+    R: io::Read,
 {
     let headers = reader.headers()?;
     let mut agg = get_aggregator::<T, I, O>(
@@ -156,7 +156,7 @@ where
         &headers.iter().collect(),
     )?;
     agg.aggregate(reader)?;
-    agg.write_results()?;
+    agg.write_results(csv::Writer::from_writer(io::stdout()))?;
     Ok(())
 }
 

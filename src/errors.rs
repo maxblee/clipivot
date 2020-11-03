@@ -25,7 +25,6 @@
 
 extern crate csv;
 
-use std::error::Error;
 use std::fmt;
 use std::io;
 use std::result;
@@ -85,21 +84,6 @@ impl fmt::Display for CsvCliError {
                 "Could not parse record `{}` with index {}: {}",
                 str_to_parse, line_num, err
             ),
-        }
-    }
-}
-
-impl Error for CsvCliError {
-    fn description(&self) -> &str {
-        match *self {
-            CsvCliError::CsvError(ref err) => err.description(),
-            CsvCliError::Io(ref err) => err.description(),
-            CsvCliError::InvalidConfiguration(ref _err) => "could not configure the aggregator",
-            CsvCliError::ParsingError {
-                line_num: ref _num,
-                str_to_parse: ref _str,
-                err: ref _err,
-            } => "failed to parse values column",
         }
     }
 }
