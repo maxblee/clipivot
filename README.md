@@ -10,12 +10,12 @@
     - **[Basic Usage](#basic-usage)**
     - **[Row names](#row-names)**
     - **[Functions](#functions)**
-    - **[Sorting](#sorting)
+    - **[Sorting](#sorting)**
     - **[Delimiters](#delimiters)**
     - **[Headers](#headers)**
     - **[Null values](#null-values)**
     - **[Error handling](#error-handling)**
-    - **[Additional Information](#additional-information)
+    - **[Additional Information](#additional-information)**
 * **[Contributors](#contributors)**
 * **[Developer Guide](#developer-guide)**
 * **[Contact Me](#contact-me)**
