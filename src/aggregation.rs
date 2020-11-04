@@ -128,7 +128,7 @@ where
     }
 
     /// Writes the aggregated information to standard output.
-    pub fn write_results<W: io::Write>(&mut self, mut writer: csv::Writer<W>) -> CsvCliResult<()> {
+    pub fn write_results<W: io::Write>(&mut self, writer: &mut csv::Writer<W>) -> CsvCliResult<()> {
         self.prepare_write()?;
         writer.write_record(self.get_pivot_header())?;
         for row in &self.indexes {
@@ -327,8 +327,8 @@ mod tests {
     fn test_no_vals_is_error() {
         let mut agg = setup_simple();
         let cursor_data: Vec<u8> = Vec::new();
-        let writer = csv::Writer::from_writer(io::Cursor::new(cursor_data));
-        assert!(agg.write_results(writer).is_err());
+        let mut writer = csv::Writer::from_writer(io::Cursor::new(cursor_data));
+        assert!(agg.write_results(&mut writer).is_err());
     }
 
     #[test]

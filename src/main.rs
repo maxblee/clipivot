@@ -156,7 +156,7 @@ where
         &headers.iter().collect(),
     )?;
     agg.aggregate(&mut reader)?;
-    agg.write_results(csv::Writer::from_writer(io::stdout()))?;
+    agg.write_results(&mut csv::Writer::from_writer(io::stdout()))?;
     Ok(())
 }
 
