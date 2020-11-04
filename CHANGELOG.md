@@ -8,6 +8,14 @@
     - [v0.2.0](#v020)
 
 ## Version 0.3
+### v0.3.2
+Changes `Aggregator::aggregate` to take a mutable reference
+for writing results.
+
+#### Changes
+Changes `Aggregator::aggregate` to take a mutable reference
+for writing results.
+
 ### v0.3.1
 Changes `Aggregator::aggregate` to take a mutable reference to a `csv::Reader`.
 
