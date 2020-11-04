@@ -155,7 +155,7 @@ where
         parsing_strategy,
         &headers.iter().collect(),
     )?;
-    agg.aggregate(reader)?;
+    agg.aggregate(&mut reader)?;
     agg.write_results(csv::Writer::from_writer(io::stdout()))?;
     Ok(())
 }

@@ -8,6 +8,12 @@
     - [v0.2.0](#v020)
 
 ## Version 0.3
+### v0.3.1
+Changes `Aggregator::aggregate` to take a mutable reference to a `csv::Reader`.
+
+#### Changed
+- `Aggregator::aggregate` takes a mutable reference to a `csv::Reader`
+
 ### v0.3.0
 For people using the command-line tool, there aren't going to be any
 differences you'll notice. The only changes in this version were to core code in Rust.

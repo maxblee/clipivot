@@ -105,9 +105,9 @@ where
         }
     }
 
-    /// Takes a CSV (in standard input or in an actual file) and aggregates information
-    /// based on the struct's settings. Does not actually write the data.
-    pub fn aggregate<R: std::io::Read>(&mut self, mut rdr: csv::Reader<R>) -> CsvCliResult<()> {
+    /// Takes a CSV (from anything that impl's Read) and aggregates information
+    /// from the struct's settings. Does not write anything.
+    pub fn aggregate<R: std::io::Read>(&mut self, rdr: &mut csv::Reader<R>) -> CsvCliResult<()> {
         let mut line_num = 0;
         let mut record = csv::StringRecord::new();
         while rdr.read_record(&mut record)? {
