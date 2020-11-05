@@ -8,7 +8,7 @@
     - [v0.2.0](#v020)
 
 ## Version 0.3
-### v0.3.2
+### v0.3.3
 Changes `Aggregator::aggregate` to take a mutable reference
 for writing results.
 
