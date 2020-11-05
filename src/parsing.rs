@@ -8,20 +8,23 @@
 //! and because I wanted to return the number of days between datetimes for range (overwriting `std::ops::Sub`).
 //! And decimal has a way of parsing values in scientific notation and parsing normal numbers. So I added
 //! the scientific notation parsing to the implementation of `FromStr`.
-use chrono::NaiveDateTime;
-use once_cell::sync::OnceCell;
+use chrono::{NaiveDate, NaiveDateTime};
+use lazy_static::lazy_static;
 use rust_decimal::Decimal;
 use std::fmt;
+use std::sync::Mutex;
 
-const OUTPUT_DATE_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
-/// The user-entered date format, used to allow `CustomDateObject` to run `FromStr` without needing an input string.
-pub static INPUT_DATE_FORMAT: OnceCell<&str> = OnceCell::new();
+lazy_static! {
+    static ref OUTPUT_DATE_FORMAT: &'static str = "%Y-%m-%d %H:%M:%S";
+    pub static ref INPUT_DATE_FORMAT: Mutex<String> = Mutex::new("%Y-%m-%d %H:%M:%S".to_string());
+}
 
-/// Sets `INPUT_DATE_FORMAT`.
-// this sets static variable, so there's no need to do anything here
-#[allow(unused_must_use)]
-pub fn set_date_format(s: &'static str) {
-    INPUT_DATE_FORMAT.set(s);
+/// Sets `INPUT_DATE_FORMAT` so that date parsing can work with `std::str::FromStr
+/// 
+/// Keep in mind that as this sets a mutable global variable, any changes to this
+/// function could affect other code you write.
+pub fn set_date_format(s: &str) {
+    *INPUT_DATE_FORMAT.lock().unwrap() = s.to_string();
 }
 
 /// A light wrapper over `rust_decimal::Decimal`.
@@ -94,7 +97,15 @@ impl std::str::FromStr for CustomDateObject {
     type Err = chrono::format::ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let parsed_dt = NaiveDateTime::parse_from_str(s, INPUT_DATE_FORMAT.get().unwrap())?;
+        // need to borrow as mutable to avoid moving the value
+        // https://stackoverflow.com/questions/62248219/rust-accessing-option-from-mutex
+        let first_pass = NaiveDateTime::parse_from_str(s, &*INPUT_DATE_FORMAT.lock().unwrap());
+        let parsed_dt = if first_pass.is_err() {
+            NaiveDate::parse_from_str(s, &*INPUT_DATE_FORMAT.lock().unwrap())
+                .map(|v| v.and_hms(0, 0, 0))
+        } else {
+            first_pass
+        }?;
         Ok(CustomDateObject(parsed_dt))
     }
 }
@@ -113,7 +124,7 @@ impl std::ops::Sub for CustomDateObject {
 
 impl fmt::Display for CustomDateObject {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0.format(OUTPUT_DATE_FORMAT))
+        write!(f, "{}", self.0.format(&OUTPUT_DATE_FORMAT))
     }
 }
 
@@ -138,11 +149,35 @@ mod tests {
         assert_eq!(scinot2.to_string(), "13000".to_string());
     }
 
+    #[test]
+    fn test_parse_multiple_dates() {
+        // using panic because a failure on this text could impact other tests
+        // so this runs a teardown script on success and failure
+        use std::panic;
+        let result = panic::catch_unwind(|| {
+            let parsed_date: Result<CustomDateObject, chrono::format::ParseError> =
+                "August 24, 2018".parse();
+            assert!(parsed_date.is_err());
+            set_date_format("%B %d, %Y");
+            let re_parse: Result<CustomDateObject, chrono::format::ParseError> =
+                "August 24, 2018".parse();
+            assert!(re_parse.is_ok());
+            set_date_format("%m-%d-%Y");
+            let mdy_parse: Result<CustomDateObject, chrono::format::ParseError> =
+                "12-23-2019".parse();
+            assert!(mdy_parse.is_ok());
+        });
+        set_date_format(OUTPUT_DATE_FORMAT.clone());
+        if let Err(err) = result {
+            panic::resume_unwind(err);
+        }
+    }
+
     proptest! {
         #[test]
         fn test_date_parsing(year in 1900..=2020i32, month in 1..=12u32, day in 1..=28u32, hour in 0..=23u32, minute in 0..=59u32, second in 0..=59u32) {
             let dt = CustomDateObject(NaiveDate::from_ymd(year, month, day).and_hms(hour, minute, second));
-            let _ex = INPUT_DATE_FORMAT.get_or_init(|| "%Y-%m-%d %H:%M:%S");
+            let _ex = set_date_format("%Y-%m-%d %H:%M:%S");
             let deser_ser : CustomDateObject = dt.to_string().parse().unwrap();
             assert_eq!(dt, deser_ser);
         }

@@ -16,6 +16,13 @@ for writing results.
 Changes `Aggregator::aggregate` to take a mutable reference
 for writing results.
 
+### v0.3.2
+Changes to date formatting.
+
+#### Changed
+- Changed handling of date formatting so you can modify date formatting multiple times.
+- Fixed a bug in date parsing that prevented dates from being formatted without time information.
+
 ### v0.3.1
 Changes `Aggregator::aggregate` to take a mutable reference to a `csv::Reader`.
 

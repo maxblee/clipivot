@@ -2,7 +2,7 @@
 extern crate clap;
 
 use clap::{App, AppSettings, Arg, ArgMatches};
-use once_cell::sync::Lazy;
+use lazy_static::lazy_static;
 use std::{io, process};
 
 use rust_decimal::Decimal;
@@ -26,8 +26,8 @@ const ALLOWED_AGGFUNCS: [&str; 11] = [
     "stddev",
     "sum",
 ];
-static CLI_ARGS: Lazy<ArgMatches> = Lazy::new(|| {
-    App::new("clipivot")
+lazy_static! {
+    static ref CLI_ARGS : ArgMatches<'static> = App::new("clipivot")
         .version(crate_version!())
         .author(crate_authors!())
         .about("A tool for creating pivot tables from the command line.\n\
@@ -106,8 +106,9 @@ static CLI_ARGS: Lazy<ArgMatches> = Lazy::new(|| {
             .short("D")
             .long("desc-rows")
             .help("Displays the rows in sorted, descending order (default is index order)."))
-        .get_matches()
-});
+        .get_matches();
+}
+
 fn run_and_init<T, I, O>(
     arg_matches: &ArgMatches,
     parsing_strategy: ParsingStrategy,

@@ -7,20 +7,19 @@ use crate::aggfunc::Accumulate;
 use crate::errors::{CsvCliError, CsvCliResult};
 use crate::parsing::INPUT_DATE_FORMAT;
 use indexmap::set::IndexSet;
-use once_cell::sync::Lazy;
+use lazy_static::lazy_static;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::io;
 use std::marker::PhantomData;
 
 const FIELD_SEPARATOR: &str = "_<sep>_";
-static EMPTY_VALUES: Lazy<HashSet<&str>> = Lazy::new(|| {
-    let mut vals = HashSet::new();
-    for val in &["", "null", "nan", "none", "na", "n/a"] {
-        vals.insert(*val);
-    }
-    vals
-});
+lazy_static! {
+    static ref EMPTY_VALUES: HashSet<&'static str> = vec!["", "null", "nan", "none", "na", "n/a"]
+        .iter()
+        .cloned()
+        .collect();
+}
 
 /// How the rows or columns are going to be sorted
 #[derive(Debug, PartialEq)]
@@ -205,7 +204,7 @@ where
             ParsingStrategy::Numeric => "Failed to parse as numeric".to_string(),
             ParsingStrategy::Date => format!(
                 "Could not parse as date with {} format",
-                INPUT_DATE_FORMAT.get().unwrap()
+                INPUT_DATE_FORMAT.lock().unwrap()
             ),
             _ => "Generic parsing error".to_string(),
         }
