@@ -1,6 +1,9 @@
 # clipivot
 `clipivot` is a tool for creating pivot tables from the command line. It's designed to be fast and memory-efficient so it can be used to aggregate large datasets, and it's designed to be easy to use and easy to debug.
 
+This guide below will provide you with detailed instructions for installing and using the tool. Want to see what it does without reading the documentation?
+Build your own pivot tables using [this interactive tool](https://docs.maxblee.com/clipivot), and either download the results or copy the commands you'd run in your terminal.
+
 ## Table of Contents
 * **[Installation](#installation)**
 * **[Why Pivot Tables?](#why-should-you-use-pivot-tables)**
