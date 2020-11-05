@@ -20,7 +20,7 @@ lazy_static! {
 }
 
 /// Sets `INPUT_DATE_FORMAT` so that date parsing can work with `std::str::FromStr
-/// 
+///
 /// Keep in mind that as this sets a mutable global variable, any changes to this
 /// function could affect other code you write.
 pub fn set_date_format(s: &str) {
