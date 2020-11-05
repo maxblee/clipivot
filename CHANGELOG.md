@@ -8,20 +8,28 @@
     - [v0.2.0](#v020)
 
 ## Version 0.3
+
+### v0.3.4
+Changed handling date formatting to remove lifetime requirements.
+
+#### Changed
+`clipivot::parsing::set_date_format` now takes in a String instead
+of a `&'static str`.
+
 ### v0.3.3
+Changes to date formatting.
+
+#### Changed
+- Changed handling of date formatting so you can modify date formatting multiple times.
+- Fixed a bug in date parsing that prevented dates from being formatted without time information.
+
+### v0.3.2
 Changes `Aggregator::aggregate` to take a mutable reference
 for writing results.
 
 #### Changes
 Changes `Aggregator::aggregate` to take a mutable reference
 for writing results.
-
-### v0.3.2
-Changes to date formatting.
-
-#### Changed
-- Changed handling of date formatting so you can modify date formatting multiple times.
-- Fixed a bug in date parsing that prevented dates from being formatted without time information.
 
 ### v0.3.1
 Changes `Aggregator::aggregate` to take a mutable reference to a `csv::Reader`.
@@ -57,6 +65,9 @@ is now deprecated.
 - Merged from Travis CI to GitHub Actions
 
 ### v0.2.0
+
+This version primarily added support for sorting records and for viewing the minimum and maximum values.
+
 #### Added
 - Allowed for sorting the output of the columns and rows (by default, the columns sort in ascending order, while the rows appear in index order)
 - Added the `minmax` function to provide an easy way to see both the minimum and maximum values.

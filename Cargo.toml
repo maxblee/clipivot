@@ -1,7 +1,7 @@
 [package]
 name = "clipivot"
 description = "A command-line tool for quickly generating pivot tables."
-version = "0.3.3"
+version = "0.3.4"
 authors = ["Max Lee <maxbmhlee@gmail.com>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"

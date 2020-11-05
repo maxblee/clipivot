@@ -23,8 +23,8 @@ lazy_static! {
 ///
 /// Keep in mind that as this sets a mutable global variable, any changes to this
 /// function could affect other code you write.
-pub fn set_date_format(s: &str) {
-    *INPUT_DATE_FORMAT.lock().unwrap() = s.to_string();
+pub fn set_date_format(s: String) {
+    *INPUT_DATE_FORMAT.lock().unwrap() = s;
 }
 
 /// A light wrapper over `rust_decimal::Decimal`.
@@ -158,16 +158,16 @@ mod tests {
             let parsed_date: Result<CustomDateObject, chrono::format::ParseError> =
                 "August 24, 2018".parse();
             assert!(parsed_date.is_err());
-            set_date_format("%B %d, %Y");
+            set_date_format("%B %d, %Y".to_string());
             let re_parse: Result<CustomDateObject, chrono::format::ParseError> =
                 "August 24, 2018".parse();
             assert!(re_parse.is_ok());
-            set_date_format("%m-%d-%Y");
+            set_date_format("%m-%d-%Y".to_string());
             let mdy_parse: Result<CustomDateObject, chrono::format::ParseError> =
                 "12-23-2019".parse();
             assert!(mdy_parse.is_ok());
         });
-        set_date_format(OUTPUT_DATE_FORMAT.clone());
+        set_date_format(OUTPUT_DATE_FORMAT.to_string());
         if let Err(err) = result {
             panic::resume_unwind(err);
         }
@@ -177,7 +177,7 @@ mod tests {
         #[test]
         fn test_date_parsing(year in 1900..=2020i32, month in 1..=12u32, day in 1..=28u32, hour in 0..=23u32, minute in 0..=59u32, second in 0..=59u32) {
             let dt = CustomDateObject(NaiveDate::from_ymd(year, month, day).and_hms(hour, minute, second));
-            let _ex = set_date_format("%Y-%m-%d %H:%M:%S");
+            let _ex = set_date_format("%Y-%m-%d %H:%M:%S".to_string());
             let deser_ser : CustomDateObject = dt.to_string().parse().unwrap();
             assert_eq!(dt, deser_ser);
         }

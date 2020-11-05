@@ -408,7 +408,7 @@ mod tests {
     fn test_max_dates() {
         // there's probably a better way of handling this, but this uses the same
         // code as parsing does, so shouldn't affect either
-        let _ex = parsing::set_date_format("%Y-%m-%d %H:%M:%S");
+        let _ex = parsing::set_date_format("%Y-%m-%d %H:%M:%S".to_string());
         let date_updates = vec![
             "2019-02-03 12:23:10",
             "2020-01-03 13:45:02",
@@ -453,7 +453,7 @@ mod tests {
     fn test_min_dates() {
         // there's probably a better way of handling this, but this uses the same
         // code as parsing does, so shouldn't affect either
-        let _ex = parsing::set_date_format("%Y-%m-%d %H:%M:%S");
+        let _ex = parsing::set_date_format("%Y-%m-%d %H:%M:%S".to_string());
         let date_updates = vec![
             "2019-02-03 12:23:10",
             "2020-01-03 13:45:02",
@@ -504,7 +504,7 @@ mod tests {
     fn test_minmax_dates() {
         // there's probably a better way of handling this, but this uses the same
         // code as parsing does, so shouldn't affect either
-        let _ex = parsing::set_date_format("%Y-%m-%d %H:%M:%S");
+        let _ex = parsing::set_date_format("%Y-%m-%d %H:%M:%S".to_string());
         let date_updates = vec![
             "2019-02-03 12:23:10",
             "2020-01-03 13:45:02",
@@ -540,7 +540,7 @@ mod tests {
     fn test_range_dates() {
         // there's probably a better way of handling this, but this uses the same
         // code as parsing does, so shouldn't affect either
-        let _ex = parsing::set_date_format("%Y-%m-%d %H:%M:%S");
+        let _ex = parsing::set_date_format("%Y-%m-%d %H:%M:%S".to_string());
         let date_updates = vec![
             "2019-02-03 00:00:00",
             "2020-01-03 12:00:00",

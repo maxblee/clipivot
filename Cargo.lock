@@ -129,7 +129,7 @@ dependencies = [
 
 [[package]]
 name = "clipivot"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "approx 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "assert_cmd 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
