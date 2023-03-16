@@ -221,7 +221,7 @@ pub fn run() -> CsvCliResult<()> {
         "count" => run_and_init::<Count<String>, String, usize>(&CLI_ARGS, ParsingStrategy::Text),
         "countunique" => {
             run_and_init::<CountUnique<String>, String, usize>(&CLI_ARGS, ParsingStrategy::Text)
-        },
+        }
         "mode" => run_and_init::<Mode<String>, String, String>(&CLI_ARGS, ParsingStrategy::Text),
         "max" if (CLI_ARGS.is_present("numeric") && CLI_ARGS.is_present("format")) => {
             Err(CsvCliError::InvalidConfiguration(
@@ -292,4 +292,3 @@ pub fn run() -> CsvCliResult<()> {
         _ => unreachable!(),
     }
 }
-

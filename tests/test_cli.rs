@@ -147,7 +147,10 @@ fn test_mode() {
     let file_query: Vec<&str> = vec!["mode", "test_csvs/sample_mode.csv", "-v", "0"];
     let output: Output = setup_cmd(&file_query);
     assert!(output.status.success());
-    assert_eq!(setup_results(&file_query), vec![vec!["total".to_string(), "1".to_string()]]);
+    assert_eq!(
+        setup_results(&file_query),
+        vec![vec!["total".to_string(), "1".to_string()]]
+    );
 }
 
 #[test]

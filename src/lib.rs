@@ -89,7 +89,7 @@ extern crate clap;
 
 pub mod aggfunc;
 pub mod aggregation;
+pub mod cli;
 pub mod cli_settings;
 pub mod errors;
 pub mod parsing;
-pub mod cli;
