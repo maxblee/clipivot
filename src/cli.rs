@@ -1,6 +1,6 @@
 use clap::{App, AppSettings, Arg, ArgMatches};
 use lazy_static::lazy_static;
-use std::{io};
+use std::io;
 
 use rust_decimal::Decimal;
 
@@ -221,7 +221,8 @@ pub fn run() -> CsvCliResult<()> {
         "count" => run_and_init::<Count<String>, String, usize>(&CLI_ARGS, ParsingStrategy::Text),
         "countunique" => {
             run_and_init::<CountUnique<String>, String, usize>(&CLI_ARGS, ParsingStrategy::Text)
-        }
+        },
+        "mode" => run_and_init::<Mode<String>, String, String>(&CLI_ARGS, ParsingStrategy::Text),
         "max" if (CLI_ARGS.is_present("numeric") && CLI_ARGS.is_present("format")) => {
             Err(CsvCliError::InvalidConfiguration(
                 "You can only enter one of the -N and -F flags/options".to_string(),

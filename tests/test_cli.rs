@@ -143,6 +143,14 @@ fn test_noheader() {
 }
 
 #[test]
+fn test_mode() {
+    let file_query: Vec<&str> = vec!["mode", "test_csvs/sample_mode.csv", "-v", "0"];
+    let output: Output = setup_cmd(&file_query);
+    assert!(output.status.success());
+    assert_eq!(setup_results(&file_query), vec![vec!["total".to_string(), "1".to_string()]]);
+}
+
+#[test]
 fn test_tab_delimiter() {
     let file_query = vec!["count", "test_csvs/tab_tsv.tsv", "-v", "0"];
     let output = setup_cmd(&file_query);
