@@ -9,6 +9,15 @@
 
 ## Version 0.3
 
+### v0.3.5
+Fixed a bug preventing the mode function from running. ([See #4](https://github.com/maxblee/clipivot/issues/4).)
+
+#### Added
+- Changes to Cargo.toml to point repository here. ([#4](https://github.com/maxblee/clipivot/issues/4).)
+
+#### Fixed
+- The mode function wasn't running due to an improper configuration. This should be fixed. ([#4](https://github.com/maxblee/clipivot/issues/4).)
+
 ### v0.3.4
 Changed handling date formatting to remove lifetime requirements.
 
@@ -66,7 +75,7 @@ is now deprecated.
 
 ### v0.2.0
 
-This version primarily added support for sorting records and for viewing the minimum and maximum values.
+This version primarily added support for sorting records and for viewing the minimum and maximum values. [See #2 for details](https://github.com/maxblee/clipivot/issues/2).
 
 #### Added
 - Allowed for sorting the output of the columns and rows (by default, the columns sort in ascending order, while the rows appear in index order)

@@ -83,8 +83,13 @@
 //! # Contact me
 //! To get in touch with me about `clipivot`, send me an email at <maxbmhlee@gmail.com> or submit an issue on
 //! the GitHub page.
+
+#[macro_use]
+extern crate clap;
+
 pub mod aggfunc;
 pub mod aggregation;
+pub mod cli;
 pub mod cli_settings;
 pub mod errors;
 pub mod parsing;
